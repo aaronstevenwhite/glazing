@@ -1,8 +1,8 @@
 """VerbNet data models and utilities.
 
 This module provides models for VerbNet verb classes, thematic roles,
-syntactic frames, and semantic predicates. It includes support for the
-complete role inheritance hierarchy and optional Generative Lexicon features.
+syntactic frames, semantic predicates, and Generative Lexicon extensions.
+It includes support for the complete role inheritance hierarchy.
 
 Classes
 -------
@@ -28,28 +28,68 @@ Examples
 >>> print(verb_class.themroles)
 """
 
+from glazing.verbnet.gl_models import (
+    Event,
+    EventStructure,
+    GLFrame,
+    GLVerbClass,
+    Opposition,
+    Qualia,
+    State,
+    Subcategorization,
+    SubcatMember,
+    Subevent,
+)
 from glazing.verbnet.models import (
     CrossReference,
+    Example,
+    FrameDescription,
     MappingConfidence,
     MappingMetadata,
     Member,
+    Predicate,
+    PredicateArgument,
     SelectionalRestriction,
     SelectionalRestrictions,
+    Semantics,
+    SyntacticRestriction,
+    Syntax,
+    SyntaxElement,
     ThematicRole,
     VerbClass,
     VerbNetFrameNetMapping,
     VerbNetFrameNetRoleMapping,
+    VNFrame,
     WordNetCrossRef,
 )
 
 __all__ = [
     "CrossReference",
+    "Event",
+    "EventStructure",
+    "Example",
+    "FrameDescription",
+    "GLFrame",
+    "GLVerbClass",
     "MappingConfidence",
     "MappingMetadata",
     "Member",
+    "Opposition",
+    "Predicate",
+    "PredicateArgument",
+    "Qualia",
     "SelectionalRestriction",
     "SelectionalRestrictions",
+    "Semantics",
+    "State",
+    "SubcatMember",
+    "Subcategorization",
+    "Subevent",
+    "SyntacticRestriction",
+    "Syntax",
+    "SyntaxElement",
     "ThematicRole",
+    "VNFrame",
     "VerbClass",
     "VerbNetFrameNetMapping",
     "VerbNetFrameNetRoleMapping",

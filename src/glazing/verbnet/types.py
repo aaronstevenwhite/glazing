@@ -706,6 +706,30 @@ type SecondaryPattern = Literal[
 ]
 
 # VerbNet-GL (Generative Lexicon) specific types
+
+# GL Subcategorization POS values (extends beyond standard VerbNet syntax)
+type GLSubcatPOS = Literal[
+    "NP",  # Noun phrase - gets integer variable (0, 1, 2...)
+    "VERB",  # Verb - gets event variable "e"
+    "PREP",  # Preposition
+    "ADV",  # Adverb
+    "ADJ",  # Adjective
+    "PP",  # Prepositional phrase (GL-specific)
+]
+
+# GL Variable assignments for subcategorization
+type GLVariable = str  # e.g., "x", "y", "z", "e", "0", "1", "2"
+
+# GL Temporal relations for subevents
+type GLTemporalRelation = Literal[
+    "starts",  # Subevent starts the main event
+    "culminates",  # Subevent culminates the main event
+    "results",  # Subevent results from the main event
+    "during",  # Subevent occurs during the main event
+    "before",  # Subevent occurs before the main event
+    "after",  # Subevent occurs after the main event
+]
+
 type QualiaType = Literal[
     "formal",  # What type of thing it is
     "constitutive",  # What it's made of

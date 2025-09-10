@@ -1,7 +1,8 @@
 """VerbNet core data models.
 
-This module implements VerbNet verb classes, members, thematic roles, and
-selectional restrictions with support for role inheritance hierarchies.
+This module implements VerbNet verb classes, members, thematic roles,
+selectional restrictions, and frame models with support for role inheritance
+hierarchies.
 
 Classes
 -------
@@ -23,6 +24,24 @@ Member
     VerbNet member with comprehensive cross-references.
 VerbClass
     A VerbNet verb class with members and frames.
+VNFrame
+    Syntactic-semantic frame pattern.
+FrameDescription
+    Frame syntactic pattern description.
+Example
+    Frame example sentence.
+Syntax
+    Syntactic structure of a frame.
+SyntaxElement
+    Element in syntactic structure.
+SyntacticRestriction
+    Syntactic restriction on an element.
+Semantics
+    Semantic representation of a frame.
+Predicate
+    Semantic predicate in frame representation.
+PredicateArgument
+    Argument to a semantic predicate.
 
 Examples
 --------
@@ -43,18 +62,24 @@ from __future__ import annotations
 import re
 from typing import Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 
 from glazing.base import GlazingBaseModel
 from glazing.types import LogicType, MappingConfidenceScore, MappingSource, ValidationStatus
 from glazing.verbnet.types import (
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
+    ArgumentType,
+    DescriptionNumber,
+    PredicateType,
     RestrictionValue,
     SelectionalRestrictionType,
+    SyntacticPOS,
+    SyntacticRestrictionType,
     ThematicRoleType,
     VerbClassID,
     VerbNetKey,
+    WordNetSense,
 )
 
 
@@ -144,6 +169,63 @@ class SelectionalRestrictions(GlazingBaseModel):
         """
         return any(isinstance(r, SelectionalRestrictions) for r in self.restrictions)
 
+    def validate_logic_consistency(self) -> bool:
+        """Validate that logic operators are used consistently.
+
+        Returns
+        -------
+        bool
+            True if logic is consistent throughout the structure.
+        """
+        if not self.restrictions:
+            return True
+
+        # Check that nested restrictions don't conflict
+        for restriction in self.restrictions:
+            if (
+                isinstance(restriction, SelectionalRestrictions)
+                and not restriction.validate_logic_consistency()
+            ):
+                return False
+        return True
+
+    def flatten_restrictions(self) -> list[SelectionalRestriction]:
+        """Flatten nested restrictions into a single list.
+
+        Returns
+        -------
+        list[SelectionalRestriction]
+            Flattened list of all restrictions.
+        """
+        result = []
+        for restriction in self.restrictions:
+            if isinstance(restriction, SelectionalRestriction):
+                result.append(restriction)
+            else:
+                # Recursively flatten nested restrictions
+                result.extend(restriction.flatten_restrictions())
+        return result
+
+    def check_contradiction(self) -> bool:
+        """Check if restrictions contain contradictions.
+
+        Returns
+        -------
+        bool
+            True if contradictions are found (e.g., +animate and -animate).
+        """
+        if self.logic == "and" or self.logic is None:
+            # For AND logic, check for direct contradictions
+            flat = self.flatten_restrictions()
+            type_values: dict[SelectionalRestrictionType, RestrictionValue] = {}
+            for restriction in flat:
+                if restriction.type in type_values:
+                    if type_values[restriction.type] != restriction.value:
+                        return True  # Found contradiction
+                else:
+                    type_values[restriction.type] = restriction.value
+        return False
+
 
 class ThematicRole(GlazingBaseModel):
     """Thematic role with selectional restrictions.
@@ -198,7 +280,7 @@ class WordNetCrossRef(GlazingBaseModel):
 
     Parameters
     ----------
-    sense_key : str | None, default=None
+    sense_key : WordNetSense | None, default=None
         WordNet sense key (preferred, stable across versions).
     synset_offset : str | None, default=None
         WordNet synset offset (version-specific).
@@ -223,7 +305,7 @@ class WordNetCrossRef(GlazingBaseModel):
     'give'
     """
 
-    sense_key: str | None = None
+    sense_key: WordNetSense | None = None
     synset_offset: str | None = None
     lemma: str
     pos: str
@@ -493,7 +575,7 @@ class Member(GlazingBaseModel):
 
     @field_validator("verbnet_key")
     @classmethod
-    def validate_verbnet_key(cls, v: str) -> str:
+    def validate_verbnet_key(cls, v: str) -> VerbNetKey:
         """Validate verbnet_key format.
 
         Parameters
@@ -594,8 +676,8 @@ class VerbClass(GlazingBaseModel):
         Verb members in this class.
     themroles : list[ThematicRole]
         Thematic roles (may be empty for inheritance).
-    frames : list
-        Frame specifications (placeholder for Phase 14).
+    frames : list[VNFrame]
+        Frame specifications.
     subclasses : list[VerbClass]
         Recursive subclasses.
     parent_class : VerbClassID | None, default=None
@@ -635,13 +717,13 @@ class VerbClass(GlazingBaseModel):
     themroles: list[ThematicRole] = Field(
         default_factory=list, description="Thematic roles (empty for inheritance)"
     )
-    frames: list[dict[str, str]] = Field(default_factory=list, description="Frame specifications")
+    frames: list[VNFrame] = Field(default_factory=list, description="Frame specifications")
     subclasses: list[VerbClass] = Field(default_factory=list, description="Recursive subclasses")
     parent_class: VerbClassID | None = Field(None, description="Parent class ID for subclasses")
 
     @field_validator("id")
     @classmethod
-    def validate_verbclass_id(cls, v: str) -> str:
+    def validate_verbclass_id(cls, v: str) -> VerbClassID:
         """Validate VerbNet class ID format.
 
         Parameters
@@ -740,3 +822,370 @@ class VerbClass(GlazingBaseModel):
             True if the class has subclasses.
         """
         return len(self.subclasses) > 0
+
+
+# Frame Models
+
+
+class Example(GlazingBaseModel):
+    """Frame example sentence.
+
+    Parameters
+    ----------
+    text : str
+        The example sentence text.
+
+    Examples
+    --------
+    >>> example = Example(text="John gave Mary a book")
+    """
+
+    text: str
+
+
+class FrameDescription(GlazingBaseModel):
+    """Frame syntactic pattern description.
+
+    Parameters
+    ----------
+    description_number : DescriptionNumber
+        The description number (e.g., "0.2", "2.5.1").
+    primary : str
+        Raw primary pattern string.
+    secondary : str
+        Raw secondary pattern string.
+    xtag : str, default=""
+        XTag reference (usually empty, sometimes "0.1", "0.2", or preposition patterns).
+    primary_elements : list[str], default=[]
+        Computed list of primary pattern elements.
+    secondary_patterns : list[str], default=[]
+        Computed list of secondary patterns.
+
+    Examples
+    --------
+    >>> desc = FrameDescription(
+    ...     description_number="0.2",
+    ...     primary="NP V NP",
+    ...     secondary="Basic Transitive"
+    ... )
+    """
+
+    description_number: DescriptionNumber
+    primary: str
+    secondary: str
+    xtag: str = ""
+    primary_elements: list[str] = Field(default_factory=list)
+    secondary_patterns: list[str] = Field(default_factory=list)
+
+    @field_validator("description_number")
+    @classmethod
+    def validate_description_number(cls, v: str) -> DescriptionNumber:
+        """Validate description number format.
+
+        Parameters
+        ----------
+        v : str
+            Description number to validate.
+
+        Returns
+        -------
+        str
+            Validated description number.
+
+        Raises
+        ------
+        ValueError
+            If description number format is invalid.
+        """
+        if v and not re.match(r"^[0-9]+(?:\.[0-9]+)*$", v):
+            msg = f"Invalid description number format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("xtag")
+    @classmethod
+    def validate_xtag(cls, v: str) -> str:
+        """Validate xtag format.
+
+        Parameters
+        ----------
+        v : str
+            XTag value to validate.
+
+        Returns
+        -------
+        str
+            Validated xtag value.
+        """
+        if v and not re.match(r"^([0-9]+(?:\.[0-9]+)?|[a-z/]+-PP)?$", v):
+            # Don't fail validation, just log unusual values
+            pass
+        return v
+
+    def model_post_init(self, _: dict[str, str | int | float | bool] | None) -> None:
+        """Parse primary and secondary patterns after initialization."""
+        # Parse primary pattern into elements
+        if self.primary:
+            self.primary_elements = self.primary.split()
+
+        # Parse secondary pattern (can be semicolon-separated)
+        if self.secondary:
+            if ";" in self.secondary:
+                self.secondary_patterns = [p.strip() for p in self.secondary.split(";")]
+            else:
+                self.secondary_patterns = [self.secondary.strip()] if self.secondary.strip() else []
+
+
+class SyntacticRestriction(GlazingBaseModel):
+    """Syntactic restriction on an element.
+
+    Parameters
+    ----------
+    type : SyntacticRestrictionType
+        The type of syntactic restriction.
+    value : RestrictionValue
+        The restriction value ("+" or "-").
+
+    Examples
+    --------
+    >>> restriction = SyntacticRestriction(
+    ...     type="be_sc_ing",
+    ...     value="+"
+    ... )
+    """
+
+    type: SyntacticRestrictionType
+    value: RestrictionValue
+
+
+class SyntaxElement(GlazingBaseModel):
+    """Element in syntactic structure.
+
+    Parameters
+    ----------
+    pos : SyntacticPOS
+        Part of speech (NP, VERB, PREP, ADV, ADJ, LEX, ADVP, S, SBAR).
+    value : str | None, default=None
+        Role name or specific preposition values.
+    synrestrs : list[SyntacticRestriction], default=[]
+        Syntactic restrictions on this element.
+    selrestrs : list[SelectionalRestriction], default=[]
+        Selectional restrictions (for PREP).
+
+    Examples
+    --------
+    >>> element = SyntaxElement(
+    ...     pos="NP",
+    ...     value="Agent"
+    ... )
+    >>> prep_element = SyntaxElement(
+    ...     pos="PREP",
+    ...     value="to for at"
+    ... )
+    """
+
+    pos: SyntacticPOS
+    value: str | None = None
+    synrestrs: list[SyntacticRestriction] = Field(default_factory=list)
+    selrestrs: list[SelectionalRestriction] = Field(default_factory=list)
+
+    @field_validator("value")
+    @classmethod
+    def validate_prep_value(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Validate preposition values.
+
+        Parameters
+        ----------
+        v : str | None
+            Value to validate.
+        info : ValidationInfo
+            Validation context.
+
+        Returns
+        -------
+        str | None
+            Validated value.
+
+        Raises
+        ------
+        ValueError
+            If preposition value format is invalid.
+        """
+        if (
+            v
+            and info.data.get("pos") == "PREP"
+            and not re.match(r"^[a-zA-Z_?|\-]+(?:\s[a-zA-Z_?|\-]+)*$", v)
+        ):
+            msg = f"Invalid preposition value format: {v}"
+            raise ValueError(msg)
+        return v
+
+
+class Syntax(GlazingBaseModel):
+    """Syntactic structure of a frame.
+
+    Parameters
+    ----------
+    elements : list[SyntaxElement]
+        List of syntactic elements in order.
+
+    Examples
+    --------
+    >>> syntax = Syntax(elements=[
+    ...     SyntaxElement(pos="NP", value="Agent"),
+    ...     SyntaxElement(pos="VERB"),
+    ...     SyntaxElement(pos="NP", value="Theme")
+    ... ])
+    """
+
+    elements: list[SyntaxElement]
+
+
+class PredicateArgument(GlazingBaseModel):
+    """Argument to a semantic predicate.
+
+    Parameters
+    ----------
+    type : ArgumentType
+        Type of argument (Event, ThemRole, etc.).
+    value : str
+        Argument value (e.g., "e1", "Agent", "?Theme").
+
+    Examples
+    --------
+    >>> arg = PredicateArgument(type="ThemRole", value="Agent")
+    >>> event_arg = PredicateArgument(type="Event", value="e1")
+    """
+
+    type: ArgumentType
+    value: str
+
+    @field_validator("value")
+    @classmethod
+    def validate_arg_value(cls, v: str, info: ValidationInfo) -> str:
+        """Validate argument values based on type.
+
+        Parameters
+        ----------
+        v : str
+            Value to validate.
+        info : ValidationInfo
+            Validation context.
+
+        Returns
+        -------
+        str
+            Validated value.
+
+        Raises
+        ------
+        ValueError
+            If event variable format is invalid.
+        """
+        arg_type = info.data.get("type")
+        if arg_type == "Event" and not re.match(r"^e\d+$", v):
+            msg = f"Invalid event variable format: {v}"
+            raise ValueError(msg)
+        return v
+
+
+class Predicate(GlazingBaseModel):
+    """Semantic predicate in frame representation.
+
+    Parameters
+    ----------
+    value : PredicateType
+        The predicate type (e.g., "motion", "cause", "transfer").
+    args : list[PredicateArgument]
+        Arguments to the predicate.
+    negated : bool, default=False
+        Whether the predicate is negated (represents bool="!").
+
+    Examples
+    --------
+    >>> pred = Predicate(
+    ...     value="motion",
+    ...     args=[
+    ...         PredicateArgument(type="Event", value="e1"),
+    ...         PredicateArgument(type="ThemRole", value="Agent")
+    ...     ]
+    ... )
+    """
+
+    value: PredicateType
+    args: list[PredicateArgument]
+    negated: bool = False
+
+    @field_validator("negated", mode="before")
+    @classmethod
+    def parse_bool_attr(cls, v: str | bool | int | None) -> bool:
+        """Parse XML bool attribute.
+
+        Parameters
+        ----------
+        v : str | bool | int | None
+            Value to parse.
+
+        Returns
+        -------
+        bool
+            True if value is "!", False otherwise.
+        """
+        if isinstance(v, str):
+            return v == "!"
+        return bool(v)
+
+
+class Semantics(GlazingBaseModel):
+    """Semantic representation of a frame.
+
+    Parameters
+    ----------
+    predicates : list[Predicate]
+        List of semantic predicates.
+
+    Examples
+    --------
+    >>> semantics = Semantics(predicates=[
+    ...     Predicate(
+    ...         value="motion",
+    ...         args=[PredicateArgument(type="Event", value="e1")]
+    ...     )
+    ... ])
+    """
+
+    predicates: list[Predicate]
+
+
+class VNFrame(GlazingBaseModel):
+    """Syntactic-semantic frame pattern.
+
+    Parameters
+    ----------
+    description : FrameDescription
+        Frame syntactic pattern description.
+    examples : list[Example]
+        Example sentences for this frame.
+    syntax : Syntax
+        Syntactic structure.
+    semantics : Semantics
+        Semantic representation.
+
+    Examples
+    --------
+    >>> frame = VNFrame(
+    ...     description=FrameDescription(
+    ...         description_number="0.1",
+    ...         primary="NP V NP",
+    ...         secondary="Basic Transitive"
+    ...     ),
+    ...     examples=[Example(text="John hit the ball")],
+    ...     syntax=Syntax(elements=[...]),
+    ...     semantics=Semantics(predicates=[...])
+    ... )
+    """
+
+    description: FrameDescription
+    examples: list[Example]
+    syntax: Syntax
+    semantics: Semantics

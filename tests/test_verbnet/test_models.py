@@ -85,6 +85,105 @@ class TestSelectionalRestrictions:
         assert outer.is_complex()
         assert not inner.is_complex()
 
+    def test_validate_logic_consistency(self) -> None:
+        """Test logic consistency validation."""
+        # Consistent structure
+        restrictions = SelectionalRestrictions(
+            logic="and",
+            restrictions=[
+                SelectionalRestriction(value="+", type="animate"),
+                SelectionalRestrictions(
+                    logic="or",
+                    restrictions=[
+                        SelectionalRestriction(value="+", type="human"),
+                        SelectionalRestriction(value="+", type="animal"),
+                    ],
+                ),
+            ],
+        )
+        assert restrictions.validate_logic_consistency()
+
+        # Empty restrictions are consistent
+        empty = SelectionalRestrictions(restrictions=[])
+        assert empty.validate_logic_consistency()
+
+    def test_flatten_restrictions(self) -> None:
+        """Test flattening nested restrictions."""
+        # Simple case - no nesting
+        simple = SelectionalRestrictions(
+            restrictions=[
+                SelectionalRestriction(value="+", type="animate"),
+                SelectionalRestriction(value="-", type="abstract"),
+            ]
+        )
+        flat = simple.flatten_restrictions()
+        assert len(flat) == 2
+        assert all(isinstance(r, SelectionalRestriction) for r in flat)
+
+        # Nested case
+        nested = SelectionalRestrictions(
+            restrictions=[
+                SelectionalRestriction(value="+", type="concrete"),
+                SelectionalRestrictions(
+                    restrictions=[
+                        SelectionalRestriction(value="+", type="animate"),
+                        SelectionalRestriction(value="+", type="human"),
+                    ]
+                ),
+            ]
+        )
+        flat_nested = nested.flatten_restrictions()
+        assert len(flat_nested) == 3
+        assert flat_nested[0].type == "concrete"
+        assert flat_nested[1].type == "animate"
+        assert flat_nested[2].type == "human"
+
+    def test_check_contradiction(self) -> None:
+        """Test contradiction detection in restrictions."""
+        # No contradiction
+        consistent = SelectionalRestrictions(
+            logic="and",
+            restrictions=[
+                SelectionalRestriction(value="+", type="animate"),
+                SelectionalRestriction(value="+", type="human"),
+            ],
+        )
+        assert not consistent.check_contradiction()
+
+        # Direct contradiction with AND logic
+        contradictory = SelectionalRestrictions(
+            logic="and",
+            restrictions=[
+                SelectionalRestriction(value="+", type="animate"),
+                SelectionalRestriction(value="-", type="animate"),
+            ],
+        )
+        assert contradictory.check_contradiction()
+
+        # No contradiction with OR logic (alternatives are allowed)
+        alternatives = SelectionalRestrictions(
+            logic="or",
+            restrictions=[
+                SelectionalRestriction(value="+", type="animate"),
+                SelectionalRestriction(value="-", type="animate"),
+            ],
+        )
+        assert not alternatives.check_contradiction()
+
+        # Contradiction in nested structure with implicit AND
+        nested_contradiction = SelectionalRestrictions(
+            restrictions=[
+                SelectionalRestriction(value="+", type="concrete"),
+                SelectionalRestrictions(
+                    restrictions=[
+                        SelectionalRestriction(value="+", type="concrete"),
+                        SelectionalRestriction(value="-", type="concrete"),
+                    ]
+                ),
+            ]
+        )
+        assert nested_contradiction.check_contradiction()
+
     def test_implicit_and_logic(self) -> None:
         """Test that logic can be None for implicit AND."""
         restrictions = SelectionalRestrictions(
