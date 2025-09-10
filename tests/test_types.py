@@ -10,14 +10,12 @@ import pytest
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from glazing.framenet.types import FE_NAME_PATTERN, FRAME_NAME_PATTERN
 from glazing.types import (
     # Regex patterns
     FRAME_ID_PATTERN,
     HEX_COLOR_PATTERN,
     LEMMA_PATTERN,
     PERCENTAGE_NOTATION_PATTERN,
-    PROPBANK_ROLESET_PATTERN,
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
     WORDNET_OFFSET_PATTERN,
@@ -290,22 +288,6 @@ class TestRegexPatterns:
         assert not pattern.match("Give-13.1")  # Capital letter
         assert not pattern.match("give-")
 
-    def test_propbank_roleset_pattern(self):
-        """Test PropBank roleset ID pattern."""
-        pattern = re.compile(PROPBANK_ROLESET_PATTERN)
-
-        # Valid roleset IDs
-        assert pattern.match("give.01")
-        assert pattern.match("abandon.02")
-        assert pattern.match("be-located-at.91")
-        assert pattern.match("run_up.03")
-        assert pattern.match("give.1")  # Actually valid - single digit is ok
-
-        # Invalid roleset IDs
-        assert not pattern.match("give")
-        assert not pattern.match(".01")
-        assert not pattern.match("give.")  # Missing number
-
     def test_wordnet_offset_pattern(self):
         """Test WordNet synset offset pattern."""
         pattern = re.compile(WORDNET_OFFSET_PATTERN)
@@ -366,36 +348,6 @@ class TestRegexPatterns:
         assert not pattern.match("give%2:40")  # Missing lex_id
         assert not pattern.match("give%2:40:00::")  # Extra colons
         assert not pattern.match("Give%2:40:00")  # Capital letter
-
-    def test_frame_name_pattern(self):
-        """Test FrameNet frame name pattern."""
-        pattern = re.compile(FRAME_NAME_PATTERN)
-
-        # Valid frame names
-        assert pattern.match("Abandonment")
-        assert pattern.match("Giving")
-        assert pattern.match("Motion_directional")
-        assert pattern.match("Change_of_leadership")
-
-        # Invalid frame names
-        assert not pattern.match("abandonment")  # Lowercase start
-        assert not pattern.match("123Frame")  # Number start
-        assert not pattern.match("Frame-Name")  # Hyphen
-
-    def test_fe_name_pattern(self):
-        """Test frame element name pattern."""
-        pattern = re.compile(FE_NAME_PATTERN)
-
-        # Valid FE names
-        assert pattern.match("Agent")
-        assert pattern.match("Theme")
-        assert pattern.match("Body_part")
-        assert pattern.match("Source_of_information")
-
-        # Invalid FE names
-        assert not pattern.match("agent")  # Lowercase start
-        assert not pattern.match("123Agent")  # Number start
-        assert not pattern.match("Agent-Type")  # Hyphen
 
     def test_lemma_pattern(self):
         """Test lemma pattern."""

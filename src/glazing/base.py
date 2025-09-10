@@ -38,12 +38,12 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from glazing.framenet.types import FE_NAME_PATTERN, FRAME_NAME_PATTERN
+from glazing.propbank.types import ROLESET_ID_PATTERN as PROPBANK_ROLESET_PATTERN
 from glazing.types import (
     FRAME_ID_PATTERN,
     HEX_COLOR_PATTERN,
     LEMMA_PATTERN,
     PERCENTAGE_NOTATION_PATTERN,
-    PROPBANK_ROLESET_PATTERN,
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
     WORDNET_OFFSET_PATTERN,

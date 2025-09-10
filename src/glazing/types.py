@@ -31,8 +31,6 @@ FRAME_ID_PATTERN : str
     FrameNet frame ID pattern (numeric).
 VERBNET_CLASS_PATTERN : str
     VerbNet class ID pattern.
-PROPBANK_ROLESET_PATTERN : str
-    PropBank roleset ID pattern.
 WORDNET_OFFSET_PATTERN : str
     WordNet offset pattern.
 WORDNET_SENSE_KEY_PATTERN : str
@@ -152,7 +150,6 @@ type OperationType = Literal[
 # Frame/Class/Roleset ID patterns
 FRAME_ID_PATTERN = r"^\d+$"  # FrameNet frame ID (numeric)
 VERBNET_CLASS_PATTERN = r"^[a-z_]+-[0-9]+(?:\.[0-9]+)*(?:-[0-9]+)*$"  # e.g., "give-13.1-1"
-PROPBANK_ROLESET_PATTERN = r"^[a-zA-Z0-9_.-]+\.\d+$"  # e.g., "give.01"
 WORDNET_OFFSET_PATTERN = r"^[0-9]{8}$"  # 8-digit zero-padded
 
 # Sense key patterns
