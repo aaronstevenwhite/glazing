@@ -1,4 +1,4 @@
-# frames
+# glazing
 
 A Python package providing unified data models and interfaces for four linguistic resources: FrameNet, PropBank, VerbNet, and WordNet.
 
@@ -15,21 +15,21 @@ A Python package providing unified data models and interfaces for four linguisti
 ## Installation
 
 ```bash
-pip install frames
+pip install glazing
 ```
 
 For development installation:
 
 ```bash
-git clone https://github.com/aaronstevenwhite/frames.git
-cd frames
+git clone https://github.com/aaronstevenwhite/glazing.git
+cd glazing
 pip install -e ".[dev]"
 ```
 
 ## Basic Usage
 
 ```python
-from frames import FrameNet, PropBank, VerbNet, WordNet
+from glazing import FrameNet, PropBank, VerbNet, WordNet
 
 # Load datasets from JSON Lines
 fn = FrameNet.load("data/framenet.jsonl")
@@ -53,7 +53,7 @@ The package uses JSON Lines as the primary data format. Original XML and databas
 Convert source data to JSON Lines format:
 
 ```python
-from frames.converters import convert_framenet, convert_propbank, convert_verbnet, convert_wordnet
+from glazing.converters import convert_framenet, convert_propbank, convert_verbnet, convert_wordnet
 
 # Convert from original formats
 convert_framenet("framenet_v17/", "data/framenet.jsonl")
@@ -67,7 +67,7 @@ convert_wordnet("wn3.1/", "data/wordnet.jsonl")
 The package maintains cross-references between datasets:
 
 ```python
-from frames.references import CrossRef
+from glazing.references import CrossRef
 
 xref = CrossRef(fn, pb, vn, wn)
 
@@ -87,7 +87,7 @@ print(related.wordnet_senses)   # ['give%2:40:00', 'give%2:40:01']
 
 ## Documentation
 
-Full documentation is available at [https://frames.readthedocs.io](https://frames.readthedocs.io)
+Full documentation is available at [https://glazing.readthedocs.io](https://glazing.readthedocs.io)
 
 ## License
 
@@ -98,11 +98,11 @@ MIT License - see LICENSE file for details.
 If you use this package in your research, please cite:
 
 ```bibtex
-@software{frames2025,
+@software{glazing2025,
   author = {White, Aaron Steven},
-  title = {frames: A Unified Interface for FrameNet, PropBank, VerbNet, and WordNet},
+  title = {glazing: A Unified Interface for FrameNet, PropBank, VerbNet, and WordNet},
   year = {2025},
-  url = {https://github.com/aaronstevenwhite/frames}
+  url = {https://github.com/aaronstevenwhite/glazing}
 }
 ```
 

@@ -21,12 +21,12 @@ utils
 
 Examples
 --------
->>> from frames import FrameNet, PropBank, VerbNet, WordNet
+>>> from glazing import FrameNet, PropBank, VerbNet, WordNet
 >>> fn = FrameNet.load("data/framenet.jsonl")
 >>> frames = fn.get_frames_by_lemma("give")
 """
 
-from frames.__version__ import __version__, __version_info__
+from glazing.__version__ import __version__, __version_info__
 
 __all__ = [
     "__version__",

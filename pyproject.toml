@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "frames"
+name = "glazing"
 version = "0.0.1"
 description = "A unified interface for FrameNet, PropBank, VerbNet, and WordNet"
 readme = "README.md"
@@ -49,10 +49,10 @@ xml = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/aaronstevenwhite/frames"
-"Bug Reports" = "https://github.com/aaronstevenwhite/frames/issues"
-"Source" = "https://github.com/aaronstevenwhite/frames"
-"Documentation" = "https://frames.readthedocs.io"
+"Homepage" = "https://github.com/aaronstevenwhite/glazing"
+"Bug Reports" = "https://github.com/aaronstevenwhite/glazing/issues"
+"Source" = "https://github.com/aaronstevenwhite/glazing"
+"Documentation" = "https://glazing.readthedocs.io"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -140,14 +140,14 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--tb=short",
-    "--cov=frames",
+    "--cov=glazing",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
 ]
 
 [tool.coverage.run]
-source = ["src/frames"]
+source = ["src/glazing"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.coverage.report]

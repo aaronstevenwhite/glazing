@@ -24,5 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type-safe interfaces with comprehensive type hints
 - Documentation with NumPy-style docstrings
 
-[Unreleased]: https://github.com/aaronstevenwhite/frames/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/aaronstevenwhite/frames/releases/tag/v0.0.1
+[Unreleased]: https://github.com/aaronstevenwhite/glazing/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/aaronstevenwhite/glazing/releases/tag/v0.0.1
