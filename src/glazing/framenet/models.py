@@ -49,16 +49,30 @@ from glazing.framenet.types import (
     FE_ABBREV_PATTERN,
     FE_NAME_PATTERN,
     FRAME_NAME_PATTERN,
+    LEXEME_NAME_PATTERN,
+    LU_NAME_PATTERN,
     USERNAME_PATTERN,
+    AnnotationSetID,
+    AnnotationStatus,
     CoreType,
+    CorpusID,
+    DocumentID,
     FEAbbrev,
     FEName,
     FrameID,
     FrameName,
+    FrameNetPOS,
     FrameRelationSubType,
     FrameRelationType,
+    GrammaticalFunction,
+    LabelID,
+    LayerType,
+    LexicalUnitID,
+    LexicalUnitName,
     MarkupType,
+    PhraseType,
     SemTypeID,
+    SentenceID,
     Username,
 )
 from glazing.types import MappingConfidenceScore
@@ -978,3 +992,1142 @@ class FrameIndexEntry(GlazingBaseModel):
     def validate_name(cls, v: str) -> str:
         """Validate frame name format."""
         return validate_pattern(v, FRAME_NAME_PATTERN, "frame name")
+
+
+class SemTypeRef(GlazingBaseModel):
+    """Reference to a semantic type with name and ID.
+
+    Parameters
+    ----------
+    name : str
+        Semantic type name.
+    id : SemTypeID
+        Semantic type ID.
+
+    Methods
+    -------
+    is_valid_name()
+        Check if the name follows semantic type naming conventions.
+
+    Examples
+    --------
+    >>> ref = SemTypeRef(name="Sentient", id=123)
+    >>> print(ref.name)
+    'Sentient'
+    """
+
+    name: str = Field(min_length=1, description="Semantic type name")
+    id: SemTypeID = Field(description="Semantic type ID")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate semantic type name format."""
+        # Allow flexible semantic type names - some may have spaces, hyphens, etc.
+        if not re.match(r"^[A-Z][A-Za-z0-9_\s-]*$", v):
+            # Log unusual formats but don't fail validation
+            pass
+        return v
+
+    def is_valid_name(self) -> bool:
+        """Check if the name follows standard semantic type naming conventions.
+
+        Returns
+        -------
+        bool
+            True if name follows standard pattern.
+        """
+        return bool(re.match(r"^[A-Z][A-Za-z0-9_]*$", self.name))
+
+
+class SentenceCount(GlazingBaseModel):
+    """Frequency counts for annotated sentences.
+
+    Parameters
+    ----------
+    annotated : int, default=0
+        Number of annotated sentences.
+    total : int, default=0
+        Total number of sentences.
+
+    Methods
+    -------
+    get_annotation_rate()
+        Calculate the annotation completion rate.
+    has_annotations()
+        Check if any sentences are annotated.
+
+    Examples
+    --------
+    >>> count = SentenceCount(annotated=50, total=100)
+    >>> print(count.get_annotation_rate())
+    0.5
+    """
+
+    annotated: int = Field(0, ge=0, description="Number of annotated sentences")
+    total: int = Field(0, ge=0, description="Total number of sentences")
+
+    @model_validator(mode="after")
+    def validate_counts(self) -> Self:
+        """Validate that annotated count doesn't exceed total."""
+        if self.annotated > self.total:
+            msg = f"Annotated count ({self.annotated}) cannot exceed total ({self.total})"
+            raise ValueError(msg)
+        return self
+
+    def get_annotation_rate(self) -> float:
+        """Calculate the annotation completion rate.
+
+        Returns
+        -------
+        float
+            Completion rate (0.0-1.0), or 0.0 if no total sentences.
+        """
+        return self.annotated / self.total if self.total > 0 else 0.0
+
+    def has_annotations(self) -> bool:
+        """Check if any sentences are annotated.
+
+        Returns
+        -------
+        bool
+            True if annotated count > 0.
+        """
+        return self.annotated > 0
+
+
+class Lexeme(GlazingBaseModel):
+    """A lexical form in a lexical unit.
+
+    Parameters
+    ----------
+    name : str
+        The word form (validated pattern).
+    pos : FrameNetPOS
+        Part of speech tag.
+    headword : bool, default=False
+        True if this is the head word of the LU.
+    break_before : bool, default=False
+        True if there should be a break before this lexeme.
+    order : int, default=1
+        Order position in multi-word LUs.
+
+    Methods
+    -------
+    is_headword()
+        Check if this is the headword.
+
+    Examples
+    --------
+    >>> lexeme = Lexeme(name="abandon", pos="V", headword=True)
+    >>> print(lexeme.is_headword())
+    True
+    """
+
+    name: str = Field(description="The word form")
+    pos: FrameNetPOS = Field(description="Part of speech")
+    headword: bool = Field(default=False, description="True if this is the head word")
+    break_before: bool = Field(
+        default=False, alias="breakBefore", description="Break before this lexeme"
+    )
+    order: int = Field(1, ge=1, description="Order position in multi-word LUs")
+
+    @field_validator("name")
+    @classmethod
+    def validate_lexeme_name(cls, v: str) -> str:
+        """Validate lexeme name (individual word form)."""
+        return validate_pattern(v, LEXEME_NAME_PATTERN, "lexeme name")
+
+    def is_headword(self) -> bool:
+        """Check if this is the headword.
+
+        Returns
+        -------
+        bool
+            True if this lexeme is marked as headword.
+        """
+        return self.headword
+
+
+class Label(GlazingBaseModel):
+    """An annotation label on a text span.
+
+    Parameters
+    ----------
+    id : LabelID | None, default=None
+        Label identifier.
+    name : str
+        Label name (FE name, GF type, PT type, etc.).
+    start : int
+        Start position in sentence.
+    end : int
+        End position in sentence.
+    fe_id : int | None, default=None
+        Frame element ID for FE labels.
+    is_instantiated_null : bool, default=False
+        True for null instantiation labels.
+
+    Methods
+    -------
+    get_span_length()
+        Get the length of the labeled span.
+    is_null_instantiation()
+        Check if this is a null instantiation.
+    overlaps_with(other)
+        Check if this label overlaps with another.
+
+    Examples
+    --------
+    >>> label = Label(name="Agent", start=0, end=5)
+    >>> print(label.get_span_length())
+    5
+    """
+
+    id: LabelID | None = Field(None, description="Label identifier")
+    name: str = Field(min_length=1, description="Label name")
+    start: int = Field(ge=0, description="Start position in sentence")
+    end: int = Field(ge=0, description="End position in sentence")
+    fe_id: int | None = Field(None, description="Frame element ID for FE labels")
+    is_instantiated_null: bool = Field(
+        default=False, alias="itype", description="Null instantiation flag"
+    )
+
+    @model_validator(mode="after")
+    def validate_positions(self) -> Self:
+        """Validate that end position is after start position."""
+        if self.end <= self.start:
+            msg = f"End position ({self.end}) must be after start position ({self.start})"
+            raise ValueError(msg)
+        return self
+
+    def get_span_length(self) -> int:
+        """Get the length of the labeled span.
+
+        Returns
+        -------
+        int
+            Length of the span.
+        """
+        return self.end - self.start
+
+    def is_null_instantiation(self) -> bool:
+        """Check if this is a null instantiation.
+
+        Returns
+        -------
+        bool
+            True if is_instantiated_null is True.
+        """
+        return self.is_instantiated_null
+
+    def overlaps_with(self, other: Label) -> bool:
+        """Check if this label overlaps with another.
+
+        Parameters
+        ----------
+        other : Label
+            The other label to check.
+
+        Returns
+        -------
+        bool
+            True if the labels overlap.
+        """
+        return not (self.end <= other.start or other.end <= self.start)
+
+
+class AnnotationLayer(GlazingBaseModel):
+    """A layer of annotation (FE, GF, PT, Target, etc.).
+
+    Parameters
+    ----------
+    name : LayerType
+        Layer type name.
+    rank : int, default=1
+        Layer rank/priority.
+    labels : list[Label]
+        Labels in this layer.
+
+    Methods
+    -------
+    get_labels_by_name(name)
+        Get all labels with a specific name.
+    has_overlapping_labels()
+        Check if any labels in this layer overlap.
+    get_label_count()
+        Get the number of labels in this layer.
+
+    Examples
+    --------
+    >>> layer = AnnotationLayer(name="FE", labels=[...])
+    >>> print(layer.get_label_count())
+    3
+    """
+
+    name: LayerType = Field(description="Layer type name")
+    rank: int = Field(1, ge=1, description="Layer rank/priority")
+    labels: list[Label] = Field(default_factory=list, description="Labels in this layer")
+
+    def get_labels_by_name(self, name: str) -> list[Label]:
+        """Get all labels with a specific name.
+
+        Parameters
+        ----------
+        name : str
+            The label name to search for.
+
+        Returns
+        -------
+        list[Label]
+            List of matching labels.
+        """
+        return [label for label in self.labels if label.name == name]
+
+    def has_overlapping_labels(self) -> bool:
+        """Check if any labels in this layer overlap.
+
+        Returns
+        -------
+        bool
+            True if any labels overlap.
+        """
+        for i, label1 in enumerate(self.labels):
+            for label2 in self.labels[i + 1 :]:
+                if label1.overlaps_with(label2):
+                    return True
+        return False
+
+    def get_label_count(self) -> int:
+        """Get the number of labels in this layer.
+
+        Returns
+        -------
+        int
+            Number of labels.
+        """
+        return len(self.labels)
+
+
+class AnnotationSet(GlazingBaseModel):
+    """A set of annotations on a sentence.
+
+    Parameters
+    ----------
+    id : AnnotationSetID
+        Annotation set identifier.
+    status : AnnotationStatus
+        Annotation completion status.
+    sentence_id : SentenceID
+        ID of the annotated sentence.
+    layers : list[AnnotationLayer]
+        Annotation layers in this set.
+    created_by : Username | None, default=None
+        Creator username.
+    created_date : datetime | None, default=None
+        Creation timestamp.
+
+    Methods
+    -------
+    get_layer_by_name(name)
+        Get annotation layer by name.
+    get_fe_layer()
+        Get the frame element layer.
+    get_target_layer()
+        Get the target layer.
+    has_layer(layer_name)
+        Check if a specific layer exists.
+
+    Examples
+    --------
+    >>> anno_set = AnnotationSet(
+    ...     id=123,
+    ...     status="MANUAL",
+    ...     sentence_id=456,
+    ...     layers=[...]
+    ... )
+    """
+
+    id: AnnotationSetID = Field(description="Annotation set identifier")
+    status: AnnotationStatus = Field(description="Annotation completion status")
+    sentence_id: SentenceID = Field(description="ID of the annotated sentence")
+    layers: list[AnnotationLayer] = Field(default_factory=list, description="Annotation layers")
+    created_by: Username | None = Field(None, alias="cBy", description="Creator username")
+    created_date: datetime | None = Field(None, alias="cDate", description="Creation timestamp")
+
+    @field_validator("created_by")
+    @classmethod
+    def validate_created_by(cls, v: str | None) -> str | None:
+        """Validate creator username format."""
+        if v is not None:
+            return validate_pattern(v, USERNAME_PATTERN, "username")
+        return v
+
+    def get_layer_by_name(self, name: LayerType) -> AnnotationLayer | None:
+        """Get annotation layer by name.
+
+        Parameters
+        ----------
+        name : LayerType
+            The layer name to find.
+
+        Returns
+        -------
+        AnnotationLayer | None
+            The layer, or None if not found.
+        """
+        for layer in self.layers:
+            if layer.name == name:
+                return layer
+        return None
+
+    def get_fe_layer(self) -> AnnotationLayer | None:
+        """Get the frame element layer.
+
+        Returns
+        -------
+        AnnotationLayer | None
+            The FE layer, or None if not found.
+        """
+        return self.get_layer_by_name("FE")
+
+    def get_target_layer(self) -> AnnotationLayer | None:
+        """Get the target layer.
+
+        Returns
+        -------
+        AnnotationLayer | None
+            The Target layer, or None if not found.
+        """
+        return self.get_layer_by_name("Target")
+
+    def has_layer(self, layer_name: LayerType) -> bool:
+        """Check if a specific layer exists.
+
+        Parameters
+        ----------
+        layer_name : LayerType
+            The layer name to check.
+
+        Returns
+        -------
+        bool
+            True if the layer exists.
+        """
+        return self.get_layer_by_name(layer_name) is not None
+
+
+class Sentence(GlazingBaseModel):
+    """A sentence with its annotations.
+
+    Parameters
+    ----------
+    id : SentenceID
+        Sentence identifier.
+    text : str
+        The sentence text.
+    paragraph_no : int | None, default=None
+        Paragraph number in document.
+    sentence_no : int | None, default=None
+        Sentence number in paragraph.
+    doc_id : DocumentID | None, default=None
+        Document identifier.
+    corpus_id : CorpusID | None, default=None
+        Corpus identifier.
+    apos : int | None, default=None
+        Absolute position in document.
+    annotation_sets : list[AnnotationSet], default=[]
+        Annotation sets for this sentence.
+
+    Methods
+    -------
+    get_annotation_set_by_id(anno_id)
+        Get annotation set by ID.
+    has_annotations()
+        Check if sentence has any annotations.
+    get_annotation_count()
+        Get number of annotation sets.
+
+    Examples
+    --------
+    >>> sentence = Sentence(
+    ...     id=123,
+    ...     text="John abandoned the car.",
+    ...     paragraph_no=1,
+    ...     sentence_no=1
+    ... )
+    """
+
+    id: SentenceID = Field(description="Sentence identifier")
+    text: str = Field(min_length=1, description="The sentence text")
+    paragraph_no: int | None = Field(None, alias="paragNo", description="Paragraph number")
+    sentence_no: int | None = Field(None, alias="sentNo", description="Sentence number")
+    doc_id: DocumentID | None = Field(None, alias="docID", description="Document identifier")
+    corpus_id: CorpusID | None = Field(None, alias="corpID", description="Corpus identifier")
+    apos: int | None = Field(None, description="Absolute position in document")
+    annotation_sets: list[AnnotationSet] = Field(
+        default_factory=list, description="Annotation sets"
+    )
+
+    def get_annotation_set_by_id(self, anno_id: AnnotationSetID) -> AnnotationSet | None:
+        """Get annotation set by ID.
+
+        Parameters
+        ----------
+        anno_id : AnnotationSetID
+            The annotation set ID to find.
+
+        Returns
+        -------
+        AnnotationSet | None
+            The annotation set, or None if not found.
+        """
+        for anno_set in self.annotation_sets:
+            if anno_set.id == anno_id:
+                return anno_set
+        return None
+
+    def has_annotations(self) -> bool:
+        """Check if sentence has any annotations.
+
+        Returns
+        -------
+        bool
+            True if there are annotation sets.
+        """
+        return len(self.annotation_sets) > 0
+
+    def get_annotation_count(self) -> int:
+        """Get number of annotation sets.
+
+        Returns
+        -------
+        int
+            Number of annotation sets.
+        """
+        return len(self.annotation_sets)
+
+
+class ValenceUnit(GlazingBaseModel):
+    """A valence unit in a realization pattern.
+
+    Parameters
+    ----------
+    gf : GrammaticalFunction | str
+        Grammatical function (can be empty string or special values).
+    pt : PhraseType | str
+        Phrase type or special values.
+    fe : str
+        Frame element name.
+
+    Methods
+    -------
+    is_null_instantiation()
+        Check if this represents null instantiation.
+    has_grammatical_function()
+        Check if a grammatical function is specified.
+
+    Examples
+    --------
+    >>> unit = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+    >>> print(unit.has_grammatical_function())
+    True
+    """
+
+    gf: GrammaticalFunction | str = Field(alias="GF", description="Grammatical function")
+    pt: PhraseType | str = Field(alias="PT", description="Phrase type")
+    fe: str = Field(alias="FE", min_length=1, description="Frame element name")
+
+    @field_validator("gf")
+    @classmethod
+    def validate_gf(cls, v: str) -> str:
+        """Validate grammatical function."""
+        # GF can be empty string or special null instantiation values
+        if v == "" or v in ["CNI", "INI", "DNI", "NI"]:
+            return v
+        # Otherwise should be a valid GrammaticalFunction or pass through
+        return v
+
+    @field_validator("pt")
+    @classmethod
+    def validate_pt(cls, v: str) -> str:
+        """Validate phrase type."""
+        # PT can be special null instantiation values
+        if v in ["CNI", "INI", "DNI", "NI", "--", "unknown"]:
+            return v
+        # Otherwise should be a valid PhraseType or pass through
+        return v
+
+    def is_null_instantiation(self) -> bool:
+        """Check if this represents null instantiation.
+
+        Returns
+        -------
+        bool
+            True if this is a null instantiation pattern.
+        """
+        return self.pt in ["CNI", "INI", "DNI", "NI"]
+
+    def has_grammatical_function(self) -> bool:
+        """Check if a grammatical function is specified.
+
+        Returns
+        -------
+        bool
+            True if GF is not empty.
+        """
+        return self.gf != ""
+
+
+class ValenceRealizationPattern(GlazingBaseModel):
+    """A specific realization pattern for an FE.
+
+    Parameters
+    ----------
+    valence_units : list[ValenceUnit]
+        Valence units in this pattern.
+    anno_set_ids : list[int]
+        Annotation set IDs supporting this pattern.
+    total : int
+        Frequency count for this pattern.
+
+    Methods
+    -------
+    get_pattern_signature()
+        Get a string signature for this pattern.
+    has_null_instantiation()
+        Check if pattern includes null instantiation.
+
+    Examples
+    --------
+    >>> pattern = ValenceRealizationPattern(
+    ...     valence_units=[ValenceUnit(gf="Ext", pt="NP", fe="Agent")],
+    ...     anno_set_ids=[1, 2, 3],
+    ...     total=3
+    ... )
+    """
+
+    valence_units: list[ValenceUnit] = Field(description="Valence units in pattern")
+    anno_set_ids: list[int] = Field(description="Supporting annotation set IDs")
+    total: int = Field(ge=1, description="Frequency count")
+
+    @model_validator(mode="after")
+    def validate_consistency(self) -> Self:
+        """Validate pattern consistency."""
+        if self.total > 0 and not self.anno_set_ids:
+            # Allow empty anno_set_ids if total is provided
+            pass
+        return self
+
+    def get_pattern_signature(self) -> str:
+        """Get a string signature for this pattern.
+
+        Returns
+        -------
+        str
+            Pattern signature like "Ext:NP:Agent|Obj:NP:Theme".
+        """
+        units = []
+        for unit in self.valence_units:
+            units.append(f"{unit.gf}:{unit.pt}:{unit.fe}")
+        return "|".join(units)
+
+    def has_null_instantiation(self) -> bool:
+        """Check if pattern includes null instantiation.
+
+        Returns
+        -------
+        bool
+            True if any valence unit is null instantiation.
+        """
+        return any(unit.is_null_instantiation() for unit in self.valence_units)
+
+
+class FERealization(GlazingBaseModel):
+    """How a frame element is realized syntactically.
+
+    Parameters
+    ----------
+    fe_name : str
+        Frame element name.
+    total : int
+        Total occurrences of this FE.
+    patterns : list[ValenceRealizationPattern], default=[]
+        Realization patterns for this FE.
+
+    Methods
+    -------
+    get_most_frequent_pattern()
+        Get the most frequent realization pattern.
+    has_patterns()
+        Check if this FE has realization patterns.
+    get_pattern_count()
+        Get number of realization patterns.
+
+    Examples
+    --------
+    >>> fe_real = FERealization(
+    ...     fe_name="Agent",
+    ...     total=10,
+    ...     patterns=[...]
+    ... )
+    """
+
+    fe_name: str = Field(min_length=1, description="Frame element name")
+    total: int = Field(ge=0, description="Total occurrences")
+    patterns: list[ValenceRealizationPattern] = Field(
+        default_factory=list, description="Realization patterns"
+    )
+
+    @field_validator("fe_name")
+    @classmethod
+    def validate_fe_name(cls, v: str) -> str:
+        """Validate FE name format."""
+        return validate_pattern(v, FE_NAME_PATTERN, "FE name")
+
+    def get_most_frequent_pattern(self) -> ValenceRealizationPattern | None:
+        """Get the most frequent realization pattern.
+
+        Returns
+        -------
+        ValenceRealizationPattern | None
+            Most frequent pattern, or None if no patterns.
+        """
+        if not self.patterns:
+            return None
+        return max(self.patterns, key=lambda p: p.total)
+
+    def has_patterns(self) -> bool:
+        """Check if this FE has realization patterns.
+
+        Returns
+        -------
+        bool
+            True if patterns exist.
+        """
+        return len(self.patterns) > 0
+
+    def get_pattern_count(self) -> int:
+        """Get number of realization patterns.
+
+        Returns
+        -------
+        int
+            Number of patterns.
+        """
+        return len(self.patterns)
+
+
+class FEGroupRealization(GlazingBaseModel):
+    """Realization of grouped FEs in a pattern.
+
+    Parameters
+    ----------
+    fe_names : list[str]
+        Frame element names in this group.
+    grammatical_function : GrammaticalFunction
+        Grammatical function for the group.
+    phrase_type : PhraseType
+        Phrase type for the group.
+
+    Methods
+    -------
+    contains_fe(fe_name)
+        Check if group contains a specific FE.
+    get_fe_count()
+        Get number of FEs in group.
+
+    Examples
+    --------
+    >>> group = FEGroupRealization(
+    ...     fe_names=["Agent", "Theme"],
+    ...     grammatical_function="Ext",
+    ...     phrase_type="NP"
+    ... )
+    """
+
+    fe_names: list[str] = Field(min_length=1, description="FE names in group")
+    grammatical_function: GrammaticalFunction = Field(description="Grammatical function")
+    phrase_type: PhraseType = Field(description="Phrase type")
+
+    @field_validator("fe_names")
+    @classmethod
+    def validate_fe_names(cls, v: list[str]) -> list[str]:
+        """Validate FE names in group."""
+        for fe_name in v:
+            if not re.match(FE_NAME_PATTERN, fe_name):
+                msg = f"Invalid FE name in group: {fe_name}"
+                raise ValueError(msg)
+        return v
+
+    def contains_fe(self, fe_name: str) -> bool:
+        """Check if group contains a specific FE.
+
+        Parameters
+        ----------
+        fe_name : str
+            FE name to check.
+
+        Returns
+        -------
+        bool
+            True if FE is in this group.
+        """
+        return fe_name in self.fe_names
+
+    def get_fe_count(self) -> int:
+        """Get number of FEs in group.
+
+        Returns
+        -------
+        int
+            Number of FEs.
+        """
+        return len(self.fe_names)
+
+
+class ValenceAnnotationPattern(GlazingBaseModel):
+    """A specific valence pattern with annotated examples.
+
+    Parameters
+    ----------
+    anno_sets : list[AnnotationSetID]
+        References to annotation sets.
+    pattern : list[FEGroupRealization]
+        FE group realizations in this pattern.
+
+    Methods
+    -------
+    get_annotation_count()
+        Get number of annotation sets.
+    get_fe_groups()
+        Get all FE groups in pattern.
+
+    Examples
+    --------
+    >>> pattern = ValenceAnnotationPattern(
+    ...     anno_sets=[1, 2, 3],
+    ...     pattern=[FEGroupRealization(...)]
+    ... )
+    """
+
+    anno_sets: list[AnnotationSetID] = Field(description="Annotation set references")
+    pattern: list[FEGroupRealization] = Field(description="FE group realizations")
+
+    def get_annotation_count(self) -> int:
+        """Get number of annotation sets.
+
+        Returns
+        -------
+        int
+            Number of annotation sets.
+        """
+        return len(self.anno_sets)
+
+    def get_fe_groups(self) -> list[FEGroupRealization]:
+        """Get all FE groups in pattern.
+
+        Returns
+        -------
+        list[FEGroupRealization]
+            List of FE group realizations.
+        """
+        return self.pattern
+
+
+class ValencePattern(GlazingBaseModel):
+    """Syntactic valence pattern for a lexical unit.
+
+    Parameters
+    ----------
+    total_annotated : int
+        Total number of annotated instances.
+    fe_realizations : list[FERealization]
+        How frame elements are realized.
+    patterns : list[ValenceAnnotationPattern]
+        Specific valence patterns with examples.
+
+    Methods
+    -------
+    get_fe_realization(fe_name)
+        Get realization info for a specific FE.
+    get_most_frequent_fe()
+        Get the most frequently realized FE.
+    has_fe_realizations()
+        Check if FE realizations exist.
+
+    Examples
+    --------
+    >>> valence = ValencePattern(
+    ...     total_annotated=100,
+    ...     fe_realizations=[...],
+    ...     patterns=[...]
+    ... )
+    """
+
+    total_annotated: int = Field(ge=0, description="Total annotated instances")
+    fe_realizations: list[FERealization] = Field(description="FE realizations")
+    patterns: list[ValenceAnnotationPattern] = Field(
+        default_factory=list, description="Valence annotation patterns"
+    )
+
+    def get_fe_realization(self, fe_name: str) -> FERealization | None:
+        """Get realization info for a specific FE.
+
+        Parameters
+        ----------
+        fe_name : str
+            Frame element name.
+
+        Returns
+        -------
+        FERealization | None
+            FE realization, or None if not found.
+        """
+        for fe_real in self.fe_realizations:
+            if fe_real.fe_name == fe_name:
+                return fe_real
+        return None
+
+    def get_most_frequent_fe(self) -> FERealization | None:
+        """Get the most frequently realized FE.
+
+        Returns
+        -------
+        FERealization | None
+            Most frequent FE, or None if no realizations.
+        """
+        if not self.fe_realizations:
+            return None
+        return max(self.fe_realizations, key=lambda fe: fe.total)
+
+    def has_fe_realizations(self) -> bool:
+        """Check if FE realizations exist.
+
+        Returns
+        -------
+        bool
+            True if there are FE realizations.
+        """
+        return len(self.fe_realizations) > 0
+
+
+class LexicalUnit(GlazingBaseModel):
+    """A word or phrase that evokes a frame.
+
+    Parameters
+    ----------
+    id : LexicalUnitID
+        Unique lexical unit identifier.
+    lemma_id : int | None, default=None
+        Lemma identifier.
+    name : LexicalUnitName
+        LU name in lemma.pos format (validated).
+    pos : FrameNetPOS
+        Part of speech tag.
+    definition : str
+        LU definition (may have COD: or FN: prefix).
+    annotation_status : AnnotationStatus | None, default=None
+        Annotation completion status.
+    total_annotated : int | None, default=None
+        Total number of annotated instances.
+    has_annotated_examples : bool, default=False
+        Whether this LU has annotated examples.
+    frame_id : FrameID
+        ID of the frame this LU evokes.
+    frame_name : FrameName
+        Name of the frame this LU evokes.
+    sentence_count : SentenceCount
+        Sentence frequency information.
+    lexemes : list[Lexeme]
+        Individual word forms in this LU.
+    semtypes : list[SemTypeRef], default=[]
+        Semantic type references.
+    valence_patterns : list[ValencePattern], default=[]
+        Syntactic valence patterns.
+    annotation_sets : list[AnnotationSet], default=[]
+        Annotation sets for this LU.
+    created_by : Username | None, default=None
+        Creator username.
+    created_date : datetime | None, default=None
+        Creation timestamp.
+
+    Methods
+    -------
+    get_headword_lexeme()
+        Get the headword lexeme.
+    has_valence_patterns()
+        Check if LU has valence patterns.
+    get_annotation_rate()
+        Get sentence annotation completion rate.
+    is_multi_word()
+        Check if this is a multi-word LU.
+    get_most_frequent_valence()
+        Get most frequent valence pattern.
+
+    Examples
+    --------
+    >>> lu = LexicalUnit(
+    ...     id=1234,
+    ...     name="abandon.v",
+    ...     pos="V",
+    ...     definition="To leave behind permanently",
+    ...     frame_id=2031,
+    ...     frame_name="Abandonment",
+    ...     sentence_count=SentenceCount(annotated=50, total=100),
+    ...     lexemes=[Lexeme(name="abandon", pos="V", headword=True)]
+    ... )
+    >>> print(lu.get_annotation_rate())
+    0.5
+    """
+
+    id: LexicalUnitID = Field(description="Unique lexical unit identifier")
+    lemma_id: int | None = Field(None, alias="lemmaID", description="Lemma identifier")
+    name: LexicalUnitName = Field(description="LU name (lemma.pos format)")
+    pos: FrameNetPOS = Field(description="Part of speech tag")
+    definition: str = Field(min_length=1, description="LU definition")
+    annotation_status: AnnotationStatus | None = Field(
+        None, alias="status", description="Annotation completion status"
+    )
+    total_annotated: int | None = Field(
+        None, alias="totalAnnotated", description="Total annotated instances"
+    )
+    has_annotated_examples: bool = Field(
+        default=False, description="Whether this LU has annotated examples"
+    )
+    frame_id: FrameID = Field(description="Frame ID this LU evokes")
+    frame_name: FrameName = Field(description="Frame name this LU evokes")
+    sentence_count: SentenceCount = Field(description="Sentence frequency information")
+    lexemes: list[Lexeme] = Field(description="Individual word forms")
+    semtypes: list[SemTypeRef] = Field(default_factory=list, description="Semantic type references")
+    valence_patterns: list[ValencePattern] = Field(
+        default_factory=list, description="Syntactic valence patterns"
+    )
+    annotation_sets: list[AnnotationSet] = Field(
+        default_factory=list, description="Annotation sets"
+    )
+    created_by: Username | None = Field(None, alias="cBy", description="Creator username")
+    created_date: datetime | None = Field(None, alias="cDate", description="Creation timestamp")
+
+    @field_validator("name")
+    @classmethod
+    def validate_lu_name(cls, v: str) -> str:
+        """Validate LU name format (e.g., 'abandon.v', 'give_up.v')."""
+        return validate_pattern(v, LU_NAME_PATTERN, "lexical unit name")
+
+    @field_validator("definition")
+    @classmethod
+    def validate_definition(cls, v: str) -> str:
+        """Parse and validate definition with optional prefix."""
+        # Definitions often start with COD: or FN: but can be freeform
+        # Allow any non-empty definition
+        return v
+
+    @field_validator("frame_name")
+    @classmethod
+    def validate_frame_name(cls, v: str) -> str:
+        """Validate frame name format."""
+        return validate_pattern(v, FRAME_NAME_PATTERN, "frame name")
+
+    @field_validator("created_by")
+    @classmethod
+    def validate_created_by(cls, v: str | None) -> str | None:
+        """Validate creator username format."""
+        if v is not None:
+            return validate_pattern(v, USERNAME_PATTERN, "username")
+        return v
+
+    @model_validator(mode="after")
+    def validate_lu_consistency(self) -> Self:
+        """Validate lexical unit consistency."""
+        # Check that at least one lexeme exists
+        if not self.lexemes:
+            raise ValueError("Lexical unit must have at least one lexeme")
+
+        # Check that exactly one lexeme is marked as headword
+        headwords = [lex for lex in self.lexemes if lex.headword]
+        if len(headwords) != 1:
+            raise ValueError("Lexical unit must have exactly one headword lexeme")
+
+        # Validate total_annotated consistency
+        if (
+            self.total_annotated is not None
+            and self.total_annotated > 0
+            and self.sentence_count.total > 0
+            and self.total_annotated > self.sentence_count.total
+        ):
+            raise ValueError("total_annotated cannot exceed sentence count total")
+
+        return self
+
+    def get_headword_lexeme(self) -> Lexeme | None:
+        """Get the headword lexeme.
+
+        Returns
+        -------
+        Lexeme | None
+            The headword lexeme, or None if none found.
+        """
+        for lexeme in self.lexemes:
+            if lexeme.headword:
+                return lexeme
+        return None
+
+    def has_valence_patterns(self) -> bool:
+        """Check if LU has valence patterns.
+
+        Returns
+        -------
+        bool
+            True if valence patterns exist.
+        """
+        return len(self.valence_patterns) > 0
+
+    def get_annotation_rate(self) -> float:
+        """Get sentence annotation completion rate.
+
+        Returns
+        -------
+        float
+            Annotation rate from sentence count (0.0-1.0).
+        """
+        return self.sentence_count.get_annotation_rate()
+
+    def is_multi_word(self) -> bool:
+        """Check if this is a multi-word LU.
+
+        Returns
+        -------
+        bool
+            True if LU contains multiple lexemes.
+        """
+        return len(self.lexemes) > 1
+
+    def get_most_frequent_valence(self) -> ValencePattern | None:
+        """Get most frequent valence pattern.
+
+        Returns
+        -------
+        ValencePattern | None
+            Most frequent pattern, or None if no patterns.
+        """
+        if not self.valence_patterns:
+            return None
+        return max(self.valence_patterns, key=lambda p: p.total_annotated)
+
+    def get_annotation_set_by_id(self, anno_id: AnnotationSetID) -> AnnotationSet | None:
+        """Get annotation set by ID.
+
+        Parameters
+        ----------
+        anno_id : AnnotationSetID
+            Annotation set ID to find.
+
+        Returns
+        -------
+        AnnotationSet | None
+            The annotation set, or None if not found.
+        """
+        for anno_set in self.annotation_sets:
+            if anno_set.id == anno_id:
+                return anno_set
+        return None
