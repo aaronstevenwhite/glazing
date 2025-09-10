@@ -460,8 +460,7 @@ def validate_conditional_requirement(
 
         if missing_fields:
             msg = (
-                f"Fields {missing_fields} are required when "
-                f"{condition_field} is {condition_value}"
+                f"Fields {missing_fields} are required when {condition_field} is {condition_value}"
             )
             raise ValueError(msg)
 

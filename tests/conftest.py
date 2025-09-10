@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def fixtures_dir() -> Path:
     """Return the path to the test fixtures directory.
 
@@ -21,7 +21,7 @@ def fixtures_dir() -> Path:
     return Path(__file__).parent / "fixtures"
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_framenet_data() -> dict:
     """Provide sample FrameNet data for testing.
 
@@ -57,7 +57,7 @@ def sample_framenet_data() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_propbank_data() -> dict:
     """Provide sample PropBank data for testing.
 
@@ -76,7 +76,7 @@ def sample_propbank_data() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_verbnet_data() -> dict:
     """Provide sample VerbNet data for testing.
 
@@ -103,7 +103,7 @@ def sample_verbnet_data() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_wordnet_data() -> dict:
     """Provide sample WordNet data for testing.
 

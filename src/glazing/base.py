@@ -265,10 +265,7 @@ class CrossReferenceBase(GlazingBaseModel):
             "inherited",
             "transitive",
         ):
-            msg = (
-                f"Source and target datasets cannot be the same for "
-                f"{self.mapping_type} mappings"
-            )
+            msg = f"Source and target datasets cannot be the same for {self.mapping_type} mappings"
             raise ValueError(msg)
         return self
 
