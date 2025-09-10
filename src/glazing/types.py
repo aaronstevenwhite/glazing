@@ -1,29 +1,50 @@
 """Shared type definitions used across all linguistic resources.
 
-This module defines type aliases and literal types that are used throughout
-the glazing package for cross-dataset functionality. These types enable
-type-safe cross-referencing between FrameNet, PropBank, VerbNet, and WordNet.
+Defines type aliases and literal types used throughout the glazing package
+for cross-dataset functionality.
 
-Type Aliases
-------------
-DatasetType
-    The four primary linguistic datasets.
-ResourceType
-    Extended set including additional resources.
-MappingSource
-    Provenance of cross-dataset mappings.
-LogicType
-    Logical operators for restrictions.
-MappingConfidenceScore
-    Confidence score between 0.0 and 1.0.
-VersionString
-    Semantic version string format.
-
-Notes
------
-This module uses Python 3.13+ type syntax with the `type` statement
-for all type aliases. All types are designed to be imported and used
-across the various submodules of the glazing package.
+Constants
+---------
+DatasetType : type[Literal]
+    Primary dataset types (FrameNet, PropBank, VerbNet, WordNet).
+ResourceType : type[Literal]
+    Extended resource types including additional datasets.
+MappingSource : type[Literal]
+    Mapping source provenance values.
+LogicType : type[Literal]
+    Logical operators for combining restrictions (or, and).
+MappingConfidenceScore : type[Annotated[float, Field]]
+    Confidence score for mappings (0.0 to 1.0).
+VersionString : type[Annotated[str, Field]]
+    Version string following semantic versioning.
+MappingType : type[Literal]
+    Mapping type classifications.
+AlignmentType : type[Literal]
+    Alignment types for cross-dataset alignments.
+ConflictType : type[Literal]
+    Conflict types in mappings.
+ValidationStatus : type[Literal]
+    Validation status for mappings.
+OperationType : type[Literal]
+    Common dataset operations.
+FRAME_ID_PATTERN : str
+    FrameNet frame ID pattern (numeric).
+VERBNET_CLASS_PATTERN : str
+    VerbNet class ID pattern.
+PROPBANK_ROLESET_PATTERN : str
+    PropBank roleset ID pattern.
+WORDNET_OFFSET_PATTERN : str
+    WordNet offset pattern.
+WORDNET_SENSE_KEY_PATTERN : str
+    WordNet sense key pattern.
+VERBNET_KEY_PATTERN : str
+    VerbNet key pattern.
+PERCENTAGE_NOTATION_PATTERN : str
+    Percentage notation pattern.
+LEMMA_PATTERN : str
+    Word lemma pattern.
+HEX_COLOR_PATTERN : str
+    6-digit hex color pattern.
 
 Examples
 --------
@@ -142,8 +163,6 @@ VERBNET_KEY_PATTERN = r"^[a-z_-]+#\d+$"  # e.g., "give#2"
 PERCENTAGE_NOTATION_PATTERN = r"^[a-z_-]+%[1-5]:[0-9]{2}:[0-9]{2}$"  # e.g., "give%2:40:00"
 
 # Name validation patterns
-FRAME_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"  # FrameNet frame names
-FE_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"  # Frame element names
 LEMMA_PATTERN = r"^[a-z][a-z0-9_\'-]*$"  # Word lemmas
 
 # Color validation for FrameNet

@@ -10,11 +10,10 @@ import pytest
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
+from glazing.framenet.types import FE_NAME_PATTERN, FRAME_NAME_PATTERN
 from glazing.types import (
-    FE_NAME_PATTERN,
     # Regex patterns
     FRAME_ID_PATTERN,
-    FRAME_NAME_PATTERN,
     HEX_COLOR_PATTERN,
     LEMMA_PATTERN,
     PERCENTAGE_NOTATION_PATTERN,

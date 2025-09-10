@@ -1,24 +1,79 @@
 """FrameNet-specific type definitions.
 
 This module defines all type aliases and literal types specific to FrameNet.
-These types provide strict validation and type safety for FrameNet data models.
 
-Attributes
-----------
-CoreType : type alias
+Constants
+---------
+CoreType : type[Literal]
     Frame element core types (Core, Peripheral, etc.).
-FrameNetPOS : type alias
+FrameNetPOS : type[Literal]
     Part-of-speech tags used in FrameNet.
-AnnotationStatus : type alias
+AnnotationStatus : type[Literal]
     Annotation completion status values.
-FrameRelationType : type alias
+FrameRelationType : type[Literal]
     Frame-to-frame relation types.
-LayerType : type alias
-    Annotation layer types (30+ types).
-GrammaticalFunction : type alias
+LayerType : type[Literal]
+    Annotation layer types.
+GrammaticalFunction : type[Literal]
     Grammatical function labels.
-PhraseType : type alias
-    Phrase type labels (40+ types).
+PhraseType : type[Literal]
+    Phrase type labels.
+FrameRelationSubType : type[Literal]
+    Frame relation subtypes (FE-level mappings).
+InstantiationType : type[Literal]
+    Null instantiation types.
+MarkupType : type[Literal]
+    Text markup types in definitions.
+DefinitionPrefix : type[Literal]
+    Definition source prefixes.
+CorpusName : type[Literal]
+    Corpus types.
+FrameID : type[int]
+    Frame identifier.
+SemTypeID : type[int]
+    Semantic type identifier.
+LexicalUnitID : type[int]
+    Lexical unit identifier.
+SentenceID : type[int]
+    Sentence identifier.
+AnnotationSetID : type[int]
+    Annotation set identifier.
+LabelID : type[int]
+    Label identifier.
+CorpusID : type[int]
+    Corpus identifier.
+DocumentID : type[int]
+    Document identifier.
+ParagraphID : type[int]
+    Paragraph identifier.
+FrameName : type[str]
+    Frame name (validated).
+FEName : type[str]
+    Frame element name (validated).
+FEAbbrev : type[str]
+    FE abbreviation (validated).
+LexicalUnitName : type[str]
+    LU name (lemma.pos format).
+Username : type[str]
+    Creator/annotator username.
+FRAME_NAME_PATTERN : str
+    Frame name validation pattern.
+FE_NAME_PATTERN : str
+    Frame element name validation pattern.
+FE_ABBREV_PATTERN : str
+    FE abbreviation validation pattern.
+LU_NAME_PATTERN : str
+    Lexical unit name validation pattern.
+USERNAME_PATTERN : str
+    Username validation pattern.
+LEXEME_NAME_PATTERN : str
+    Lexeme name validation pattern.
+MAX_FRAME_ELEMENTS : int
+    Maximum FEs per frame.
+MAX_ANNOTATION_LAYERS : int
+    Maximum annotation layers.
+MAX_LEXICAL_UNITS : int
+    Maximum LUs per frame.
 
 Functions
 ---------
@@ -35,12 +90,6 @@ is_valid_username
 is_valid_hex_color
     Validate 6-digit hex color code.
 
-Notes
------
-This module uses Python 3.13+ type syntax with exhaustive Literal types
-for all FrameNet enumerations. All types follow the strict typing policy
-with no Any types allowed.
-
 Examples
 --------
 >>> from glazing.framenet.types import CoreType, FrameNetPOS
@@ -56,6 +105,8 @@ False
 
 import re
 from typing import Literal
+
+from glazing.types import HEX_COLOR_PATTERN
 
 # Core frame element types
 type CoreType = Literal[
@@ -288,7 +339,7 @@ def is_valid_frame_name(name: str) -> bool:
     bool
         True if the name matches the frame name pattern.
     """
-    return bool(re.match(r"^[A-Z][A-Za-z0-9_]*$", name))
+    return bool(re.match(FRAME_NAME_PATTERN, name))
 
 
 def is_valid_fe_name(name: str) -> bool:
@@ -304,7 +355,7 @@ def is_valid_fe_name(name: str) -> bool:
     bool
         True if the name matches the FE name pattern.
     """
-    return bool(re.match(r"^[A-Z][A-Za-z0-9_]*$", name))
+    return bool(re.match(FE_NAME_PATTERN, name))
 
 
 def is_valid_fe_abbrev(abbrev: str) -> bool:
@@ -368,16 +419,15 @@ def is_valid_hex_color(color: str) -> bool:
     bool
         True if the color is a valid 6-digit hex code.
     """
-    return bool(re.match(r"^[0-9A-F]{6}$", color))
+    return bool(re.match(HEX_COLOR_PATTERN, color))
 
 
-# Pattern constants for use in validators
+# FrameNet-specific pattern constants
 FRAME_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
 FE_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
 FE_ABBREV_PATTERN = r"^[A-Za-z][A-Za-z0-9_-]*$"
 LU_NAME_PATTERN = r"^[a-z][a-z0-9_\'-]*\.[a-z]+$"
 USERNAME_PATTERN = r"^[A-Za-z][A-Za-z0-9]*$"
-HEX_COLOR_PATTERN = r"^[0-9A-F]{6}$"
 LEXEME_NAME_PATTERN = r"^[a-zA-Z][a-zA-Z0-9\'-]*$"
 
 # Counts and limits
