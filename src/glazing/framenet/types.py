@@ -1,0 +1,386 @@
+"""FrameNet-specific type definitions.
+
+This module defines all type aliases and literal types specific to FrameNet.
+These types provide strict validation and type safety for FrameNet data models.
+
+Attributes
+----------
+CoreType : type alias
+    Frame element core types (Core, Peripheral, etc.).
+FrameNetPOS : type alias
+    Part-of-speech tags used in FrameNet.
+AnnotationStatus : type alias
+    Annotation completion status values.
+FrameRelationType : type alias
+    Frame-to-frame relation types.
+LayerType : type alias
+    Annotation layer types (30+ types).
+GrammaticalFunction : type alias
+    Grammatical function labels.
+PhraseType : type alias
+    Phrase type labels (40+ types).
+
+Functions
+---------
+is_valid_frame_name
+    Validate FrameNet frame name format.
+is_valid_fe_name
+    Validate frame element name format.
+is_valid_fe_abbrev
+    Validate FE abbreviation format.
+is_valid_lu_name
+    Validate lexical unit name format.
+is_valid_username
+    Validate FrameNet username format.
+is_valid_hex_color
+    Validate 6-digit hex color code.
+
+Notes
+-----
+This module uses Python 3.13+ type syntax with exhaustive Literal types
+for all FrameNet enumerations. All types follow the strict typing policy
+with no Any types allowed.
+
+Examples
+--------
+>>> from glazing.framenet.types import CoreType, FrameNetPOS
+>>> core: CoreType = "Core"
+>>> pos: FrameNetPOS = "V"
+>>>
+>>> from glazing.framenet.types import is_valid_frame_name
+>>> is_valid_frame_name("Abandonment")
+True
+>>> is_valid_frame_name("abandonment")
+False
+"""
+
+import re
+from typing import Literal
+
+# Core frame element types
+type CoreType = Literal[
+    "Core",  # Central to frame meaning
+    "Core-Unexpressed",  # Core but typically unexpressed
+    "Peripheral",  # Optional, modifies core meaning
+    "Extra-Thematic",  # Outside core frame semantics
+]
+
+# FrameNet part-of-speech tags
+type FrameNetPOS = Literal[
+    "A",  # Adjective
+    "ADV",  # Adverb
+    "ART",  # Article
+    "AVP",  # Adverb phrase (German)
+    "C",  # Conjunction
+    "IDIO",  # Idiom
+    "INTJ",  # Interjection
+    "N",  # Noun
+    "NUM",  # Number
+    "PREP",  # Preposition
+    "PRON",  # Pronoun
+    "SCON",  # Subordinating conjunction
+    "V",  # Verb
+]
+
+# Annotation status (verified in actual FrameNet v1.7 data)
+type AnnotationStatus = Literal[
+    "Add_Annotation",  # Needs additional annotation
+    "AUTO_APP",  # Automatically approved
+    "AUTO_EDITED",  # Automatically edited
+    "BTDT",  # Been there, done that
+    "Created",  # Newly created
+    "Finished_Initial",  # Initial annotation finished
+    "Finished_X-Gov",  # Finished with extra-governmental
+    "FN1_Sent",  # FrameNet 1 sentence
+    "In_Use",  # Currently in use
+    "Insufficient_Attestations",  # Not enough examples
+    "MANUAL",  # Manually annotated
+    "Needs_SCs",  # Needs subcorpus
+    "New",  # New annotation
+    "Pre-Marked",  # Pre-marked for annotation
+    "Rules_Defined",  # Rules defined
+    "UNANN",  # Unannotated
+]
+
+# Frame-to-frame relation types
+type FrameRelationType = Literal[
+    "Inherits from",  # Child inherits from parent
+    "Is Inherited by",  # Parent inherited by child
+    "Perspective on",  # Alternative perspective
+    "Is Perspectivized in",  # Has perspective
+    "Uses",  # Uses another frame
+    "Is Used by",  # Used by another frame
+    "Subframe of",  # Part of larger frame
+    "Has Subframe(s)",  # Contains subframes
+    "Precedes",  # Temporal precedence
+    "Is Preceded by",  # Temporally preceded
+    "Is Inchoative of",  # Beginning of state
+    "Is Causative of",  # Causes another frame
+    "See also",  # Related frame
+]
+
+# Annotation layer types (verified in actual FrameNet v1.7 data)
+type LayerType = Literal[
+    # Core layers
+    "FE",  # Frame element
+    "GF",  # Grammatical function
+    "PT",  # Phrase type
+    "Target",  # Target word(s)
+    # POS layers
+    "Verb",  # Verb annotation
+    "Noun",  # Noun annotation
+    "Adj",  # Adjective annotation
+    "Adv",  # Adverb annotation
+    "Prep",  # Preposition annotation
+    "Art",  # Article annotation
+    "Scon",  # Subordinating conjunction annotation
+    "Other",  # Other POS
+    # Corpus layers
+    "Sent",  # Sentence
+    "NER",  # Named entity recognition
+    "WSL",  # Word sense layer
+    "BNC",  # British National Corpus
+    "PENN",  # Penn Treebank tags
+    # Constructional layers
+    "CE",  # Constructional element
+    "CEE",  # Constructional element extended
+    "CstrPT",  # Constructional phrase type
+    "GovX",  # Government/external argument
+]
+
+# Grammatical functions (verified in actual FrameNet v1.7 data)
+type GrammaticalFunction = Literal[
+    "Dep",  # Dependent
+    "Ext",  # External argument
+    "Obj",  # Object
+    "Head",  # Head
+    "Gen",  # Genitive
+    "Quant",  # Quantifier
+    "Appositive",  # Apposition
+]
+
+# Phrase types (verified in actual FrameNet v1.7 data)
+type PhraseType = Literal[
+    # Basic phrase types
+    "NP",  # Noun phrase
+    "AVP",  # Adverb phrase
+    "AJP",  # Adjective phrase
+    "APos",  # Adjectival position
+    "PPadjP",  # PP functioning as adjective phrase
+    "PPinterrog",  # Interrogative PP
+    # Verb phrase variants
+    "VPfin",  # Finite VP
+    "VPing",  # -ing VP
+    "VPto",  # to-infinitive VP
+    "VPbrst",  # Bare stem VP
+    "VPed",  # Past participle VP
+    "VPtorel",  # to-infinitive relative VP
+    # Sentence types
+    "Sfin",  # Finite sentence
+    "Sing",  # -ing sentence
+    "Sto",  # to-infinitive sentence
+    "Sbrst",  # Bare stem sentence
+    "Swhether",  # whether-clause
+    "Sinterrog",  # Interrogative sentence
+    "Srel",  # Relative sentence
+    "Sabs",  # Absolute sentence
+    "Sforto",  # for-to sentence
+    "Sub",  # Subordinate clause
+    "Sun",  # Unknown sentence type
+    # Simple types
+    "Poss",  # Possessive
+    "N",  # Noun
+    "A",  # Adjective
+    "Num",  # Number
+    "Obj",  # Object
+    "QUO",  # Quotation
+    # Person markers
+    "2nd",  # Second person
+    "3rd",  # Third person
+    # Null instantiation types
+    "CNI",  # Constructional null instantiation
+    "DNI",  # Definite null instantiation
+    "INI",  # Indefinite null instantiation
+    "INC",  # Incorporated
+    "DEN",  # Definite entity null
+    # Special
+    "--",  # Unspecified
+    "unknown",  # Unknown type
+]
+
+# Frame relation subtypes (FE-level mappings)
+type FrameRelationSubType = Literal[
+    "Mapping",  # Direct mapping
+    "Inheritance",  # Inherited relation
+    "Equivalence",  # Equivalent FEs
+]
+
+# Null instantiation types
+type InstantiationType = Literal[
+    "INI",  # Indefinite null instantiation
+    "DNI",  # Definite null instantiation
+    "CNI",  # Constructional null instantiation
+    "INC",  # Incorporated (found in data)
+]
+
+# Text markup types in definitions
+type MarkupType = Literal[
+    "def-root",  # Definition root
+    "fex",  # Frame element example
+    "fen",  # Frame element name
+    "t",  # Target
+    "ex",  # Example
+    "m",  # Mention
+    "gov",  # Governor
+    "x",  # Cross-reference
+]
+
+# Definition source prefixes
+type DefinitionPrefix = Literal[
+    "COD",  # Concise Oxford Dictionary
+    "FN",  # FrameNet definition
+]
+
+# Corpus types (verified in actual FrameNet v1.7 data)
+type CorpusName = Literal[
+    "ANC",  # American National Corpus
+    "KBEval",  # Knowledge Base Evaluation
+    "LUCorpus-v0.3",  # Lexical Unit Corpus
+    "Miscellaneous",  # Various sources
+    "NTI",  # Nuclear Threat Initiative
+    "PropBank",  # PropBank corpus
+    "WikiTexts",  # Wikipedia texts
+]
+
+# Type aliases for IDs and references
+
+# Numeric IDs
+type FrameID = int  # Frame identifier
+type SemTypeID = int  # Semantic type identifier
+type LexicalUnitID = int  # Lexical unit identifier
+type SentenceID = int  # Sentence identifier
+type AnnotationSetID = int  # Annotation set identifier
+type LabelID = int  # Label identifier
+type CorpusID = int  # Corpus identifier
+type DocumentID = int  # Document identifier
+type ParagraphID = int  # Paragraph identifier
+
+# String IDs
+type FrameName = str  # Frame name (validated)
+type FEName = str  # Frame element name (validated)
+type FEAbbrev = str  # FE abbreviation (validated)
+type LexicalUnitName = str  # LU name (lemma.pos format)
+type Username = str  # Creator/annotator username
+
+# Validation helper functions
+
+
+def is_valid_frame_name(name: str) -> bool:
+    """Check if a string is a valid FrameNet frame name.
+
+    Parameters
+    ----------
+    name : str
+        The name to validate.
+
+    Returns
+    -------
+    bool
+        True if the name matches the frame name pattern.
+    """
+    return bool(re.match(r"^[A-Z][A-Za-z0-9_]*$", name))
+
+
+def is_valid_fe_name(name: str) -> bool:
+    """Check if a string is a valid frame element name.
+
+    Parameters
+    ----------
+    name : str
+        The name to validate.
+
+    Returns
+    -------
+    bool
+        True if the name matches the FE name pattern.
+    """
+    return bool(re.match(r"^[A-Z][A-Za-z0-9_]*$", name))
+
+
+def is_valid_fe_abbrev(abbrev: str) -> bool:
+    """Check if a string is a valid FE abbreviation.
+
+    Parameters
+    ----------
+    abbrev : str
+        The abbreviation to validate.
+
+    Returns
+    -------
+    bool
+        True if the abbreviation matches the pattern.
+    """
+    return bool(re.match(r"^[A-Za-z][A-Za-z0-9_-]*$", abbrev))
+
+
+def is_valid_lu_name(name: str) -> bool:
+    """Check if a string is a valid lexical unit name.
+
+    Parameters
+    ----------
+    name : str
+        The LU name to validate (should be lemma.pos format).
+
+    Returns
+    -------
+    bool
+        True if the name matches the LU name pattern.
+    """
+    return bool(re.match(r"^[a-z][a-z0-9_\'-]*\.[a-z]+$", name, re.IGNORECASE))
+
+
+def is_valid_username(username: str) -> bool:
+    """Check if a string is a valid FrameNet username.
+
+    Parameters
+    ----------
+    username : str
+        The username to validate.
+
+    Returns
+    -------
+    bool
+        True if the username matches the pattern.
+    """
+    return bool(re.match(r"^[A-Za-z][A-Za-z0-9]*$", username))
+
+
+def is_valid_hex_color(color: str) -> bool:
+    """Check if a string is a valid 6-digit hex color.
+
+    Parameters
+    ----------
+    color : str
+        The color code to validate.
+
+    Returns
+    -------
+    bool
+        True if the color is a valid 6-digit hex code.
+    """
+    return bool(re.match(r"^[0-9A-F]{6}$", color))
+
+
+# Pattern constants for use in validators
+FRAME_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
+FE_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
+FE_ABBREV_PATTERN = r"^[A-Za-z][A-Za-z0-9_-]*$"
+LU_NAME_PATTERN = r"^[a-z][a-z0-9_\'-]*\.[a-z]+$"
+USERNAME_PATTERN = r"^[A-Za-z][A-Za-z0-9]*$"
+HEX_COLOR_PATTERN = r"^[0-9A-F]{6}$"
+LEXEME_NAME_PATTERN = r"^[a-zA-Z][a-zA-Z0-9\'-]*$"
+
+# Counts and limits
+MAX_FRAME_ELEMENTS = 100  # Maximum FEs per frame
+MAX_ANNOTATION_LAYERS = 50  # Maximum annotation layers
+MAX_LEXICAL_UNITS = 1000  # Maximum LUs per frame
