@@ -1,0 +1,557 @@
+"""Tests for shared type definitions.
+
+This module tests the type definitions, validators, and patterns defined
+in glazing.types to ensure they work correctly and maintain consistency.
+"""
+
+import re
+
+import pytest
+from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
+
+from glazing.types import (
+    FE_NAME_PATTERN,
+    # Regex patterns
+    FRAME_ID_PATTERN,
+    FRAME_NAME_PATTERN,
+    HEX_COLOR_PATTERN,
+    LEMMA_PATTERN,
+    PERCENTAGE_NOTATION_PATTERN,
+    PROPBANK_ROLESET_PATTERN,
+    VERBNET_CLASS_PATTERN,
+    VERBNET_KEY_PATTERN,
+    WORDNET_OFFSET_PATTERN,
+    WORDNET_SENSE_KEY_PATTERN,
+    AlignmentType,
+    ConflictType,
+    # Exceptions
+    DataNotLoadedError,
+    # Type literals
+    DatasetType,
+    InvalidReferenceError,
+    LogicType,
+    # Annotated types
+    MappingConfidenceScore,
+    MappingConflictError,
+    MappingSource,
+    MappingType,
+    OperationType,
+    ValidationError,
+    ValidationStatus,
+    VersionString,
+    # Type guards
+    is_dataset_type,
+    is_resource_type,
+    is_valid_confidence,
+)
+
+
+class TestTypeLiterals:
+    """Test literal type definitions."""
+
+    def test_dataset_type_values(self):
+        """Test DatasetType guard accepts correct values."""
+        # Test valid values
+        assert is_dataset_type("FrameNet")
+        assert is_dataset_type("PropBank")
+        assert is_dataset_type("VerbNet")
+        assert is_dataset_type("WordNet")
+
+        # Test invalid values
+        assert not is_dataset_type("Unknown")
+        assert not is_dataset_type("AMR")
+
+    def test_resource_type_values(self):
+        """Test ResourceType guard accepts correct values."""
+        # Test all valid resource types
+        for resource in [
+            "VerbNet",
+            "FrameNet",
+            "WordNet",
+            "PropBank",
+            "AMR",
+            "UMR",
+            "Flickr",
+            "THYME",
+            "Spatial",
+        ]:
+            assert is_resource_type(resource)
+
+        # Test invalid values
+        assert not is_resource_type("Unknown")
+        assert not is_resource_type("Other")
+
+    def test_mapping_source_values(self):
+        """Test MappingSource values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            source: MappingSource
+
+        # Test all valid sources
+        for src in [
+            "manual",
+            "automatic",
+            "manual+strict-conv",
+            "manualchecks",
+            "auto",
+            "gold",
+            "silver",
+            "legacy",
+            "inherited",
+        ]:
+            model = TestModel(source=src)
+            assert model.source == src
+
+        # Test invalid source
+        with pytest.raises(PydanticValidationError):
+            TestModel(source="invalid")
+
+    def test_logic_type_values(self):
+        """Test LogicType values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            logic: LogicType
+
+        # Test valid values
+        assert TestModel(logic="or").logic == "or"
+        assert TestModel(logic="and").logic == "and"
+
+        # Test invalid value
+        with pytest.raises(PydanticValidationError):
+            TestModel(logic="xor")
+
+    def test_mapping_type_values(self):
+        """Test MappingType values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            mapping: MappingType
+
+        # Test all valid types
+        for mt in [
+            "direct",
+            "inherited",
+            "inferred",
+            "partial",
+            "transitive",
+            "manual",
+            "automatic",
+            "hybrid",
+        ]:
+            model = TestModel(mapping=mt)
+            assert model.mapping == mt
+
+        # Test invalid type
+        with pytest.raises(PydanticValidationError):
+            TestModel(mapping="invalid")
+
+    def test_alignment_type_values(self):
+        """Test AlignmentType values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            alignment: AlignmentType
+
+        # Test all valid types
+        for at in [
+            "exact",
+            "equivalent",
+            "subsumes",
+            "subsumed_by",
+            "overlaps",
+            "related",
+            "contradicts",
+        ]:
+            model = TestModel(alignment=at)
+            assert model.alignment == at
+
+        # Test invalid type
+        with pytest.raises(PydanticValidationError):
+            TestModel(alignment="invalid")
+
+    def test_conflict_type_values(self):
+        """Test ConflictType values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            conflict: ConflictType
+
+        # Test all valid types
+        for ct in ["ambiguous", "contradictory", "version_mismatch", "inheritance"]:
+            model = TestModel(conflict=ct)
+            assert model.conflict == ct
+
+        # Test invalid type
+        with pytest.raises(PydanticValidationError):
+            TestModel(conflict="invalid")
+
+    def test_validation_status_values(self):
+        """Test ValidationStatus values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            status: ValidationStatus
+
+        # Test all valid statuses
+        for vs in ["validated", "unvalidated", "disputed", "deprecated"]:
+            model = TestModel(status=vs)
+            assert model.status == vs
+
+        # Test invalid status
+        with pytest.raises(PydanticValidationError):
+            TestModel(status="invalid")
+
+    def test_operation_type_values(self):
+        """Test OperationType values in Pydantic model."""
+
+        class TestModel(BaseModel):
+            operation: OperationType
+
+        # Test all valid operations
+        for op in ["search", "load", "convert", "validate", "index", "cache"]:
+            model = TestModel(operation=op)
+            assert model.operation == op
+
+        # Test invalid operation
+        with pytest.raises(PydanticValidationError):
+            TestModel(operation="invalid")
+
+
+class TestAnnotatedTypes:
+    """Test annotated types with constraints."""
+
+    def test_mapping_confidence_score(self):
+        """Test MappingConfidenceScore validation."""
+
+        # Create a test model using the annotated type
+        class TestModel(BaseModel):
+            confidence: MappingConfidenceScore
+
+        # Valid scores
+        assert TestModel(confidence=0.0).confidence == 0.0
+        assert TestModel(confidence=0.5).confidence == 0.5
+        assert TestModel(confidence=1.0).confidence == 1.0
+
+        # Invalid scores
+        with pytest.raises(PydanticValidationError):
+            TestModel(confidence=-0.1)
+        with pytest.raises(PydanticValidationError):
+            TestModel(confidence=1.1)
+
+    def test_version_string(self):
+        """Test VersionString validation."""
+
+        class TestModel(BaseModel):
+            version: VersionString
+
+        # Valid versions
+        assert TestModel(version="1.0.0").version == "1.0.0"
+        assert TestModel(version="2.1").version == "2.1"
+        assert TestModel(version="1.0.0-alpha").version == "1.0.0-alpha"
+        assert TestModel(version="3.2.1-beta2").version == "3.2.1-beta2"
+
+        # Invalid versions
+        with pytest.raises(PydanticValidationError):
+            TestModel(version="1")  # Missing minor version
+        with pytest.raises(PydanticValidationError):
+            TestModel(version="a.b.c")  # Non-numeric
+        with pytest.raises(PydanticValidationError):
+            TestModel(version="1.0.0.0")  # Too many parts
+
+
+class TestRegexPatterns:
+    """Test regex patterns for identifier validation."""
+
+    def test_frame_id_pattern(self):
+        """Test FrameNet frame ID pattern."""
+        pattern = re.compile(FRAME_ID_PATTERN)
+
+        # Valid IDs
+        assert pattern.match("1")
+        assert pattern.match("123")
+        assert pattern.match("9999")
+
+        # Invalid IDs
+        assert not pattern.match("abc")
+        assert not pattern.match("1.0")
+        assert not pattern.match("-1")
+        assert not pattern.match("1a")
+
+    def test_verbnet_class_pattern(self):
+        """Test VerbNet class ID pattern."""
+        pattern = re.compile(VERBNET_CLASS_PATTERN)
+
+        # Valid class IDs
+        assert pattern.match("give-13.1")
+        assert pattern.match("give-13.1-1")
+        assert pattern.match("leave-51.2")
+        assert pattern.match("transfer-11.1-1-2")
+        assert pattern.match("be_located_at-47.3")  # Fixed: double underscore
+
+        # Invalid class IDs
+        assert not pattern.match("give")
+        assert not pattern.match("13.1")
+        assert not pattern.match("Give-13.1")  # Capital letter
+        assert not pattern.match("give-")
+
+    def test_propbank_roleset_pattern(self):
+        """Test PropBank roleset ID pattern."""
+        pattern = re.compile(PROPBANK_ROLESET_PATTERN)
+
+        # Valid roleset IDs
+        assert pattern.match("give.01")
+        assert pattern.match("abandon.02")
+        assert pattern.match("be-located-at.91")
+        assert pattern.match("run_up.03")
+        assert pattern.match("give.1")  # Actually valid - single digit is ok
+
+        # Invalid roleset IDs
+        assert not pattern.match("give")
+        assert not pattern.match(".01")
+        assert not pattern.match("give.")  # Missing number
+
+    def test_wordnet_offset_pattern(self):
+        """Test WordNet synset offset pattern."""
+        pattern = re.compile(WORDNET_OFFSET_PATTERN)
+
+        # Valid offsets
+        assert pattern.match("00001740")
+        assert pattern.match("12345678")
+        assert pattern.match("00000000")
+
+        # Invalid offsets
+        assert not pattern.match("1740")  # Too short
+        assert not pattern.match("000017400")  # Too long
+        assert not pattern.match("0000174X")  # Non-numeric
+
+    def test_wordnet_sense_key_pattern(self):
+        """Test WordNet sense key pattern."""
+        pattern = re.compile(WORDNET_SENSE_KEY_PATTERN)
+
+        # Valid sense keys
+        assert pattern.match("abandon%2:40:01::")
+        assert pattern.match("dog%1:05:00::")
+        assert pattern.match("run%2:38:00::")
+        assert pattern.match("good%3:00:01::")
+        assert pattern.match("quickly%4:02:00::")
+        assert pattern.match("better%5:00:00:good:01")
+
+        # Invalid sense keys
+        assert not pattern.match("abandon")
+        assert not pattern.match("abandon%2")
+        assert not pattern.match("abandon%6:40:01::")  # Invalid POS (6)
+
+    def test_verbnet_key_pattern(self):
+        """Test VerbNet member key pattern."""
+        pattern = re.compile(VERBNET_KEY_PATTERN)
+
+        # Valid keys
+        assert pattern.match("give#2")
+        assert pattern.match("abandon#1")
+        assert pattern.match("run_up#3")
+        assert pattern.match("be-located-at#1")
+
+        # Invalid keys
+        assert not pattern.match("give")
+        assert not pattern.match("give#")
+        assert not pattern.match("Give#2")  # Capital letter
+        assert not pattern.match("give#two")
+
+    def test_percentage_notation_pattern(self):
+        """Test VerbNet's WordNet percentage notation pattern."""
+        pattern = re.compile(PERCENTAGE_NOTATION_PATTERN)
+
+        # Valid notations
+        assert pattern.match("give%2:40:00")
+        assert pattern.match("abandon%2:40:01")
+        assert pattern.match("dog%1:05:00")
+
+        # Invalid notations
+        assert not pattern.match("give%2:40")  # Missing lex_id
+        assert not pattern.match("give%2:40:00::")  # Extra colons
+        assert not pattern.match("Give%2:40:00")  # Capital letter
+
+    def test_frame_name_pattern(self):
+        """Test FrameNet frame name pattern."""
+        pattern = re.compile(FRAME_NAME_PATTERN)
+
+        # Valid frame names
+        assert pattern.match("Abandonment")
+        assert pattern.match("Giving")
+        assert pattern.match("Motion_directional")
+        assert pattern.match("Change_of_leadership")
+
+        # Invalid frame names
+        assert not pattern.match("abandonment")  # Lowercase start
+        assert not pattern.match("123Frame")  # Number start
+        assert not pattern.match("Frame-Name")  # Hyphen
+
+    def test_fe_name_pattern(self):
+        """Test frame element name pattern."""
+        pattern = re.compile(FE_NAME_PATTERN)
+
+        # Valid FE names
+        assert pattern.match("Agent")
+        assert pattern.match("Theme")
+        assert pattern.match("Body_part")
+        assert pattern.match("Source_of_information")
+
+        # Invalid FE names
+        assert not pattern.match("agent")  # Lowercase start
+        assert not pattern.match("123Agent")  # Number start
+        assert not pattern.match("Agent-Type")  # Hyphen
+
+    def test_lemma_pattern(self):
+        """Test lemma pattern."""
+        pattern = re.compile(LEMMA_PATTERN)
+
+        # Valid lemmas
+        assert pattern.match("give")
+        assert pattern.match("abandon")
+        assert pattern.match("run_up")
+        assert pattern.match("don't")
+        assert pattern.match("mother-in-law")
+
+        # Invalid lemmas
+        assert not pattern.match("Give")  # Capital letter
+        assert not pattern.match("123run")  # Number start
+        assert not pattern.match("")  # Empty string
+
+    def test_hex_color_pattern(self):
+        """Test hex color pattern."""
+        pattern = re.compile(HEX_COLOR_PATTERN)
+
+        # Valid colors
+        assert pattern.match("FF0000")
+        assert pattern.match("00FF00")
+        assert pattern.match("0000FF")
+        assert pattern.match("ABCDEF")
+        assert pattern.match("123456")
+
+        # Invalid colors
+        assert not pattern.match("ff0000")  # Lowercase
+        assert not pattern.match("FF00")  # Too short
+        assert not pattern.match("FF00000")  # Too long
+        assert not pattern.match("GGGGGG")  # Invalid hex
+
+
+class TestTypeGuards:
+    """Test type guard functions."""
+
+    def test_is_dataset_type(self):
+        """Test is_dataset_type guard."""
+        # Valid dataset types
+        assert is_dataset_type("FrameNet")
+        assert is_dataset_type("PropBank")
+        assert is_dataset_type("VerbNet")
+        assert is_dataset_type("WordNet")
+
+        # Invalid dataset types
+        assert not is_dataset_type("AMR")
+        assert not is_dataset_type("framenet")  # Case sensitive
+        assert not is_dataset_type("Unknown")
+        assert not is_dataset_type("")
+
+    def test_is_resource_type(self):
+        """Test is_resource_type guard."""
+        # Valid resource types
+        assert is_resource_type("FrameNet")
+        assert is_resource_type("PropBank")
+        assert is_resource_type("VerbNet")
+        assert is_resource_type("WordNet")
+        assert is_resource_type("AMR")
+        assert is_resource_type("UMR")
+        assert is_resource_type("Flickr")
+        assert is_resource_type("THYME")
+        assert is_resource_type("Spatial")
+
+        # Invalid resource types
+        assert not is_resource_type("Unknown")
+        assert not is_resource_type("framenet")  # Case sensitive
+        assert not is_resource_type("")
+
+    def test_is_valid_confidence(self):
+        """Test is_valid_confidence guard."""
+        # Valid confidence scores
+        assert is_valid_confidence(0.0)
+        assert is_valid_confidence(0.5)
+        assert is_valid_confidence(1.0)
+        assert is_valid_confidence(0.95)
+        assert is_valid_confidence(0.001)
+
+        # Invalid confidence scores
+        assert not is_valid_confidence(-0.1)
+        assert not is_valid_confidence(1.1)
+        assert not is_valid_confidence(2.0)
+        assert not is_valid_confidence(-1.0)
+
+
+class TestExceptions:
+    """Test custom exception classes."""
+
+    def test_data_not_loaded_error(self):
+        """Test DataNotLoadedError exception."""
+        with pytest.raises(DataNotLoadedError):
+            raise DataNotLoadedError("Data not loaded")
+
+    def test_invalid_reference_error(self):
+        """Test InvalidReferenceError exception."""
+        with pytest.raises(InvalidReferenceError):
+            raise InvalidReferenceError("Invalid reference")
+
+    def test_mapping_conflict_error(self):
+        """Test MappingConflictError exception."""
+        with pytest.raises(MappingConflictError):
+            raise MappingConflictError("Mapping conflict")
+
+    def test_validation_error(self):
+        """Test ValidationError exception."""
+        with pytest.raises(ValidationError):
+            raise ValidationError("Validation failed")
+
+
+class TestTypeIntegration:
+    """Test type integration with Pydantic models."""
+
+    def test_types_with_pydantic_model(self):
+        """Test that types work correctly in Pydantic models."""
+
+        class TestMapping(BaseModel):
+            source_dataset: DatasetType
+            target_dataset: DatasetType
+            mapping_type: MappingType
+            confidence: MappingConfidenceScore
+            source: MappingSource
+            status: ValidationStatus
+
+        # Valid model
+        mapping = TestMapping(
+            source_dataset="FrameNet",
+            target_dataset="VerbNet",
+            mapping_type="direct",
+            confidence=0.95,
+            source="manual",
+            status="validated",
+        )
+
+        assert mapping.source_dataset == "FrameNet"
+        assert mapping.confidence == 0.95
+
+        # Invalid dataset type
+        with pytest.raises(PydanticValidationError):
+            TestMapping(
+                source_dataset="Unknown",  # Invalid
+                target_dataset="VerbNet",
+                mapping_type="direct",
+                confidence=0.95,
+                source="manual",
+                status="validated",
+            )
+
+        # Invalid confidence
+        with pytest.raises(PydanticValidationError):
+            TestMapping(
+                source_dataset="FrameNet",
+                target_dataset="VerbNet",
+                mapping_type="direct",
+                confidence=1.5,  # Invalid
+                source="manual",
+                status="validated",
+            )

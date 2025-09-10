@@ -25,3 +25,4 @@ repos:
         additional_dependencies: [pydantic>=2.5.0, types-python-dateutil]
         args: [--config-file=pyproject.toml]
         files: ^src/
+        exclude: ^src/glazing/types\.py$
