@@ -31,14 +31,8 @@ FRAME_ID_PATTERN : str
     FrameNet frame ID pattern (numeric).
 VERBNET_CLASS_PATTERN : str
     VerbNet class ID pattern.
-WORDNET_OFFSET_PATTERN : str
-    WordNet offset pattern.
-WORDNET_SENSE_KEY_PATTERN : str
-    WordNet sense key pattern.
 VERBNET_KEY_PATTERN : str
     VerbNet key pattern.
-PERCENTAGE_NOTATION_PATTERN : str
-    Percentage notation pattern.
 LEMMA_PATTERN : str
     Word lemma pattern.
 HEX_COLOR_PATTERN : str
@@ -150,14 +144,9 @@ type OperationType = Literal[
 # Frame/Class/Roleset ID patterns
 FRAME_ID_PATTERN = r"^\d+$"  # FrameNet frame ID (numeric)
 VERBNET_CLASS_PATTERN = r"^[a-z_]+-[0-9]+(?:\.[0-9]+)*(?:-[0-9]+)*$"  # e.g., "give-13.1-1"
-WORDNET_OFFSET_PATTERN = r"^[0-9]{8}$"  # 8-digit zero-padded
 
 # Sense key patterns
-WORDNET_SENSE_KEY_PATTERN = r"^[a-z0-9_.-]+%[1-5]:[0-9]{2}:[0-9]{2}:[a-z0-9_.-]*:[0-9]*$"
 VERBNET_KEY_PATTERN = r"^[a-z_-]+#\d+$"  # e.g., "give#2"
-
-# Percentage notation (VerbNet's WordNet reference format)
-PERCENTAGE_NOTATION_PATTERN = r"^[a-z_-]+%[1-5]:[0-9]{2}:[0-9]{2}$"  # e.g., "give%2:40:00"
 
 # Name validation patterns
 LEMMA_PATTERN = r"^[a-z][a-z0-9_\'-]*$"  # Word lemmas

@@ -15,11 +15,8 @@ from glazing.types import (
     FRAME_ID_PATTERN,
     HEX_COLOR_PATTERN,
     LEMMA_PATTERN,
-    PERCENTAGE_NOTATION_PATTERN,
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
-    WORDNET_OFFSET_PATTERN,
-    WORDNET_SENSE_KEY_PATTERN,
     AlignmentType,
     ConflictType,
     # Exceptions
@@ -288,37 +285,6 @@ class TestRegexPatterns:
         assert not pattern.match("Give-13.1")  # Capital letter
         assert not pattern.match("give-")
 
-    def test_wordnet_offset_pattern(self):
-        """Test WordNet synset offset pattern."""
-        pattern = re.compile(WORDNET_OFFSET_PATTERN)
-
-        # Valid offsets
-        assert pattern.match("00001740")
-        assert pattern.match("12345678")
-        assert pattern.match("00000000")
-
-        # Invalid offsets
-        assert not pattern.match("1740")  # Too short
-        assert not pattern.match("000017400")  # Too long
-        assert not pattern.match("0000174X")  # Non-numeric
-
-    def test_wordnet_sense_key_pattern(self):
-        """Test WordNet sense key pattern."""
-        pattern = re.compile(WORDNET_SENSE_KEY_PATTERN)
-
-        # Valid sense keys
-        assert pattern.match("abandon%2:40:01::")
-        assert pattern.match("dog%1:05:00::")
-        assert pattern.match("run%2:38:00::")
-        assert pattern.match("good%3:00:01::")
-        assert pattern.match("quickly%4:02:00::")
-        assert pattern.match("better%5:00:00:good:01")
-
-        # Invalid sense keys
-        assert not pattern.match("abandon")
-        assert not pattern.match("abandon%2")
-        assert not pattern.match("abandon%6:40:01::")  # Invalid POS (6)
-
     def test_verbnet_key_pattern(self):
         """Test VerbNet member key pattern."""
         pattern = re.compile(VERBNET_KEY_PATTERN)
@@ -334,20 +300,6 @@ class TestRegexPatterns:
         assert not pattern.match("give#")
         assert not pattern.match("Give#2")  # Capital letter
         assert not pattern.match("give#two")
-
-    def test_percentage_notation_pattern(self):
-        """Test VerbNet's WordNet percentage notation pattern."""
-        pattern = re.compile(PERCENTAGE_NOTATION_PATTERN)
-
-        # Valid notations
-        assert pattern.match("give%2:40:00")
-        assert pattern.match("abandon%2:40:01")
-        assert pattern.match("dog%1:05:00")
-
-        # Invalid notations
-        assert not pattern.match("give%2:40")  # Missing lex_id
-        assert not pattern.match("give%2:40:00::")  # Extra colons
-        assert not pattern.match("Give%2:40:00")  # Capital letter
 
     def test_lemma_pattern(self):
         """Test lemma pattern."""

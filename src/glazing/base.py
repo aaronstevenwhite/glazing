@@ -43,11 +43,8 @@ from glazing.types import (
     FRAME_ID_PATTERN,
     HEX_COLOR_PATTERN,
     LEMMA_PATTERN,
-    PERCENTAGE_NOTATION_PATTERN,
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
-    WORDNET_OFFSET_PATTERN,
-    WORDNET_SENSE_KEY_PATTERN,
     ConflictType,
     DatasetType,
     MappingConfidenceScore,
@@ -55,6 +52,11 @@ from glazing.types import (
     MappingType,
     ValidationStatus,
     VersionString,
+)
+from glazing.wordnet.types import (
+    PERCENTAGE_NOTATION_PATTERN,
+    WORDNET_OFFSET_PATTERN,
+    WORDNET_SENSE_KEY_PATTERN,
 )
 
 type ModelValue = str | int | float | bool | None | list[ModelValue] | dict[str, ModelValue]
