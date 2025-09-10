@@ -1,0 +1,742 @@
+"""VerbNet core data models.
+
+This module implements VerbNet verb classes, members, thematic roles, and
+selectional restrictions with support for role inheritance hierarchies.
+
+Classes
+-------
+SelectionalRestriction
+    Single selectional restriction on a thematic role.
+SelectionalRestrictions
+    Container for selectional restrictions with logical operators.
+ThematicRole
+    Thematic role with selectional restrictions.
+WordNetCrossRef
+    Cross-reference to WordNet from VerbNet.
+VerbNetFrameNetRoleMapping
+    Role-level mapping between VerbNet and FrameNet.
+VerbNetFrameNetMapping
+    VerbNet to FrameNet mapping with confidence.
+MappingMetadata
+    Metadata for cross-dataset mappings.
+Member
+    VerbNet member with comprehensive cross-references.
+VerbClass
+    A VerbNet verb class with members and frames.
+
+Examples
+--------
+>>> from glazing.verbnet.models import VerbClass, Member, ThematicRole
+>>> verb_class = VerbClass(
+...     id="give-13.1",
+...     members=[],
+...     themroles=[],
+...     frames=[],
+...     subclasses=[]
+... )
+>>> print(verb_class.id)
+'give-13.1'
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Self
+
+from pydantic import Field, field_validator
+
+from glazing.base import GlazingBaseModel
+from glazing.types import LogicType, MappingConfidenceScore, MappingSource, ValidationStatus
+from glazing.verbnet.types import (
+    VERBNET_CLASS_PATTERN,
+    VERBNET_KEY_PATTERN,
+    RestrictionValue,
+    SelectionalRestrictionType,
+    ThematicRoleType,
+    VerbClassID,
+    VerbNetKey,
+)
+
+
+class MappingConfidence(GlazingBaseModel):
+    """Confidence scoring for mappings.
+
+    Parameters
+    ----------
+    score : MappingConfidenceScore
+        Confidence score between 0.0 and 1.0.
+    method : str
+        Method used to calculate confidence.
+    factors : dict[str, float], default={}
+        Component scores that contributed to the confidence.
+
+    Examples
+    --------
+    >>> confidence = MappingConfidence(score=0.95, method="manual")
+    """
+
+    score: MappingConfidenceScore
+    method: str
+    factors: dict[str, float] = Field(default_factory=dict)
+
+
+class SelectionalRestriction(GlazingBaseModel):
+    """Single selectional restriction.
+
+    Parameters
+    ----------
+    value : RestrictionValue
+        Restriction polarity ("+" or "-").
+    type : SelectionalRestrictionType
+        Type of selectional restriction (e.g., "animate", "concrete").
+
+    Examples
+    --------
+    >>> restriction = SelectionalRestriction(value="+", type="animate")
+    >>> print(restriction.type)
+    'animate'
+    """
+
+    value: RestrictionValue
+    type: SelectionalRestrictionType
+
+
+class SelectionalRestrictions(GlazingBaseModel):
+    """Container for selectional restrictions with logic.
+
+    Parameters
+    ----------
+    logic : LogicType | None, default=None
+        Logical operator ("or", "and", or None for implicit AND).
+    restrictions : list[SelectionalRestriction | SelectionalRestrictions]
+        List of restrictions or nested restriction groups.
+
+    Methods
+    -------
+    is_complex()
+        Check if this contains nested restrictions.
+
+    Examples
+    --------
+    >>> restrictions = SelectionalRestrictions(
+    ...     logic="or",
+    ...     restrictions=[
+    ...         SelectionalRestriction(value="+", type="animate"),
+    ...         SelectionalRestriction(value="+", type="human")
+    ...     ]
+    ... )
+    >>> print(restrictions.is_complex())
+    False
+    """
+
+    logic: LogicType | None = Field(None, description="Logical operator for combining restrictions")
+    restrictions: list[SelectionalRestriction | SelectionalRestrictions] = Field(
+        default_factory=list, description="List of restrictions or nested groups"
+    )
+
+    def is_complex(self) -> bool:
+        """Check if this contains nested restrictions.
+
+        Returns
+        -------
+        bool
+            True if any restriction is a SelectionalRestrictions object.
+        """
+        return any(isinstance(r, SelectionalRestrictions) for r in self.restrictions)
+
+
+class ThematicRole(GlazingBaseModel):
+    """Thematic role with selectional restrictions.
+
+    Parameters
+    ----------
+    type : ThematicRoleType
+        Type of thematic role (e.g., "Agent", "Theme", "Patient").
+    sel_restrictions : SelectionalRestrictions | None, default=None
+        Selectional restrictions on this role.
+
+    Attributes
+    ----------
+    _class_id : str | None
+        The class ID this role belongs to (set during parsing).
+
+    Methods
+    -------
+    class_id()
+        Get the class ID this role belongs to.
+
+    Examples
+    --------
+    >>> role = ThematicRole(
+    ...     type="Agent",
+    ...     sel_restrictions=SelectionalRestrictions(
+    ...         restrictions=[SelectionalRestriction(value="+", type="animate")]
+    ...     )
+    ... )
+    >>> print(role.type)
+    'Agent'
+    """
+
+    type: ThematicRoleType
+    sel_restrictions: SelectionalRestrictions | None = Field(
+        None, description="Selectional restrictions on this role"
+    )
+
+    def class_id(self) -> str | None:
+        """Get the class ID this role belongs to (for inheritance).
+
+        Returns
+        -------
+        str | None
+            The class ID if set, None otherwise.
+        """
+        return getattr(self, "_class_id", None)
+
+
+class WordNetCrossRef(GlazingBaseModel):
+    """Cross-reference to WordNet from VerbNet.
+
+    Parameters
+    ----------
+    sense_key : str | None, default=None
+        WordNet sense key (preferred, stable across versions).
+    synset_offset : str | None, default=None
+        WordNet synset offset (version-specific).
+    lemma : str
+        The lemma form.
+    pos : str
+        Part of speech ("n", "v", "a", "r", "s").
+    sense_number : int | None, default=None
+        Sense number in WordNet.
+
+    Methods
+    -------
+    to_percentage_notation()
+        Convert to VerbNet percentage notation.
+    from_percentage_notation(notation)
+        Parse VerbNet percentage notation.
+
+    Examples
+    --------
+    >>> ref = WordNetCrossRef.from_percentage_notation("give%2:40:00")
+    >>> print(ref.lemma)
+    'give'
+    """
+
+    sense_key: str | None = None
+    synset_offset: str | None = None
+    lemma: str
+    pos: str
+    sense_number: int | None = None
+
+    def to_percentage_notation(self) -> str:
+        """Convert to VerbNet percentage notation.
+
+        Returns
+        -------
+        str
+            Percentage notation string or empty string if incomplete.
+        """
+        if self.sense_key and "%" in self.sense_key:
+            after_percent = self.sense_key.split("%")[1]
+            parts = after_percent.split(":")
+            if len(parts) >= 3:
+                return f"{self.lemma}%{parts[0]}:{parts[1]}:{parts[2]}"
+        return ""
+
+    @classmethod
+    def from_percentage_notation(cls, notation: str) -> Self:
+        """Parse VerbNet percentage notation.
+
+        Parameters
+        ----------
+        notation : str
+            Percentage notation string (e.g., "word%2:40:00").
+
+        Returns
+        -------
+        WordNetCrossRef
+            Parsed cross-reference.
+
+        Raises
+        ------
+        ValueError
+            If notation format is invalid.
+        """
+        match = re.match(r"^([a-z_-]+)%([1-5]):([0-9]{2}):([0-9]{2})$", notation)
+        if not match:
+            msg = f"Invalid percentage notation: {notation}"
+            raise ValueError(msg)
+
+        lemma = match.group(1)
+        ss_type = int(match.group(2))
+        lex_filenum = match.group(3)
+        lex_id = match.group(4)
+
+        pos_map = {1: "n", 2: "v", 3: "a", 4: "r", 5: "s"}
+        pos = pos_map[ss_type]
+
+        sense_key = f"{lemma}%{ss_type}:{lex_filenum}:{lex_id}::"
+
+        return cls(sense_key=sense_key, lemma=lemma, pos=pos)
+
+
+class VerbNetFrameNetRoleMapping(GlazingBaseModel):
+    """Role-level mapping between VerbNet and FrameNet.
+
+    Parameters
+    ----------
+    vn_role : str
+        VerbNet thematic role.
+    fn_fe : str
+        FrameNet frame element.
+    confidence : float | None, default=None
+        Mapping confidence score.
+    notes : str | None, default=None
+        Additional notes about the mapping.
+
+    Examples
+    --------
+    >>> mapping = VerbNetFrameNetRoleMapping(
+    ...     vn_role="Agent",
+    ...     fn_fe="Giver",
+    ...     confidence=0.95
+    ... )
+    """
+
+    vn_role: str
+    fn_fe: str
+    confidence: float | None = None
+    notes: str | None = None
+
+
+class VerbNetFrameNetMapping(GlazingBaseModel):
+    """VerbNet to FrameNet mapping with confidence.
+
+    Parameters
+    ----------
+    frame_name : str
+        FrameNet frame name.
+    confidence : MappingConfidence | None, default=None
+        Mapping confidence with score and method.
+    mapping_source : MappingSource
+        Source of the mapping (manual, automatic, etc.).
+    role_mappings : list[VerbNetFrameNetRoleMapping], default=[]
+        Role-level mappings between VerbNet and FrameNet.
+
+    Examples
+    --------
+    >>> mapping = VerbNetFrameNetMapping(
+    ...     frame_name="Giving",
+    ...     mapping_source="manual",
+    ...     role_mappings=[]
+    ... )
+    """
+
+    frame_name: str
+    confidence: MappingConfidence | None = None
+    mapping_source: MappingSource
+    role_mappings: list[VerbNetFrameNetRoleMapping] = Field(default_factory=list)
+
+
+class MappingMetadata(GlazingBaseModel):
+    """Metadata for cross-dataset mappings.
+
+    Parameters
+    ----------
+    created_date : str
+        ISO format creation date.
+    created_by : str
+        Person or system that created mapping.
+    modified_date : str | None, default=None
+        ISO format modification date.
+    modified_by : str | None, default=None
+        Person or system that modified mapping.
+    version : str
+        Dataset version this mapping was created for.
+    validation_status : ValidationStatus
+        Validation status of the mapping.
+    validation_method : str | None, default=None
+        How the mapping was validated.
+    notes : str | None, default=None
+        Additional notes.
+
+    Examples
+    --------
+    >>> metadata = MappingMetadata(
+    ...     created_date="2024-01-01T00:00:00Z",
+    ...     created_by="system",
+    ...     version="3.4",
+    ...     validation_status="validated"
+    ... )
+    """
+
+    created_date: str
+    created_by: str
+    modified_date: str | None = None
+    modified_by: str | None = None
+    version: str
+    validation_status: ValidationStatus
+    validation_method: str | None = None
+    notes: str | None = None
+
+
+class CrossReference(GlazingBaseModel):
+    """Cross-dataset reference.
+
+    Parameters
+    ----------
+    target_dataset : str
+        Target dataset name.
+    target_id : str
+        ID in target dataset.
+
+    Examples
+    --------
+    >>> ref = CrossReference(
+    ...     target_dataset="PropBank",
+    ...     target_id="give.01"
+    ... )
+    """
+
+    target_dataset: str
+    target_id: str
+
+
+class Member(GlazingBaseModel):
+    """VerbNet member with comprehensive cross-references.
+
+    Parameters
+    ----------
+    name : str
+        Lemma form (validated).
+    verbnet_key : VerbNetKey
+        Unique identifier with sense.
+    framenet_mappings : list[VerbNetFrameNetMapping], default=[]
+        FrameNet mappings with confidence.
+    propbank_mappings : list[CrossReference], default=[]
+        PropBank roleset mappings.
+    wordnet_mappings : list[WordNetCrossRef], default=[]
+        WordNet sense mappings.
+    features : dict[str, str], default={}
+        Semantic features.
+    mapping_metadata : MappingMetadata | None, default=None
+        Metadata about mappings.
+    inherited_from_class : VerbClassID | None, default=None
+        If inherited from parent class.
+
+    Methods
+    -------
+    get_primary_framenet_frame()
+        Get highest confidence FrameNet frame.
+    get_all_framenet_frames()
+        Get all FrameNet frames with confidence scores.
+    get_wordnet_senses()
+        Get WordNet senses in percentage notation.
+    get_propbank_rolesets()
+        Get PropBank roleset IDs.
+    has_mapping_conflicts()
+        Check if there are conflicting high-confidence mappings.
+
+    Examples
+    --------
+    >>> member = Member(
+    ...     name="give",
+    ...     verbnet_key="give#2",
+    ...     framenet_mappings=[],
+    ...     propbank_mappings=[],
+    ...     wordnet_mappings=[]
+    ... )
+    >>> print(member.verbnet_key)
+    'give#2'
+    """
+
+    name: str = Field(description="Lemma form")
+    verbnet_key: VerbNetKey = Field(description="Unique identifier with sense")
+    framenet_mappings: list[VerbNetFrameNetMapping] = Field(
+        default_factory=list, description="FrameNet mappings with confidence"
+    )
+    propbank_mappings: list[CrossReference] = Field(
+        default_factory=list, description="PropBank roleset mappings"
+    )
+    wordnet_mappings: list[WordNetCrossRef] = Field(
+        default_factory=list, description="WordNet sense mappings"
+    )
+    features: dict[str, str] = Field(default_factory=dict, description="Semantic features")
+    mapping_metadata: MappingMetadata | None = None
+    inherited_from_class: VerbClassID | None = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_member_name(cls, v: str) -> str:
+        """Validate member name (verb lemma).
+
+        Parameters
+        ----------
+        v : str
+            Member name to validate.
+
+        Returns
+        -------
+        str
+            Validated member name.
+
+        Raises
+        ------
+        ValueError
+            If member name format is invalid.
+        """
+        if not re.match(r"^[a-z][a-z0-9_-]*$", v):
+            msg = f"Invalid member name format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("verbnet_key")
+    @classmethod
+    def validate_verbnet_key(cls, v: str) -> str:
+        """Validate verbnet_key format.
+
+        Parameters
+        ----------
+        v : str
+            VerbNet key to validate.
+
+        Returns
+        -------
+        str
+            Validated VerbNet key.
+
+        Raises
+        ------
+        ValueError
+            If VerbNet key format is invalid.
+        """
+        if not re.match(VERBNET_KEY_PATTERN, v):
+            msg = f"Invalid verbnet_key format: {v}"
+            raise ValueError(msg)
+        return v
+
+    def get_primary_framenet_frame(self) -> str | None:
+        """Get highest confidence FrameNet frame.
+
+        Returns
+        -------
+        str | None
+            Frame name or None if no mappings.
+        """
+        if not self.framenet_mappings:
+            return None
+        best = max(
+            self.framenet_mappings,
+            key=lambda m: m.confidence.score if m.confidence else 0.0,
+            default=None,
+        )
+        return best.frame_name if best else None
+
+    def get_all_framenet_frames(self) -> list[tuple[str, float | None]]:
+        """Get all FrameNet frames with confidence scores.
+
+        Returns
+        -------
+        list[tuple[str, float | None]]
+            List of (frame_name, confidence_score) tuples.
+        """
+        frames = []
+        for mapping in self.framenet_mappings:
+            score = mapping.confidence.score if mapping.confidence else None
+            frames.append((mapping.frame_name, score))
+        return frames
+
+    def get_wordnet_senses(self) -> list[str]:
+        """Get WordNet senses in percentage notation.
+
+        Returns
+        -------
+        list[str]
+            List of percentage notation strings.
+        """
+        return [
+            m.to_percentage_notation() for m in self.wordnet_mappings if m.to_percentage_notation()
+        ]
+
+    def get_propbank_rolesets(self) -> list[str]:
+        """Get PropBank roleset IDs.
+
+        Returns
+        -------
+        list[str]
+            List of PropBank roleset IDs.
+        """
+        return [m.target_id for m in self.propbank_mappings if m.target_dataset == "PropBank"]
+
+    def has_mapping_conflicts(self) -> bool:
+        """Check if there are conflicting high-confidence mappings.
+
+        Returns
+        -------
+        bool
+            True if multiple high-confidence FrameNet mappings exist.
+        """
+        high_conf_fn = [
+            m for m in self.framenet_mappings if m.confidence and m.confidence.score > 0.7
+        ]
+        return len(high_conf_fn) > 1
+
+
+class VerbClass(GlazingBaseModel):
+    """A VerbNet verb class with members and frames.
+
+    Parameters
+    ----------
+    id : VerbClassID
+        Validated VerbNet class ID (e.g., "give-13.1").
+    members : list[Member]
+        Verb members in this class.
+    themroles : list[ThematicRole]
+        Thematic roles (may be empty for inheritance).
+    frames : list
+        Frame specifications (placeholder for Phase 14).
+    subclasses : list[VerbClass]
+        Recursive subclasses.
+    parent_class : VerbClassID | None, default=None
+        Parent class ID for subclasses.
+
+    Methods
+    -------
+    get_effective_roles(parent_roles)
+        Get effective roles considering inheritance from parent classes.
+    get_all_members(include_subclasses)
+        Get all members including those from subclasses.
+    get_member_by_key(verbnet_key)
+        Find a member by its VerbNet key.
+    has_subclasses()
+        Check if this class has subclasses.
+
+    Examples
+    --------
+    >>> verb_class = VerbClass(
+    ...     id="give-13.1",
+    ...     members=[],
+    ...     themroles=[
+    ...         ThematicRole(type="Agent"),
+    ...         ThematicRole(type="Theme"),
+    ...         ThematicRole(type="Recipient")
+    ...     ],
+    ...     frames=[],
+    ...     subclasses=[]
+    ... )
+    >>> roles = verb_class.get_effective_roles()
+    >>> print(len(roles))
+    3
+    """
+
+    id: VerbClassID = Field(description="VerbNet class ID")
+    members: list[Member] = Field(default_factory=list, description="Verb members")
+    themroles: list[ThematicRole] = Field(
+        default_factory=list, description="Thematic roles (empty for inheritance)"
+    )
+    frames: list[dict[str, str]] = Field(default_factory=list, description="Frame specifications")
+    subclasses: list[VerbClass] = Field(default_factory=list, description="Recursive subclasses")
+    parent_class: VerbClassID | None = Field(None, description="Parent class ID for subclasses")
+
+    @field_validator("id")
+    @classmethod
+    def validate_verbclass_id(cls, v: str) -> str:
+        """Validate VerbNet class ID format.
+
+        Parameters
+        ----------
+        v : str
+            Class ID to validate.
+
+        Returns
+        -------
+        str
+            Validated class ID.
+
+        Raises
+        ------
+        ValueError
+            If class ID format is invalid.
+        """
+        if not re.match(VERBNET_CLASS_PATTERN, v):
+            msg = f"Invalid VerbNet class ID format: {v}"
+            raise ValueError(msg)
+        return v
+
+    def get_effective_roles(
+        self, parent_roles: list[ThematicRole] | None = None
+    ) -> list[ThematicRole]:
+        """Get effective roles considering inheritance from parent classes.
+
+        Parameters
+        ----------
+        parent_roles : list[ThematicRole] | None, default=None
+            Roles from parent class.
+
+        Returns
+        -------
+        list[ThematicRole]
+            Effective roles after applying inheritance rules.
+
+        Notes
+        -----
+        If themroles is empty and parent_roles is provided, inherits all parent roles.
+        Otherwise, subclass roles override parent roles of the same type.
+        """
+        if not self.themroles and parent_roles:
+            return parent_roles
+        if parent_roles:
+            final_roles = self.themroles.copy()
+            for parent_role in parent_roles:
+                if not any(r.type == parent_role.type for r in self.themroles):
+                    final_roles.append(parent_role)
+            return final_roles
+        return self.themroles
+
+    def get_all_members(self, include_subclasses: bool = True) -> list[Member]:
+        """Get all members including those from subclasses.
+
+        Parameters
+        ----------
+        include_subclasses : bool, default=True
+            Whether to include members from subclasses.
+
+        Returns
+        -------
+        list[Member]
+            All members in this class and optionally its subclasses.
+        """
+        members = self.members.copy()
+        if include_subclasses:
+            for subclass in self.subclasses:
+                members.extend(subclass.get_all_members(include_subclasses=True))
+        return members
+
+    def get_member_by_key(self, verbnet_key: str) -> Member | None:
+        """Find a member by its VerbNet key.
+
+        Parameters
+        ----------
+        verbnet_key : str
+            The VerbNet key to search for.
+
+        Returns
+        -------
+        Member | None
+            The member if found, None otherwise.
+        """
+        for member in self.get_all_members():
+            if member.verbnet_key == verbnet_key:
+                return member
+        return None
+
+    def has_subclasses(self) -> bool:
+        """Check if this class has subclasses.
+
+        Returns
+        -------
+        bool
+            True if the class has subclasses.
+        """
+        return len(self.subclasses) > 0

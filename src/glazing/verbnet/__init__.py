@@ -28,4 +28,30 @@ Examples
 >>> print(verb_class.themroles)
 """
 
-__all__: list[str] = []
+from glazing.verbnet.models import (
+    CrossReference,
+    MappingConfidence,
+    MappingMetadata,
+    Member,
+    SelectionalRestriction,
+    SelectionalRestrictions,
+    ThematicRole,
+    VerbClass,
+    VerbNetFrameNetMapping,
+    VerbNetFrameNetRoleMapping,
+    WordNetCrossRef,
+)
+
+__all__ = [
+    "CrossReference",
+    "MappingConfidence",
+    "MappingMetadata",
+    "Member",
+    "SelectionalRestriction",
+    "SelectionalRestrictions",
+    "ThematicRole",
+    "VerbClass",
+    "VerbNetFrameNetMapping",
+    "VerbNetFrameNetRoleMapping",
+    "WordNetCrossRef",
+]
