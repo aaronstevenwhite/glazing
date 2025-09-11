@@ -28,6 +28,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "typing-extensions>=4.9.0",
     "python-dateutil>=2.8.2",
+    "lxml>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -38,14 +39,12 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.21.1",
     "pre-commit>=3.6.0",
+    "lxml-stubs>=0.5.0",
 ]
 docs = [
     "mkdocs>=1.5.3",
     "mkdocs-material>=9.5.3",
     "mkdocstrings[python]>=0.24.0",
-]
-xml = [
-    "lxml>=5.0.0",  # For XML parsing if needed
 ]
 
 [project.urls]
@@ -108,7 +107,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN", "ARG", "PT011", "FBT003"]
+"tests/*" = ["S101", "S320", "ANN", "ARG", "PT011", "FBT003"]
+"tests/conftest.py" = ["E501"]
+"tests/test_utils/test_xml_parser.py" = ["E501"]
 "src/glazing/utils/cache.py" = ["ANN002", "ANN003", "PLW0603"]
 
 [tool.ruff.lint.pydocstyle]
