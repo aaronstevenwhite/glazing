@@ -110,7 +110,15 @@ ignore = [
 "tests/*" = ["S101", "S320", "ANN", "ARG", "PT011", "FBT003"]
 "tests/conftest.py" = ["E501"]
 "tests/test_utils/test_xml_parser.py" = ["E501"]
+"tests/test_verbnet/test_converter.py" = ["E501", "S314"]
+"tests/test_verbnet/test_inheritance.py" = ["E501"]
+"tests/test_wordnet/test_converter.py" = ["E501"]
 "src/glazing/utils/cache.py" = ["ANN002", "ANN003", "PLW0603"]
+"src/glazing/utils/xml_parser.py" = ["S320"]
+"src/glazing/wordnet/converter.py" = ["C901", "PLR0912", "PLR0915"]
+"src/glazing/verbnet/converter.py" = ["C901", "S320"]
+"src/glazing/framenet/converter.py" = ["S320"]
+"src/glazing/propbank/converter.py" = ["S320"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

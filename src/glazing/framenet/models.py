@@ -548,6 +548,9 @@ class Frame(GlazingBaseModel):
     name: FrameName = Field(description="Human-readable frame name")
     definition: AnnotatedText = Field(description="Frame definition with markup")
     frame_elements: list[FrameElement] = Field(description="Frame elements")
+    lexical_units: list[LexicalUnit] = Field(
+        default_factory=list, description="Lexical units in this frame"
+    )
     created_by: Username | None = Field(None, description="Frame creator username")
     created_date: datetime | None = Field(None, description="Creation timestamp")
     modified_date: datetime | None = Field(None, description="Modification timestamp")
