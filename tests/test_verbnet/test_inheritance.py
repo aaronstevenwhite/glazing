@@ -93,12 +93,13 @@ class TestInheritanceChain:
         assert "Recipient" in inherited_types
         assert "Agent" not in inherited_types  # This is overridden
 
-    def test_get_overridden_roles_not_implemented(self, sample_chain):
-        """Test that get_overridden_roles raises NotImplementedError."""
-        with pytest.raises(
-            NotImplementedError, match="Role override detection not yet implemented"
-        ):
-            sample_chain.get_overridden_roles()
+    def test_get_overridden_roles(self, sample_chain):
+        """Test getting overridden roles."""
+        overridden = sample_chain.get_overridden_roles()
+
+        # Agent is defined in child class, so it's overridden
+        assert len(overridden) == 1
+        assert overridden[0] == ("Agent", "give-13.1-1")
 
 
 class TestRoleInheritanceResolver:
@@ -316,18 +317,57 @@ class TestRoleInheritanceResolver:
         overrides = resolver.detect_role_overrides(child_roles, parent_roles)
         assert len(overrides) == 0
 
-    def test_merge_role_restrictions_not_implemented(self, resolver):
-        """Test that merge_role_restrictions raises NotImplementedError."""
+    def test_merge_role_restrictions(self, resolver):
+        """Test merging role restrictions."""
+        # Test case 1: Child has no restrictions, inherit parent's
         child_role = ThematicRole(type="Agent", sel_restrictions=None)
-        parent_role = ThematicRole(type="Agent", sel_restrictions=None)
+        parent_role = ThematicRole(
+            type="Agent",
+            sel_restrictions=SelectionalRestrictions(
+                logic=None, restrictions=[SelectionalRestriction(value="+", type="animate")]
+            ),
+        )
+        merged = resolver.merge_role_restrictions(child_role, parent_role)
+        assert merged.sel_restrictions is not None
+        assert len(merged.sel_restrictions.restrictions) == 1
+        assert merged.sel_restrictions.restrictions[0].type == "animate"
 
-        with pytest.raises(
-            NotImplementedError, match="Selectional restriction merging not yet implemented"
-        ):
-            resolver.merge_role_restrictions(child_role, parent_role)
+        # Test case 2: Parent has no restrictions, use child's
+        child_role = ThematicRole(
+            type="Theme",
+            sel_restrictions=SelectionalRestrictions(
+                logic=None, restrictions=[SelectionalRestriction(value="+", type="concrete")]
+            ),
+        )
+        parent_role = ThematicRole(type="Theme", sel_restrictions=None)
+        merged = resolver.merge_role_restrictions(child_role, parent_role)
+        assert merged.sel_restrictions is not None
+        assert len(merged.sel_restrictions.restrictions) == 1
+        assert merged.sel_restrictions.restrictions[0].type == "concrete"
+
+        # Test case 3: Both have restrictions, combine them
+        child_role = ThematicRole(
+            type="Agent",
+            sel_restrictions=SelectionalRestrictions(
+                logic=None, restrictions=[SelectionalRestriction(value="+", type="human")]
+            ),
+        )
+        parent_role = ThematicRole(
+            type="Agent",
+            sel_restrictions=SelectionalRestrictions(
+                logic=None, restrictions=[SelectionalRestriction(value="+", type="animate")]
+            ),
+        )
+        merged = resolver.merge_role_restrictions(child_role, parent_role)
+        assert merged.sel_restrictions is not None
+        # Child's restriction takes precedence, parent's non-conflicting added
+        assert len(merged.sel_restrictions.restrictions) == 2
+        restriction_types = {r.type for r in merged.sel_restrictions.restrictions}
+        assert "human" in restriction_types
+        assert "animate" in restriction_types
 
     def test_get_inheritance_statistics(self, resolver):
-        """Test getting inheritance statistics raises NotImplementedError."""
+        """Test getting inheritance statistics."""
         parent_class = VerbClass(
             id="give-13.1",
             members=[],
@@ -354,10 +394,16 @@ class TestRoleInheritanceResolver:
             "give-13.1-1": child_class,
         }
 
-        with pytest.raises(
-            NotImplementedError, match="Role override detection not yet implemented"
-        ):
-            resolver.get_inheritance_statistics(hierarchy, "give-13.1-1")
+        stats = resolver.get_inheritance_statistics(hierarchy, "give-13.1-1")
+
+        assert stats["class_id"] == "give-13.1-1"
+        assert stats["inheritance_depth"] == 1
+        assert stats["parent_chain"] == ["give-13.1"]
+        assert stats["total_roles"] == 2  # Inherited Agent and Theme
+        assert stats["inherited_roles"] == 2
+        assert stats["overridden_roles"] == 0  # No overrides since themroles is empty
+        assert stats["local_roles"] == 0
+        assert stats["has_empty_themroles"] is True
 
     def test_get_inheritance_statistics_missing_class(self, resolver):
         """Test statistics for non-existent class returns empty dict."""

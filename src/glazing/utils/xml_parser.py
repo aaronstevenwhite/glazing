@@ -36,7 +36,7 @@ All parsers use iterparse for constant memory usage regardless of file size.
 import re
 from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 
 from lxml import etree, objectify
 
@@ -276,7 +276,7 @@ def parse_attributes(
         objectify.deannotate(element, cleanup_namespaces=True)
         result: dict[str, str | int | float | bool] = {}
         for k, v in element.attrib.items():
-            result[str(k)] = cast(Any, objectify.fromstring(str(v)))
+            result[str(k)] = cast(str | int | float | bool, objectify.fromstring(str(v)))
         return result
 
     attrs: dict[str, str | int | float | bool] = {}

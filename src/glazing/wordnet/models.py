@@ -39,7 +39,6 @@ Examples
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from pydantic import Field, field_validator
 
@@ -423,12 +422,12 @@ class Sense(GlazingBaseModel):
     sense_number: SenseNumber = Field(description="Frequency-based ordering")
     tag_count: TagCount = Field(description="Semantic concordance count")
 
-    def parse_sense_key(self) -> dict[str, Any]:
+    def parse_sense_key(self) -> dict[str, str | int | None]:
         """Parse sense key into components.
 
         Returns
         -------
-        dict[str, Any]
+        dict[str, str | int | None]
             Dictionary with components: lemma, ss_type, lex_filenum, lex_id,
             head_word, head_id.
 

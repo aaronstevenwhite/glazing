@@ -32,7 +32,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 from glazing.framenet.models import Frame, LexicalUnit, SemanticType
 from glazing.framenet.types import FrameID
@@ -245,12 +244,12 @@ class FrameIndex:
         """
         return sorted(frame.name for frame in self._by_id.values())
 
-    def get_statistics(self) -> dict[str, Any]:
+    def get_statistics(self) -> dict[str, int]:
         """Get index statistics.
 
         Returns
         -------
-        dict[str, Any]
+        dict[str, int]
             Dictionary with index statistics.
         """
         total_fes = sum(len(frame.frame_elements) for frame in self._by_id.values())
@@ -424,7 +423,7 @@ class FrameNetLoader:
         frames = self.load_frames(filepath, skip_errors)
         return self.build_frame_index(frames)
 
-    def validate_frame_data(self, filepath: Path | str) -> dict[str, Any]:
+    def validate_frame_data(self, filepath: Path | str) -> dict[str, str | int | float | list[str]]:
         """Validate frame data file without loading into memory.
 
         Parameters
@@ -434,7 +433,7 @@ class FrameNetLoader:
 
         Returns
         -------
-        dict[str, Any]
+        dict[str, str | int | float | list[str]]
             Validation results including error counts and statistics.
 
         Raises
