@@ -4,20 +4,24 @@ This module tests VerbNet verb classes, members, thematic roles,
 and selectional restrictions including inheritance logic.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 from pydantic import ValidationError
 
-from glazing.verbnet.models import (
+from glazing.references.models import (
     CrossReference,
     MappingConfidence,
     MappingMetadata,
+    VerbNetFrameNetMapping,
+    VerbNetFrameNetRoleMapping,
+)
+from glazing.verbnet.models import (
     Member,
     SelectionalRestriction,
     SelectionalRestrictions,
     ThematicRole,
     VerbClass,
-    VerbNetFrameNetMapping,
-    VerbNetFrameNetRoleMapping,
     WordNetCrossRef,
 )
 
@@ -330,7 +334,22 @@ class TestMember:
                     confidence=MappingConfidence(score=0.9, method="manual"),
                 )
             ],
-            propbank_mappings=[CrossReference(target_dataset="PropBank", target_id="give.01")],
+            propbank_mappings=[
+                CrossReference(
+                    source_dataset="VerbNet",
+                    source_id="give#2",
+                    source_version="3.4",
+                    target_dataset="PropBank",
+                    target_id="give.01",
+                    mapping_type="direct",
+                    metadata=MappingMetadata(
+                        created_date=datetime.now(UTC),
+                        created_by="test",
+                        version="3.4",
+                        validation_status="validated",
+                    ),
+                )
+            ],
             wordnet_mappings=[WordNetCrossRef.from_percentage_notation("give%2:40:00")],
         )
         assert len(member.framenet_mappings) == 1
@@ -397,8 +416,34 @@ class TestMember:
             name="give",
             verbnet_key="give#2",
             propbank_mappings=[
-                CrossReference(target_dataset="PropBank", target_id="give.01"),
-                CrossReference(target_dataset="PropBank", target_id="give.02"),
+                CrossReference(
+                    source_dataset="VerbNet",
+                    source_id="give#2",
+                    source_version="3.4",
+                    target_dataset="PropBank",
+                    target_id="give.01",
+                    mapping_type="direct",
+                    metadata=MappingMetadata(
+                        created_date=datetime.now(UTC),
+                        created_by="test",
+                        version="3.4",
+                        validation_status="validated",
+                    ),
+                ),
+                CrossReference(
+                    source_dataset="VerbNet",
+                    source_id="give#2",
+                    source_version="3.4",
+                    target_dataset="PropBank",
+                    target_id="give.02",
+                    mapping_type="direct",
+                    metadata=MappingMetadata(
+                        created_date=datetime.now(UTC),
+                        created_by="test",
+                        version="3.4",
+                        validation_status="validated",
+                    ),
+                ),
             ],
         )
         rolesets = member.get_propbank_rolesets()
@@ -617,30 +662,33 @@ class TestMappingMetadata:
 
     def test_valid_metadata(self) -> None:
         """Test creating valid mapping metadata."""
+        created_date = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         metadata = MappingMetadata(
-            created_date="2024-01-01T00:00:00Z",
+            created_date=created_date,
             created_by="system",
             version="3.4",
             validation_status="validated",
         )
-        assert metadata.created_date == "2024-01-01T00:00:00Z"
+        assert metadata.created_date == created_date
         assert metadata.created_by == "system"
         assert metadata.version == "3.4"
         assert metadata.validation_status == "validated"
 
     def test_metadata_with_modification(self) -> None:
         """Test metadata with modification info."""
+        created_date = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+        modified_date = datetime(2024, 1, 2, 0, 0, 0, tzinfo=UTC)
         metadata = MappingMetadata(
-            created_date="2024-01-01T00:00:00Z",
+            created_date=created_date,
             created_by="user1",
-            modified_date="2024-01-02T00:00:00Z",
+            modified_date=modified_date,
             modified_by="user2",
             version="3.4",
             validation_status="validated",
             validation_method="manual_review",
             notes="Updated mappings",
         )
-        assert metadata.modified_date == "2024-01-02T00:00:00Z"
+        assert metadata.modified_date == modified_date
         assert metadata.modified_by == "user2"
         assert metadata.validation_method == "manual_review"
         assert metadata.notes == "Updated mappings"

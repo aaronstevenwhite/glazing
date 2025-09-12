@@ -65,7 +65,12 @@ from typing import Self
 from pydantic import Field, ValidationInfo, field_validator
 
 from glazing.base import GlazingBaseModel
-from glazing.types import LogicType, MappingConfidenceScore, MappingSource, ValidationStatus
+from glazing.references.models import (
+    CrossReference,
+    MappingMetadata,
+    VerbNetFrameNetMapping,
+)
+from glazing.types import LogicType
 from glazing.verbnet.types import (
     VERBNET_CLASS_PATTERN,
     VERBNET_KEY_PATTERN,
@@ -81,28 +86,6 @@ from glazing.verbnet.types import (
     VerbNetKey,
     WordNetSense,
 )
-
-
-class MappingConfidence(GlazingBaseModel):
-    """Confidence scoring for mappings.
-
-    Parameters
-    ----------
-    score : MappingConfidenceScore
-        Confidence score between 0.0 and 1.0.
-    method : str
-        Method used to calculate confidence.
-    factors : dict[str, float], default={}
-        Component scores that contributed to the confidence.
-
-    Examples
-    --------
-    >>> confidence = MappingConfidence(score=0.95, method="manual")
-    """
-
-    score: MappingConfidenceScore
-    method: str
-    factors: dict[str, float] = Field(default_factory=dict)
 
 
 class SelectionalRestriction(GlazingBaseModel):
@@ -363,128 +346,6 @@ class WordNetCrossRef(GlazingBaseModel):
         return cls(sense_key=sense_key, lemma=lemma, pos=pos)
 
 
-class VerbNetFrameNetRoleMapping(GlazingBaseModel):
-    """Role-level mapping between VerbNet and FrameNet.
-
-    Parameters
-    ----------
-    vn_role : str
-        VerbNet thematic role.
-    fn_fe : str
-        FrameNet frame element.
-    confidence : float | None, default=None
-        Mapping confidence score.
-    notes : str | None, default=None
-        Additional notes about the mapping.
-
-    Examples
-    --------
-    >>> mapping = VerbNetFrameNetRoleMapping(
-    ...     vn_role="Agent",
-    ...     fn_fe="Giver",
-    ...     confidence=0.95
-    ... )
-    """
-
-    vn_role: str
-    fn_fe: str
-    confidence: float | None = None
-    notes: str | None = None
-
-
-class VerbNetFrameNetMapping(GlazingBaseModel):
-    """VerbNet to FrameNet mapping with confidence.
-
-    Parameters
-    ----------
-    frame_name : str
-        FrameNet frame name.
-    confidence : MappingConfidence | None, default=None
-        Mapping confidence with score and method.
-    mapping_source : MappingSource
-        Source of the mapping (manual, automatic, etc.).
-    role_mappings : list[VerbNetFrameNetRoleMapping], default=[]
-        Role-level mappings between VerbNet and FrameNet.
-
-    Examples
-    --------
-    >>> mapping = VerbNetFrameNetMapping(
-    ...     frame_name="Giving",
-    ...     mapping_source="manual",
-    ...     role_mappings=[]
-    ... )
-    """
-
-    frame_name: str
-    confidence: MappingConfidence | None = None
-    mapping_source: MappingSource
-    role_mappings: list[VerbNetFrameNetRoleMapping] = Field(default_factory=list)
-
-
-class MappingMetadata(GlazingBaseModel):
-    """Metadata for cross-dataset mappings.
-
-    Parameters
-    ----------
-    created_date : str
-        ISO format creation date.
-    created_by : str
-        Person or system that created mapping.
-    modified_date : str | None, default=None
-        ISO format modification date.
-    modified_by : str | None, default=None
-        Person or system that modified mapping.
-    version : str
-        Dataset version this mapping was created for.
-    validation_status : ValidationStatus
-        Validation status of the mapping.
-    validation_method : str | None, default=None
-        How the mapping was validated.
-    notes : str | None, default=None
-        Additional notes.
-
-    Examples
-    --------
-    >>> metadata = MappingMetadata(
-    ...     created_date="2024-01-01T00:00:00Z",
-    ...     created_by="system",
-    ...     version="3.4",
-    ...     validation_status="validated"
-    ... )
-    """
-
-    created_date: str
-    created_by: str
-    modified_date: str | None = None
-    modified_by: str | None = None
-    version: str
-    validation_status: ValidationStatus
-    validation_method: str | None = None
-    notes: str | None = None
-
-
-class CrossReference(GlazingBaseModel):
-    """Cross-dataset reference.
-
-    Parameters
-    ----------
-    target_dataset : str
-        Target dataset name.
-    target_id : str
-        ID in target dataset.
-
-    Examples
-    --------
-    >>> ref = CrossReference(
-    ...     target_dataset="PropBank",
-    ...     target_id="give.01"
-    ... )
-    """
-
-    target_dataset: str
-    target_id: str
-
-
 class Member(GlazingBaseModel):
     """VerbNet member with comprehensive cross-references.
 
@@ -649,7 +510,14 @@ class Member(GlazingBaseModel):
         list[str]
             List of PropBank roleset IDs.
         """
-        return [m.target_id for m in self.propbank_mappings if m.target_dataset == "PropBank"]
+        result = []
+        for m in self.propbank_mappings:
+            if m.target_dataset == "PropBank":
+                if isinstance(m.target_id, list):
+                    result.extend(m.target_id)
+                else:
+                    result.append(m.target_id)
+        return result
 
     def has_mapping_conflicts(self) -> bool:
         """Check if there are conflicting high-confidence mappings.

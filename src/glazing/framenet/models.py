@@ -551,6 +551,9 @@ class Frame(GlazingBaseModel):
     lexical_units: list[LexicalUnit] = Field(
         default_factory=list, description="Lexical units in this frame"
     )
+    frame_relations: list[FrameRelation] = Field(
+        default_factory=list, description="Relations to other frames"
+    )
     created_by: Username | None = Field(None, description="Frame creator username")
     created_date: datetime | None = Field(None, description="Creation timestamp")
     modified_date: datetime | None = Field(None, description="Modification timestamp")

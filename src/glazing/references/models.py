@@ -56,7 +56,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from glazing.types import DatasetType, MappingSource, ResourceType
+from glazing.propbank.models import LexLink, RoleLink
+from glazing.types import DatasetType, MappingSource
 from glazing.wordnet.models import Sense, WordNetCrossRef
 from glazing.wordnet.types import SynsetOffset
 
@@ -389,8 +390,8 @@ class PropBankCrossRefs(BaseModel):
     """
 
     roleset_id: str
-    rolelinks: list["RoleLink"]
-    lexlinks: list["LexLink"]
+    rolelinks: list[RoleLink]
+    lexlinks: list[LexLink]
     wn_mappings: list[WordNetCrossRef] = Field(default_factory=list)
 
     def get_verbnet_classes(self) -> list[tuple[str, float | None]]:
@@ -421,76 +422,6 @@ class PropBankCrossRefs(BaseModel):
             WordNet cross-references.
         """
         return self.wn_mappings
-
-
-class RoleLink(BaseModel):
-    """Link from a PropBank role to VerbNet/FrameNet.
-
-    Parameters
-    ----------
-    class_name : str
-        VerbNet class or FrameNet frame.
-    resource : ResourceType
-        Target resource type.
-    version : str
-        Version of target resource.
-    role : str | None
-        Role name in target resource.
-    """
-
-    class_name: str
-    resource: ResourceType
-    version: str
-    role: str | None = None
-
-
-class LexLink(BaseModel):
-    """Confidence-scored link to external resource.
-
-    Parameters
-    ----------
-    class_name : str
-        Target class/frame name.
-    confidence : float
-        Confidence score (0.0-1.0).
-    resource : ResourceType
-        Target resource type.
-    version : str
-        Version of target resource.
-    src : MappingSource
-        Source of the mapping.
-    """
-
-    class_name: str
-    confidence: float
-    resource: ResourceType
-    version: str
-    src: MappingSource
-
-    @field_validator("confidence")
-    @classmethod
-    def validate_confidence(cls, v: float) -> float:
-        """Validate confidence score.
-
-        Parameters
-        ----------
-        v : float
-            Confidence score.
-
-        Returns
-        -------
-        float
-            Validated score.
-
-        Raises
-        ------
-        ValueError
-            If score is not between 0.0 and 1.0.
-        """
-        if not 0.0 <= v <= 1.0:
-            msg = f"Confidence must be between 0 and 1: {v}"
-            raise ValueError(msg)
-        return v
 
 
 class PropBankRoleMapping(BaseModel):
@@ -627,7 +558,7 @@ class UnifiedLemma(BaseModel):
     """
 
     lemma: str
-    pos: Literal["n", "v", "a", "r", "s", "adj", "adv", "noun", "verb"]
+    pos: Literal["n", "v", "a", "r", "s"]  # WordNet POS tags only
     framenet_lus: list[FrameNetLURef]
     propbank_rolesets: list[PropBankRolesetRef]
     verbnet_members: list[VerbNetMemberRef]

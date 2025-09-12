@@ -41,11 +41,8 @@ from glazing.verbnet.gl_models import (
     Subevent,
 )
 from glazing.verbnet.models import (
-    CrossReference,
     Example,
     FrameDescription,
-    MappingConfidence,
-    MappingMetadata,
     Member,
     Predicate,
     PredicateArgument,
@@ -57,22 +54,17 @@ from glazing.verbnet.models import (
     SyntaxElement,
     ThematicRole,
     VerbClass,
-    VerbNetFrameNetMapping,
-    VerbNetFrameNetRoleMapping,
     VNFrame,
     WordNetCrossRef,
 )
 
 __all__ = [
-    "CrossReference",
     "Event",
     "EventStructure",
     "Example",
     "FrameDescription",
     "GLFrame",
     "GLVerbClass",
-    "MappingConfidence",
-    "MappingMetadata",
     "Member",
     "Opposition",
     "Predicate",
@@ -91,7 +83,5 @@ __all__ = [
     "ThematicRole",
     "VNFrame",
     "VerbClass",
-    "VerbNetFrameNetMapping",
-    "VerbNetFrameNetRoleMapping",
     "WordNetCrossRef",
 ]
