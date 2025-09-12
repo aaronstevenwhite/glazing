@@ -1,0 +1,510 @@
+"""VerbNet search functionality.
+
+This module provides search capabilities for VerbNet data,
+including searches by thematic roles, syntactic patterns, semantic predicates,
+selectional restrictions, and member verbs.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from pathlib import Path
+
+from glazing.verbnet.models import (
+    SelectionalRestriction,
+    SelectionalRestrictions,
+    VerbClass,
+)
+from glazing.verbnet.types import (
+    PredicateType,
+    RestrictionValue,
+    SelectionalRestrictionType,
+    ThematicRoleType,
+    VerbClassID,
+)
+
+
+class VerbNetSearch:
+    """Search interface for VerbNet data.
+
+    Provides methods for finding verb classes by various criteria
+    including thematic roles, syntactic patterns, semantic predicates,
+    and selectional restrictions.
+
+    Parameters
+    ----------
+    classes : list[VerbClass] | None
+        Initial verb classes to index. If None, creates empty search.
+
+    Attributes
+    ----------
+    _classes : dict[VerbClassID, VerbClass]
+        Mapping from class ID to verb class object.
+    _classes_by_member : dict[str, set[VerbClassID]]
+        Mapping from member lemma to class IDs.
+    _classes_by_role : dict[ThematicRoleType, set[VerbClassID]]
+        Mapping from thematic role to class IDs.
+    _classes_by_predicate : dict[PredicateType, set[VerbClassID]]
+        Mapping from semantic predicate to class IDs.
+
+    Methods
+    -------
+    add_class(verb_class)
+        Add a verb class to the search index.
+    by_themroles(roles, only)
+        Find classes with specified thematic roles.
+    by_syntax(pattern)
+        Find classes with matching syntactic patterns.
+    by_predicate(predicate)
+        Find classes using a specific semantic predicate.
+    by_predicates(predicates, require_all)
+        Find classes using multiple semantic predicates.
+    by_restriction(role, type, value)
+        Find classes with selectional restrictions.
+    by_members(lemmas)
+        Find classes containing specific member verbs.
+    complex_search(predicates, themroles, restrictions, syntax)
+        Multi-criteria search for verb classes.
+
+    Examples
+    --------
+    >>> search = VerbNetSearch()
+    >>> search.add_class(give_class)
+    >>> classes = search.by_themroles(["Agent", "Theme", "Recipient"])
+    >>> motion_classes = search.by_predicate("motion")
+    """
+
+    def __init__(self, classes: list[VerbClass] | None = None) -> None:
+        """Initialize VerbNet search with optional initial classes."""
+        self._classes: dict[VerbClassID, VerbClass] = {}
+        self._classes_by_member: dict[str, set[VerbClassID]] = defaultdict(set)
+        self._classes_by_role: dict[ThematicRoleType, set[VerbClassID]] = defaultdict(set)
+        self._classes_by_predicate: dict[PredicateType, set[VerbClassID]] = defaultdict(set)
+
+        if classes:
+            for verb_class in classes:
+                self.add_class(verb_class)
+
+    def add_class(self, verb_class: VerbClass) -> None:
+        """Add a verb class to the search index.
+
+        Parameters
+        ----------
+        verb_class : VerbClass
+            Verb class to add to index.
+
+        Raises
+        ------
+        ValueError
+            If class with same ID already exists.
+        """
+        if verb_class.id in self._classes:
+            msg = f"Class with ID {verb_class.id} already exists"
+            raise ValueError(msg)
+
+        self._classes[verb_class.id] = verb_class
+
+        # Index members
+        for member in verb_class.members:
+            self._classes_by_member[member.name].add(verb_class.id)
+
+        # Index thematic roles
+        for role in verb_class.themroles:
+            self._classes_by_role[role.type].add(verb_class.id)
+
+        # Index semantic predicates
+        for frame in verb_class.frames:
+            for predicate in frame.semantics.predicates:
+                self._classes_by_predicate[predicate.value].add(verb_class.id)
+
+        # Recursively add subclasses
+        for subclass in verb_class.subclasses:
+            self.add_class(subclass)
+
+    def by_themroles(self, roles: list[ThematicRoleType], only: bool = False) -> list[VerbClass]:
+        """Find classes with specified thematic roles.
+
+        Parameters
+        ----------
+        roles : list[ThematicRoleType]
+            List of thematic role types to search for.
+        only : bool
+            If True, return only classes with exactly these roles.
+            If False, return classes containing at least these roles.
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes matching the role criteria.
+        """
+        if not roles:
+            return []
+
+        # Find classes with all specified roles
+        matching_ids = None
+        for role in roles:
+            role_classes = self._classes_by_role.get(role, set())
+            if matching_ids is None:
+                matching_ids = role_classes.copy()
+            else:
+                matching_ids &= role_classes
+
+        if matching_ids is None:
+            return []
+
+        # Get classes
+        classes = [self._classes[cid] for cid in matching_ids]
+
+        # If only exact matches requested, filter further
+        if only:
+            filtered = []
+            role_set = set(roles)
+            for verb_class in classes:
+                class_roles = {r.type for r in verb_class.themroles}
+                if class_roles == role_set:
+                    filtered.append(verb_class)
+            classes = filtered
+
+        return sorted(classes, key=lambda c: c.id)
+
+    def by_syntax(self, pattern: str) -> list[VerbClass]:
+        """Find classes with matching syntactic patterns.
+
+        Parameters
+        ----------
+        pattern : str
+            Syntactic pattern to search for (e.g., "NP V NP NP").
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes with frames matching the pattern.
+        """
+        pattern_parts = pattern.strip().split()
+        matching_class_ids = set()
+
+        for verb_class in self._classes.values():
+            for frame in verb_class.frames:
+                # Build syntactic pattern from frame
+                frame_pattern = []
+                for element in frame.syntax.elements:
+                    if element.pos == "NP" and element.value:
+                        # This is a role reference as NP
+                        frame_pattern.append("NP")
+                    else:
+                        frame_pattern.append(element.pos)
+
+                # Check if patterns match
+                if frame_pattern == pattern_parts:
+                    matching_class_ids.add(verb_class.id)
+                    break  # Found match in this class
+
+        classes = [self._classes[cid] for cid in matching_class_ids]
+        return sorted(classes, key=lambda c: c.id)
+
+    def by_predicate(self, predicate: PredicateType) -> list[VerbClass]:
+        """Find classes using a specific semantic predicate.
+
+        Parameters
+        ----------
+        predicate : PredicateType
+            Semantic predicate to search for.
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes using the predicate.
+        """
+        class_ids = self._classes_by_predicate.get(predicate, set())
+        classes = [self._classes[cid] for cid in class_ids]
+        return sorted(classes, key=lambda c: c.id)
+
+    def by_predicates(
+        self, predicates: list[PredicateType], require_all: bool = True
+    ) -> list[VerbClass]:
+        """Find classes using multiple semantic predicates.
+
+        Parameters
+        ----------
+        predicates : list[PredicateType]
+            List of semantic predicates to search for.
+        require_all : bool
+            If True, require all predicates. If False, require at least one.
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes using the predicates.
+        """
+        if not predicates:
+            return []
+
+        if require_all:
+            # Intersection of classes for all predicates
+            matching_ids = None
+            for predicate in predicates:
+                pred_classes = self._classes_by_predicate.get(predicate, set())
+                if matching_ids is None:
+                    matching_ids = pred_classes.copy()
+                else:
+                    matching_ids &= pred_classes
+
+            if matching_ids is None:
+                return []
+        else:
+            # Union of classes for any predicate
+            matching_ids = set()
+            for predicate in predicates:
+                matching_ids |= self._classes_by_predicate.get(predicate, set())
+
+        classes = [self._classes[cid] for cid in matching_ids]
+        return sorted(classes, key=lambda c: c.id)
+
+    def by_restriction(
+        self,
+        role: ThematicRoleType,
+        restriction_type: SelectionalRestrictionType,
+        value: RestrictionValue,
+    ) -> list[VerbClass]:
+        """Find classes with selectional restrictions.
+
+        Parameters
+        ----------
+        role : ThematicRoleType
+            Thematic role to check restrictions on.
+        restriction_type : SelectionalRestrictionType
+            Type of selectional restriction.
+        value : RestrictionValue
+            Restriction value ("+" or "-").
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes with matching restrictions.
+        """
+        matching_classes = []
+
+        for verb_class in self._classes.values():
+            for themrole in verb_class.themroles:
+                if (
+                    themrole.type == role
+                    and themrole.sel_restrictions
+                    and self._has_restriction(themrole.sel_restrictions, restriction_type, value)
+                ):
+                    matching_classes.append(verb_class)
+                    break
+
+        return sorted(matching_classes, key=lambda c: c.id)
+
+    def _has_restriction(
+        self,
+        restrictions: SelectionalRestrictions,
+        restriction_type: SelectionalRestrictionType,
+        value: RestrictionValue,
+    ) -> bool:
+        """Check if restrictions contain a specific type and value.
+
+        Parameters
+        ----------
+        restrictions : SelectionalRestrictions
+            Restrictions to check.
+        restriction_type : SelectionalRestrictionType
+            Type to look for.
+        value : RestrictionValue
+            Value to match.
+
+        Returns
+        -------
+        bool
+            True if restriction found with matching type and value.
+        """
+        if isinstance(restrictions, SelectionalRestrictions):
+            for restriction in restrictions.restrictions:
+                if isinstance(restriction, SelectionalRestriction):
+                    if restriction.type == restriction_type and restriction.value == value:
+                        return True
+                elif isinstance(restriction, SelectionalRestrictions) and self._has_restriction(
+                    restriction, restriction_type, value
+                ):
+                    return True
+        return False
+
+    def by_members(self, lemmas: list[str]) -> list[VerbClass]:
+        """Find classes containing specific member verbs.
+
+        Parameters
+        ----------
+        lemmas : list[str]
+            List of verb lemmas to search for.
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes containing any of the specified members.
+        """
+        matching_ids = set()
+        for lemma in lemmas:
+            matching_ids |= self._classes_by_member.get(lemma, set())
+
+        classes = [self._classes[cid] for cid in matching_ids]
+        return sorted(classes, key=lambda c: c.id)
+
+    def complex_search(  # noqa: C901, PLR0912
+        self,
+        predicates: list[PredicateType] | None = None,
+        themroles: list[ThematicRoleType] | None = None,
+        restrictions: (
+            dict[ThematicRoleType, list[tuple[RestrictionValue, SelectionalRestrictionType]]] | None
+        ) = None,
+        syntax: str | None = None,
+    ) -> list[VerbClass]:
+        """Multi-criteria search for verb classes.
+
+        Parameters
+        ----------
+        predicates : list[PredicateType] | None
+            Semantic predicates to require.
+        themroles : list[ThematicRoleType] | None
+            Thematic roles to require.
+        restrictions : dict[
+            ThematicRoleType, list[tuple[RestrictionValue, SelectionalRestrictionType]]
+        ] | None
+            Selectional restrictions by role.
+        syntax : str | None
+            Syntactic pattern to match.
+
+        Returns
+        -------
+        list[VerbClass]
+            Verb classes matching all specified criteria.
+        """
+        # Start with all classes
+        results = set(self._classes.keys())
+
+        # Filter by predicates
+        if predicates:
+            pred_classes = set()
+            for predicate in predicates:
+                pred_classes |= self._classes_by_predicate.get(predicate, set())
+            results &= pred_classes
+
+        # Filter by thematic roles
+        if themroles:
+            role_classes = None
+            for role in themroles:
+                role_set = self._classes_by_role.get(role, set())
+                if role_classes is None:
+                    role_classes = role_set.copy()
+                else:
+                    role_classes &= role_set
+            if role_classes:
+                results &= role_classes
+            else:
+                return []
+
+        # Filter by restrictions
+        if restrictions:
+            restriction_classes: set[VerbClassID] = set()
+            for role, role_restrictions in restrictions.items():
+                for value, rest_type in role_restrictions:
+                    role_rest_classes = {c.id for c in self.by_restriction(role, rest_type, value)}
+                    if restriction_classes:
+                        restriction_classes &= role_rest_classes
+                    else:
+                        restriction_classes = role_rest_classes
+            results &= restriction_classes
+
+        # Filter by syntax
+        if syntax:
+            syntax_classes = {c.id for c in self.by_syntax(syntax)}
+            results &= syntax_classes
+
+        # Get class objects
+        classes = [self._classes[cid] for cid in results]
+        return sorted(classes, key=lambda c: c.id)
+
+    def get_all_predicates(self) -> list[PredicateType]:
+        """Get all unique semantic predicates.
+
+        Returns
+        -------
+        list[PredicateType]
+            Sorted list of unique predicates.
+        """
+        return sorted(self._classes_by_predicate.keys())
+
+    def get_all_roles(self) -> list[ThematicRoleType]:
+        """Get all unique thematic roles.
+
+        Returns
+        -------
+        list[ThematicRoleType]
+            Sorted list of unique roles.
+        """
+        return sorted(self._classes_by_role.keys())
+
+    def get_all_members(self) -> list[str]:
+        """Get all unique member lemmas.
+
+        Returns
+        -------
+        list[str]
+            Sorted list of unique member lemmas.
+        """
+        return sorted(self._classes_by_member.keys())
+
+    def get_statistics(self) -> dict[str, int]:
+        """Get search index statistics.
+
+        Returns
+        -------
+        dict[str, int]
+            Statistics about indexed data.
+        """
+        total_members = sum(len(c.members) for c in self._classes.values())
+        total_frames = sum(len(c.frames) for c in self._classes.values())
+
+        return {
+            "class_count": len(self._classes),
+            "unique_predicates": len(self._classes_by_predicate),
+            "unique_roles": len(self._classes_by_role),
+            "unique_members": len(self._classes_by_member),
+            "total_members": total_members,
+            "total_frames": total_frames,
+        }
+
+    @classmethod
+    def from_jsonl_file(cls, path: Path | str) -> VerbNetSearch:
+        """Load search index from JSON Lines file.
+
+        Parameters
+        ----------
+        path : Path | str
+            Path to JSON Lines file containing verb classes.
+
+        Returns
+        -------
+        VerbNetSearch
+            Search index populated with classes from file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If file does not exist.
+        ValueError
+            If file contains invalid data.
+        """
+        path = Path(path)
+        if not path.exists():
+            msg = f"File not found: {path}"
+            raise FileNotFoundError(msg)
+
+        classes = []
+        with path.open(encoding="utf-8") as f:
+            for line_raw in f:
+                line = line_raw.strip()
+                if line:
+                    verb_class = VerbClass.model_validate_json(line)
+                    classes.append(verb_class)
+
+        return cls(classes)
