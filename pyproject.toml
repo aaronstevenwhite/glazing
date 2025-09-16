@@ -29,6 +29,9 @@ dependencies = [
     "typing-extensions>=4.9.0",
     "python-dateutil>=2.8.2",
     "lxml>=5.0.0",
+    "click>=8.0.0",
+    "requests>=2.25.0",
+    "tqdm>=4.60.0",
 ]
 
 [project.optional-dependencies]
@@ -40,12 +43,18 @@ dev = [
     "pytest-asyncio>=0.21.1",
     "pre-commit>=3.6.0",
     "lxml-stubs>=0.5.0",
+    "types-requests>=2.25.0",
+    "types-tqdm>=4.60.0",
+    "types-click>=7.1.0",
 ]
 docs = [
     "mkdocs>=1.5.3",
     "mkdocs-material>=9.5.3",
     "mkdocstrings[python]>=0.24.0",
 ]
+
+[project.scripts]
+glazing = "glazing.cli:cli"
 
 [project.urls]
 "Homepage" = "https://github.com/aaronstevenwhite/glazing"
@@ -113,6 +122,12 @@ ignore = [
 "tests/test_verbnet/test_converter.py" = ["E501", "S314"]
 "tests/test_verbnet/test_inheritance.py" = ["E501"]
 "tests/test_wordnet/test_converter.py" = ["E501"]
+"tests/test_cli/test_download.py" = ["E501", "EM102"]
+"tests/test_downloader.py" = ["E501", "F841"]
+"tests/test_verbnet/test_downloader.py" = ["E501", "F841"]
+"tests/test_framenet/test_downloader.py" = ["E501", "F841"]
+"tests/test_propbank/test_downloader.py" = ["E501", "F841", "PLC0415"]
+"tests/test_wordnet/test_downloader.py" = ["E501", "F841", "PLC0415"]
 "src/glazing/utils/cache.py" = ["ANN002", "ANN003", "PLW0603"]
 "src/glazing/utils/xml_parser.py" = ["S320"]
 "src/glazing/wordnet/converter.py" = ["C901", "PLR0912", "PLR0915"]
