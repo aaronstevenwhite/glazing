@@ -70,7 +70,7 @@ class TestTextAnnotation:
 
     def test_invalid_positions(self):
         """Test validation of invalid positions."""
-        with pytest.raises(ValueError, match="End position.*must be at or after start position"):
+        with pytest.raises(ValueError, match=r"End position.*must be at or after start position"):
             TextAnnotation(start=10, end=5, type="fex", name="Agent", text="Agent")
 
     def test_negative_positions(self):
@@ -1017,7 +1017,7 @@ class TestLabel:
 
     def test_invalid_label_positions(self):
         """Test validation of invalid positions."""
-        with pytest.raises(ValueError, match="End position.*must be at or after start position"):
+        with pytest.raises(ValueError, match=r"End position.*must be at or after start position"):
             Label(name="Agent", start=5, end=4)
 
     def test_label_with_fe_id(self):

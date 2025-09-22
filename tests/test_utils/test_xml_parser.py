@@ -152,7 +152,7 @@ class TestExtractTextWithMarkup:
         def_root = framenet_definition_element.find("def-root")
         assert def_root is not None
 
-        text, annotations = extract_text_with_markup(def_root, preserve_tags={"fex", "ex", "t"})
+        _text, annotations = extract_text_with_markup(def_root, preserve_tags={"fex", "ex", "t"})
 
         # Check that we found FE references
         fex_annos = [a for a in annotations if a["tag"] == "fex"]
@@ -174,7 +174,7 @@ class TestExtractTextWithMarkup:
         def_root = decoded_elem.find("def-root")
         elem_to_parse = def_root if def_root is not None else decoded_elem
 
-        text, annotations = extract_text_with_markup(elem_to_parse, preserve_tags={"fex", "fen"})
+        _text, annotations = extract_text_with_markup(elem_to_parse, preserve_tags={"fex", "fen"})
 
         # Should find FE and FEN references
         assert any(a["tag"] == "fex" for a in annotations)
@@ -347,7 +347,7 @@ class TestMarkupExtractor:
     def test_framenet_extractor(self, framenet_definition_element):
         """Test extracting FrameNet markup."""
         extractor = MarkupExtractor({"fex", "ex", "t", "def-root"})
-        text, annotations = extractor.extract(framenet_definition_element)
+        _text, annotations = extractor.extract(framenet_definition_element)
 
         # Should find various tag types
         tag_types = {a["tag"] for a in annotations}
@@ -365,7 +365,7 @@ class TestMarkupExtractor:
         elem = etree.fromstring(xml)
 
         extractor = MarkupExtractor({"ex", "fex", "t"}, nested=True)
-        text, annotations = extractor._extract_recursive(elem)
+        _text, annotations = extractor._extract_recursive(elem)
 
         # Should have all levels of annotations
         tags = [a["tag"] for a in annotations]

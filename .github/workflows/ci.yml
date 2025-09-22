@@ -172,11 +172,11 @@ jobs:
         run: |
           # Test download commands (dry run)
           glazing download list
-          glazing download info --dataset verbnet
+          glazing download info verbnet
 
           # Test convert commands
           glazing convert list
-          glazing convert info --dataset verbnet
+          glazing convert info verbnet
 
           # Test search help
           glazing search --help

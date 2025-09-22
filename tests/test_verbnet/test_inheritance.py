@@ -446,7 +446,7 @@ class TestInheritanceFunctions:
 
     def test_resolve_inheritance_chain_function(self, sample_roles):
         """Test resolve_inheritance_chain function."""
-        parent_roles, child_roles, child_class = sample_roles
+        parent_roles, _child_roles, child_class = sample_roles
 
         parent_class = VerbClass(
             id="test-13.1",
