@@ -52,6 +52,7 @@ docs = [
     "mkdocs>=1.5.3",
     "mkdocs-material>=9.5.3",
     "mkdocstrings[python]>=0.24.0",
+    "griffe-pydantic>=1.0.0",
 ]
 
 [project.scripts]
