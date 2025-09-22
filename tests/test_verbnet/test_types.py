@@ -446,7 +446,7 @@ class TestPatternValidation:
         # Invalid keys
         assert not pattern.match("give")
         assert not pattern.match("give#")
-        assert not pattern.match("Give#2")  # Capital letter
+        assert not pattern.match("give@#2")
         assert not pattern.match("give#two")
 
     def test_percentage_notation_pattern(self) -> None:

@@ -212,10 +212,10 @@ class BaseDownloader(ABC):
                 elif archive_path.suffix.lower() in {".tar", ".gz"}:
                     if archive_path.name.endswith(".tar.gz"):
                         with tarfile.open(str(archive_path), "r:gz") as tar_ref:
-                            tar_ref.extractall(temp_path)  # noqa: S202
+                            tar_ref.extractall(temp_path, filter="data")
                     else:
                         with tarfile.open(str(archive_path), "r") as tar_ref:
-                            tar_ref.extractall(temp_path)  # noqa: S202
+                            tar_ref.extractall(temp_path, filter="data")
                 else:
                     msg = f"Unsupported archive format: {archive_path.suffix}"
                     raise ExtractionError(msg)
@@ -463,17 +463,37 @@ class WordNetDownloader(BaseDownloader):
 
         self._download_file(url, archive_path)
 
+        # WordNet tar.gz contains a 'dict' folder with all the data files
         try:
-            extracted_dir = self._extract_archive(archive_path, output_dir)
-        except ExtractionError:
+            # Extract to temp location first to see structure
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+
+                # Extract archive
+                with tarfile.open(str(archive_path), "r:gz") as tar_ref:
+                    tar_ref.extractall(temp_path, filter="data")
+
+                # The archive contains a 'dict' folder
+                extracted_dict = temp_path / "dict"
+                if not extracted_dict.exists():
+                    raise ExtractionError("Expected 'dict' folder in WordNet archive")
+
+                # Move to final location
+                final_dict = output_dir / "wn31-dict"
+                if final_dict.exists():
+                    shutil.rmtree(final_dict)
+                shutil.move(str(extracted_dict), str(final_dict))
+
+                # Clean up archive file
+                archive_path.unlink()
+                return final_dict
+
+        except (tarfile.TarError, OSError) as e:
             # Clean up failed download
             if archive_path.exists():
                 archive_path.unlink()
-            raise
-        else:
-            # Clean up archive file
-            archive_path.unlink()
-            return extracted_dir
+            msg = f"Failed to extract WordNet archive: {e}"
+            raise ExtractionError(msg) from e
 
 
 class FrameNetDownloader(BaseDownloader):

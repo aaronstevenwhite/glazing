@@ -27,6 +27,9 @@ Examples
 
 from __future__ import annotations
 
+import contextlib
+import tempfile
+from io import BytesIO
 from pathlib import Path
 
 from lxml import etree
@@ -47,6 +50,7 @@ from glazing.propbank.models import (
     Usage,
     UsageNotes,
 )
+from glazing.utils.special_cases import SpecialCaseRegistry
 from glazing.utils.xml_parser import parse_attributes, parse_with_schema
 
 
@@ -250,13 +254,14 @@ class PropBankConverter:
         rels = []
 
         # Parse rel elements
-        for rel in propbank_elem.findall("rel"):
-            attrs = parse_attributes(rel)
-            rels.append(Rel(relloc=str(attrs.get("relloc", "0")), text=rel.text or ""))
+        for rel_elem in propbank_elem.findall("rel"):
+            attrs = parse_attributes(rel_elem)
+            rels.append(Rel(relloc=str(attrs.get("relloc", "0")), text=rel_elem.text or ""))
 
         # Parse arg elements
         for arg in propbank_elem.findall("arg"):
-            attrs = parse_attributes(arg, {"start": int, "end": int})
+            # Don't auto-convert start/end to int since they can be "?"
+            attrs = parse_attributes(arg)
             # Get type - if missing, raise error
             if "type" not in attrs:
                 raise ValueError("Missing required 'type' attribute in arg element")
@@ -264,29 +269,43 @@ class PropBankConverter:
                 raise ValueError("Missing required 'start' attribute in arg element")
             if "end" not in attrs:
                 raise ValueError("Missing required 'end' attribute in arg element")
+
+            # Handle start/end which can be int or "?"
+            start = attrs.get("start", 0)
+            end = attrs.get("end", 0)
+
+            # Convert to int if possible, otherwise keep as string (for "?")
+            with contextlib.suppress(ValueError, TypeError):
+                start = int(start)
+
+            with contextlib.suppress(ValueError, TypeError):
+                end = int(end)
+
             args.append(
                 Arg(
                     type=str(attrs["type"]),  # type: ignore[arg-type]
-                    start=int(attrs["start"]),
-                    end=int(attrs["end"]),
+                    start=start,  # type: ignore[arg-type]
+                    end=end,  # type: ignore[arg-type]
                     text=arg.text,
                 )
             )
 
         # PropBankAnnotation expects a single Rel, not a list
+        # Handle missing rel element (some annotations don't have it)
+        rel_result: Rel | None
         if not rels:
-            raise ValueError(
-                "No 'rel' element found in PropBank annotation. "
-                "PropBank annotations must have at least one rel element."
-            )
-        if len(rels) > 1:
+            rel_result = None
+        elif len(rels) > 1:
             rel_count = len(rels)
             error_msg = (
                 f"Multiple 'rel' elements found ({rel_count}). "
                 "PropBankAnnotation expects exactly one rel element."
             )
             raise ValueError(error_msg)
-        return PropBankAnnotation(args=args, rel=rels[0])
+        else:
+            rel_result = rels[0]
+
+        return PropBankAnnotation(args=args, rel=rel_result)
 
     def _parse_example(self, example_elem: etree._Element) -> Example:
         """Parse an example element.
@@ -383,6 +402,24 @@ class PropBankConverter:
             notes=notes,
         )
 
+    def _fix_xml_errors(self, xml_content: str, filepath: Path) -> str:
+        """Pre-process XML to fix common syntax errors.
+
+        Parameters
+        ----------
+        xml_content : str
+            Raw XML content.
+        filepath : Path
+            Path to the XML file (for specific fixes).
+
+        Returns
+        -------
+        str
+            Fixed XML content.
+        """
+        # Use the special case registry for XML fixes
+        return SpecialCaseRegistry.fix_propbank_xml(xml_content, filepath.name)
+
     def convert_frameset_file(self, filepath: Path | str) -> Frameset:
         """Convert a frameset XML file to Frameset model.
 
@@ -405,11 +442,26 @@ class PropBankConverter:
         """
         filepath = Path(filepath)
 
+        # Read and pre-process XML content
+        xml_content = filepath.read_text(encoding="utf-8")
+
+        # Fix known XML errors
+        xml_content = self._fix_xml_errors(xml_content, filepath)
+
         # Parse XML
         if self.validate_schema:
-            root = parse_with_schema(filepath, schema_type="dtd")
+            # For schema validation, we need to write the fixed content to a temp file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".xml", encoding="utf-8", delete=False
+            ) as f:
+                f.write(xml_content)
+                temp_path = f.name
+            try:
+                root = parse_with_schema(temp_path, schema_type="dtd")
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
         else:
-            tree = etree.parse(str(filepath))
+            tree = etree.parse(BytesIO(xml_content.encode("utf-8")))
             root = tree.getroot()
 
         # Get predicate element

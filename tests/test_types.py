@@ -328,8 +328,11 @@ class TestRegexPatterns:
         assert pattern.match("ABCDEF")
         assert pattern.match("123456")
 
+        # Lowercase and # prefix are now allowed
+        assert pattern.match("ff0000")  # Lowercase is now allowed
+        assert pattern.match("#FF0000")  # Hash prefix is now allowed
+
         # Invalid colors
-        assert not pattern.match("ff0000")  # Lowercase
         assert not pattern.match("FF00")  # Too short
         assert not pattern.match("FF00000")  # Too long
         assert not pattern.match("GGGGGG")  # Invalid hex

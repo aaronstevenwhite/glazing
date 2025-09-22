@@ -43,15 +43,18 @@ from pydantic import Field, field_validator
 from glazing.base import GlazingBaseModel
 from glazing.propbank.types import (
     PREDICATE_LEMMA_PATTERN,
+    ROLESET_ID_PATTERN,
     AliasPOS,
     ArgumentNumber,
     ArgumentTypePB,
     FunctionTag,
+    IntOrQuestionMark,
     PredicateLemma,
     RolesetID,
     UsageInUse,
 )
 from glazing.types import MappingSource, ResourceType
+from glazing.utils.special_cases import SpecialCaseRegistry
 
 
 class Alias(GlazingBaseModel):
@@ -93,7 +96,8 @@ class Alias(GlazingBaseModel):
         ValueError
             If alias text format is invalid.
         """
-        if not re.match(r"^[a-z][a-z0-9_-]*$", v, re.IGNORECASE):
+        # Allow: alphabetic start OR numeric start, plus spaces, hyphens, apostrophes, underscores
+        if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_\-\'\s]*$", v):
             msg = f"Invalid alias text: {v}"
             raise ValueError(msg)
         return v
@@ -141,10 +145,16 @@ class ArgAlias(GlazingBaseModel):
         ValueError
             If argument reference is invalid.
         """
-        if v not in ["0", "1", "2", "3", "4", "5", "6", "7", "M"]:
-            msg = f"Invalid argument reference: {v}"
-            raise ValueError(msg)
-        return v
+        # Check standard argument references
+        if v in ["0", "1", "2", "3", "4", "5", "6", "7", "M"]:
+            return v
+
+        # Check if it's a known special case
+        if SpecialCaseRegistry.is_valid_arg_exception(v):
+            return v
+
+        msg = f"Invalid argument reference: {v}"
+        raise ValueError(msg)
 
 
 class Aliases(GlazingBaseModel):
@@ -414,11 +424,16 @@ class Roleset(GlazingBaseModel):
         ValueError
             If roleset ID format is invalid.
         """
-        pattern = r"^[a-zA-Z0-9_.-]+\.\d+$"
-        if not re.match(pattern, v):
-            msg = f"Invalid roleset ID: {v}"
-            raise ValueError(msg)
-        return v
+        # First check against the standard pattern (includes .LV for light verbs)
+        if re.match(ROLESET_ID_PATTERN, v):
+            return v
+
+        # Check if it's a known special case
+        if SpecialCaseRegistry.is_valid_roleset_exception(v):
+            return v
+
+        msg = f"Invalid roleset ID: {v}"
+        raise ValueError(msg)
 
 
 class Frameset(GlazingBaseModel):
@@ -468,7 +483,9 @@ class Frameset(GlazingBaseModel):
         ValueError
             If predicate lemma format is invalid.
         """
-        if not re.match(PREDICATE_LEMMA_PATTERN, v):
+        # Allow alphabetic predicates OR pure numeric OR predicates with dots
+        lemma_pattern = r"^[a-zA-Z][a-zA-Z0-9_\-\.]*$"
+        if not (re.match(PREDICATE_LEMMA_PATTERN, v) or v.isdigit() or re.match(lemma_pattern, v)):
             msg = f"Invalid predicate lemma format: {v}"
             raise ValueError(msg)
         return v
@@ -481,10 +498,10 @@ class Arg(GlazingBaseModel):
     ----------
     type : ArgumentTypePB
         Argument type (e.g., "ARG0", "ARGM-TMP").
-    start : int
-        Start token index.
-    end : int
-        End token index.
+    start : IntOrQuestionMark
+        Start token index or "?" for unknown.
+    end : IntOrQuestionMark
+        End token index or "?" for unknown.
     text : str | None, default=None
         Extracted text (optional).
 
@@ -492,34 +509,37 @@ class Arg(GlazingBaseModel):
     --------
     >>> arg = Arg(type="ARG0", start=0, end=1, text="John")
     >>> arg = Arg(type="ARGM-TMP", start=5, end=6, text="yesterday")
+    >>> arg = Arg(type="ARG0", start="?", end="?")  # Unknown position
     """
 
     type: ArgumentTypePB
-    start: int
-    end: int
+    start: IntOrQuestionMark
+    end: IntOrQuestionMark
     text: str | None = None
 
     @field_validator("start", "end")
     @classmethod
-    def validate_indices(cls, v: int) -> int:
+    def validate_indices(cls, v: int | str) -> int | str:
         """Validate token indices.
 
         Parameters
         ----------
-        v : int
-            Token index to validate.
+        v : int | str
+            Token index or "?" to validate.
 
         Returns
         -------
-        int
-            Validated token index.
+        int | str
+            Validated token index or "?".
 
         Raises
         ------
         ValueError
-            If token index is negative.
+            If token index is invalid.
         """
-        if v < 0:
+        if v == "?":
+            return v
+        if isinstance(v, int) and v < 0:
             msg = f"Token index cannot be negative: {v}"
             raise ValueError(msg)
         return v
@@ -577,8 +597,8 @@ class PropBankAnnotation(GlazingBaseModel):
     ----------
     args : list[Arg], default=[]
         Argument annotations.
-    rel : Rel
-        Predicate/relation marker.
+    rel : Rel | None, default=None
+        Predicate/relation marker (optional, some annotations lack rel).
     notes : list[str], default=[]
         Additional annotation notes.
 
@@ -594,7 +614,7 @@ class PropBankAnnotation(GlazingBaseModel):
     """
 
     args: list[Arg] = Field(default_factory=list)
-    rel: Rel
+    rel: Rel | None = None
     notes: list[str] = Field(default_factory=list)
 
 

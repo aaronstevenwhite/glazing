@@ -62,7 +62,7 @@ from typing import Literal
 
 # Regex patterns for VerbNet identifiers
 VERBNET_CLASS_PATTERN = r"^[a-z_]+-[0-9]+(?:\.[0-9]+)*(?:-[0-9]+)*$"  # e.g., "give-13.1-1"
-VERBNET_KEY_PATTERN = r"^[a-z_-]+#\d+$"  # e.g., "give#2"
+VERBNET_KEY_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_\-\.\s]*#\d+$"  # e.g., "give#2", "tart up#1"
 PERCENTAGE_NOTATION_PATTERN = r"^[a-z_-]+%[1-5]:[0-9]{2}:[0-9]{2}$"  # e.g., "give%2:40:00"
 DESCRIPTION_NUMBER_PATTERN = r"^[0-9]+(?:\.[0-9]+)*$"  # e.g., "2.5.1"
 
@@ -414,6 +414,7 @@ type PredicateType = Literal[
     "handle",
     "use",
     "utilize",
+    "contact",
     "exert_force",
     "apply_heat",
     "apply_material",
@@ -458,6 +459,7 @@ type PredicateType = Literal[
     "harmonize",
     "help",
     "meet",
+    "meets",
     "require",
     "support",
     "social_interaction",

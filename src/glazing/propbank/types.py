@@ -107,6 +107,14 @@ type FunctionTag = Literal[
     "loc",  # Location (lowercase)
     "dir",  # Direction (lowercase)
     "prd",  # Predicate (lowercase)
+    # Additional function tags found in data
+    "-",  # Dash/hyphen (special marker)
+    "Framenet",  # FrameNet reference
+    "ORT",  # Orthographic
+    "PLN",  # Plain
+    "PRT1",  # Particle variant 1
+    "PRT2",  # Particle variant 2
+    "",  # Empty tag (found in some files)
 ]
 
 # Alias part-of-speech tags
@@ -205,15 +213,19 @@ type ArgumentTypePB = Literal[
     "R-ARGM-PRD",
     "R-ARGM-PRP",
     "R-ARGM-TMP",
+    # Additional argument types found in data
+    "ARGA",  # Special argument type
+    "ARGM-TOP",  # Topic modifier
 ]
 
 # Usage status indicators
 type UsageInUse = Literal["+", "-"]
 
 # Regex patterns for validation (to be used with validators)
-ROLESET_ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_-]*\.\d+$"
-PREDICATE_LEMMA_PATTERN = r"^[a-z][a-z0-9_-]*$"
+ROLESET_ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_-]*\.(\d+|LV)$"  # Support light verb suffix .LV
+PREDICATE_LEMMA_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_-]*$"  # Allow uppercase
 
 # Type aliases for validated strings
 type RolesetID = str  # Validated with ROLESET_ID_PATTERN
 type PredicateLemma = str  # Validated with PREDICATE_LEMMA_PATTERN
+type IntOrQuestionMark = int | Literal["?"]  # For start/end fields that can be ? or integer

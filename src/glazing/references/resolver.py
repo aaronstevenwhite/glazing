@@ -16,6 +16,7 @@ intermediate datasets and propagating confidence scores along the path.
 """
 
 from collections import deque
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TypeVar
 
@@ -168,7 +169,7 @@ class ReferenceResolver:
                 return False
         return True
 
-    def _validate_single_target(self, target_id: str, dataset: DatasetType) -> bool:  # noqa: PLR0911
+    def _validate_single_target(self, target_id: str, dataset: DatasetType) -> bool:
         """Validate a single target ID exists in the dataset.
 
         Parameters
@@ -183,21 +184,40 @@ class ReferenceResolver:
         bool
             True if the target exists.
         """
-        if dataset == "FrameNet":
-            return target_id in self.framenet_frames
-        if dataset == "PropBank":
-            return target_id in self.propbank_rolesets
-        if dataset == "VerbNet":
-            # Check if it's a class ID or member key
-            if target_id in self.verbnet_classes:
+        validation_methods: dict[str, Callable[[], bool]] = {
+            "FrameNet": lambda: target_id in self.framenet_frames,
+            "PropBank": lambda: target_id in self.propbank_rolesets,
+            "VerbNet": lambda: self._validate_verbnet_target(target_id),
+            "WordNet": lambda: (
+                target_id in self.wordnet_synsets or target_id in self.wordnet_senses
+            ),
+        }
+
+        validator = validation_methods.get(dataset)
+        return bool(validator and validator())
+
+    def _validate_verbnet_target(self, target_id: str) -> bool:
+        """Validate VerbNet target ID.
+
+        Parameters
+        ----------
+        target_id : str
+            VerbNet target ID.
+
+        Returns
+        -------
+        bool
+            True if target exists.
+        """
+        # Check if it's a class ID
+        if target_id in self.verbnet_classes:
+            return True
+
+        # Check members across all classes
+        for verb_class in self.verbnet_classes.values():
+            if any(m.verbnet_key == target_id for m in verb_class.members):
                 return True
-            # Check members across all classes
-            for verb_class in self.verbnet_classes.values():
-                if any(m.verbnet_key == target_id for m in verb_class.members):
-                    return True
-            return False
-        if dataset == "WordNet":
-            return target_id in self.wordnet_synsets or target_id in self.wordnet_senses
+
         return False
 
     def resolve_transitive(
@@ -521,7 +541,7 @@ class ReferenceResolver:
 
         return confidence
 
-    def detect_conflicts(self, mappings: list[CrossReference]) -> list[MappingConflict]:  # noqa: C901
+    def detect_conflicts(self, mappings: list[CrossReference]) -> list[MappingConflict]:
         """Detect conflicting mappings.
 
         Identifies cases where multiple high-confidence mappings point
@@ -537,50 +557,155 @@ class ReferenceResolver:
         list[MappingConflict]
             Detected conflicts requiring resolution.
         """
-        conflicts: list[MappingConflict] = []
+        by_source = self._group_mappings_by_source(mappings)
+        conflicts = []
 
-        # Group mappings by source
+        for (source_dataset, source_id), source_mappings in by_source.items():
+            by_target_dataset = self._group_mappings_by_target_dataset(source_mappings)
+            source_conflicts = self._find_conflicts_for_source(
+                source_dataset, source_id, by_target_dataset
+            )
+            conflicts.extend(source_conflicts)
+
+        return conflicts
+
+    def _group_mappings_by_source(
+        self, mappings: list[CrossReference]
+    ) -> dict[tuple[DatasetType, str], list[CrossReference]]:
+        """Group mappings by source dataset and ID.
+
+        Parameters
+        ----------
+        mappings : list[CrossReference]
+            Mappings to group.
+
+        Returns
+        -------
+        dict[tuple[DatasetType, str], list[CrossReference]]
+            Mappings grouped by source.
+        """
         by_source: dict[tuple[DatasetType, str], list[CrossReference]] = {}
         for mapping in mappings:
             key = (mapping.source_dataset, mapping.source_id)
             if key not in by_source:
                 by_source[key] = []
             by_source[key].append(mapping)
+        return by_source
 
-        # Check each source for conflicts
-        for (source_dataset, source_id), source_mappings in by_source.items():
-            # Group by target dataset
-            by_target_dataset: dict[DatasetType, list[CrossReference]] = {}
-            for mapping in source_mappings:
-                if mapping.target_dataset not in by_target_dataset:
-                    by_target_dataset[mapping.target_dataset] = []
-                by_target_dataset[mapping.target_dataset].append(mapping)
+    def _group_mappings_by_target_dataset(
+        self, mappings: list[CrossReference]
+    ) -> dict[DatasetType, list[CrossReference]]:
+        """Group mappings by target dataset.
 
-            # Check for conflicts within each target dataset
-            for _target_dataset, dataset_mappings in by_target_dataset.items():
-                if len(dataset_mappings) > 1:
-                    # Multiple mappings to same dataset - check if they conflict
-                    high_conf = [
-                        m for m in dataset_mappings if m.confidence and m.confidence.score > 0.7
-                    ]
+        Parameters
+        ----------
+        mappings : list[CrossReference]
+            Mappings to group.
 
-                    if len(high_conf) > 1:
-                        # Multiple high-confidence mappings
-                        unique_targets = set()
-                        for m in high_conf:
-                            if isinstance(m.target_id, list):
-                                unique_targets.update(m.target_id)
-                            else:
-                                unique_targets.add(m.target_id)
+        Returns
+        -------
+        dict[DatasetType, list[CrossReference]]
+            Mappings grouped by target dataset.
+        """
+        by_target_dataset: dict[DatasetType, list[CrossReference]] = {}
+        for mapping in mappings:
+            if mapping.target_dataset not in by_target_dataset:
+                by_target_dataset[mapping.target_dataset] = []
+            by_target_dataset[mapping.target_dataset].append(mapping)
+        return by_target_dataset
 
-                        if len(unique_targets) > 1:
-                            # Conflicting targets
-                            conflict = MappingConflict(
-                                conflict_type="ambiguous",
-                                source_dataset=source_dataset,
-                                source_id=source_id,
-                                conflicting_mappings=high_conf,
-                            )
-                            conflicts.append(conflict)
+    def _find_conflicts_for_source(
+        self,
+        source_dataset: DatasetType,
+        source_id: str,
+        by_target_dataset: dict[DatasetType, list[CrossReference]],
+    ) -> list[MappingConflict]:
+        """Find conflicts for a specific source.
+
+        Parameters
+        ----------
+        source_dataset : DatasetType
+            Source dataset.
+        source_id : str
+            Source ID.
+        by_target_dataset : dict[DatasetType, list[CrossReference]]
+            Mappings grouped by target dataset.
+
+        Returns
+        -------
+        list[MappingConflict]
+            Conflicts found for this source.
+        """
+        conflicts = []
+
+        for dataset_mappings in by_target_dataset.values():
+            if len(dataset_mappings) <= 1:
+                continue
+
+            conflict = self._check_high_confidence_conflicts(
+                source_dataset, source_id, dataset_mappings
+            )
+            if conflict:
+                conflicts.append(conflict)
 
         return conflicts
+
+    def _check_high_confidence_conflicts(
+        self,
+        source_dataset: DatasetType,
+        source_id: str,
+        dataset_mappings: list[CrossReference],
+    ) -> MappingConflict | None:
+        """Check for high-confidence conflicts in dataset mappings.
+
+        Parameters
+        ----------
+        source_dataset : DatasetType
+            Source dataset.
+        source_id : str
+            Source ID.
+        dataset_mappings : list[CrossReference]
+            Mappings to the same target dataset.
+
+        Returns
+        -------
+        MappingConflict | None
+            Conflict if found, None otherwise.
+        """
+        high_conf = [m for m in dataset_mappings if m.confidence and m.confidence.score > 0.7]
+
+        if len(high_conf) <= 1:
+            return None
+
+        unique_targets = self._extract_unique_targets(high_conf)
+
+        if len(unique_targets) > 1:
+            return MappingConflict(
+                conflict_type="ambiguous",
+                source_dataset=source_dataset,
+                source_id=source_id,
+                conflicting_mappings=high_conf,
+            )
+
+        return None
+
+    def _extract_unique_targets(self, mappings: list[CrossReference]) -> set[str]:
+        """Extract unique target IDs from mappings.
+
+        Parameters
+        ----------
+        mappings : list[CrossReference]
+            Mappings to process.
+
+        Returns
+        -------
+        set[str]
+            Unique target IDs.
+        """
+        unique_targets = set()
+        for mapping in mappings:
+            if isinstance(mapping.target_id, list):
+                unique_targets.update(mapping.target_id)
+            else:
+                unique_targets.add(mapping.target_id)
+        return unique_targets

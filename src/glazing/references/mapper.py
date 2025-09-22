@@ -301,7 +301,7 @@ class ReferenceMapper:
 
         return None
 
-    def _align_with_propbank_arg(self, verbnet_role: ThematicRole, roleset: Roleset) -> str | None:  # noqa: C901, PLR0912
+    def _align_with_propbank_arg(self, verbnet_role: ThematicRole, roleset: Roleset) -> str | None:
         """Align VerbNet role with PropBank argument.
 
         Parameters
@@ -316,34 +316,84 @@ class ReferenceMapper:
         str | None
             Matching argument label or None.
         """
-        # Check mapping tables
+        # First try mapping tables
+        table_match = self._find_table_mapping(verbnet_role.type, roleset)
+        if table_match:
+            return table_match
+
+        # Fall back to positional heuristics
+        return self._apply_positional_heuristics(verbnet_role.type, roleset)
+
+    def _find_table_mapping(self, role_type: str, roleset: Roleset) -> str | None:
+        """Find mapping from role mapping tables.
+
+        Parameters
+        ----------
+        role_type : str
+            VerbNet role type.
+        roleset : Roleset
+            PropBank roleset to search.
+
+        Returns
+        -------
+        str | None
+            Matching argument label or None.
+        """
         for table in self.role_mapping_tables:
-            if table.verbnet_role == verbnet_role.type:
+            if table.verbnet_role == role_type:
                 # Check if roleset has this arg
                 for role in roleset.roles:
                     if f"ARG{role.n}" == table.propbank_arg:
                         return f"ARG{role.n}"
+        return None
 
-        # Use positional heuristics
-        if verbnet_role.type == "Agent":
-            # Agent typically ARG0
-            for role in roleset.roles:
-                if role.n == "0":
-                    return "ARG0"
-        elif verbnet_role.type in ["Patient", "Theme"]:
-            # Patient/Theme typically ARG1
-            for role in roleset.roles:
-                if role.n == "1":
-                    return "ARG1"
-        elif verbnet_role.type in [
-            "Recipient",
-            "Beneficiary",
-        ]:
-            # Recipient/Beneficiary typically ARG2
-            for role in roleset.roles:
-                if role.n == "2":
-                    return "ARG2"
+    def _apply_positional_heuristics(self, role_type: str, roleset: Roleset) -> str | None:
+        """Apply positional heuristics for PropBank alignment.
 
+        Parameters
+        ----------
+        role_type : str
+            VerbNet role type.
+        roleset : Roleset
+            PropBank roleset to search.
+
+        Returns
+        -------
+        str | None
+            Matching argument label or None.
+        """
+        # Agent typically ARG0
+        if role_type == "Agent":
+            return self._find_arg_by_number(roleset, "0")
+
+        # Patient/Theme typically ARG1
+        if role_type in ["Patient", "Theme"]:
+            return self._find_arg_by_number(roleset, "1")
+
+        # Recipient/Beneficiary typically ARG2
+        if role_type in ["Recipient", "Beneficiary"]:
+            return self._find_arg_by_number(roleset, "2")
+
+        return None
+
+    def _find_arg_by_number(self, roleset: Roleset, arg_num: str) -> str | None:
+        """Find PropBank argument by number.
+
+        Parameters
+        ----------
+        roleset : Roleset
+            PropBank roleset to search.
+        arg_num : str
+            Argument number to find.
+
+        Returns
+        -------
+        str | None
+            Argument label if found, None otherwise.
+        """
+        for role in roleset.roles:
+            if role.n == arg_num:
+                return f"ARG{arg_num}"
         return None
 
     def _extract_wordnet_restrictions(self, verbnet_role: ThematicRole) -> list[str]:
@@ -696,7 +746,7 @@ class ReferenceMapper:
 
         return matrix
 
-    def get_unified_lemma(  # noqa: C901, PLR0913, PLR0912
+    def get_unified_lemma(  # noqa: PLR0913
         self,
         lemma: str,
         pos: str,
@@ -730,76 +780,14 @@ class ReferenceMapper:
         UnifiedLemma
             Unified lemma representation.
         """
-        # Build FrameNet LU references
-        framenet_lu_refs = []
-        if framenet_lus:
-            for lu_id_str in framenet_lus:
-                # Parse LU identifier (could be just ID or "frame.lu_name")
-                if "." in lu_id_str:
-                    frame_part, lu_part = lu_id_str.split(".", 1)
-                    # Extract numeric ID if present
-                    try:
-                        lu_id = int(lu_part) if lu_part.isdigit() else hash(lu_id_str) % 1000000
-                        frame_name = frame_part
-                    except ValueError:
-                        lu_id = hash(lu_id_str) % 1000000
-                        frame_name = frame_part
-                else:
-                    try:
-                        lu_id = int(lu_id_str)
-                        frame_name = "Unknown"  # Would need actual frame lookup
-                    except ValueError:
-                        lu_id = hash(lu_id_str) % 1000000
-                        frame_name = "Unknown"
+        # Validate POS early
+        normalized_pos = self._validate_and_normalize_pos(pos)
 
-                lu_ref = FrameNetLURef(
-                    lu_id=lu_id,
-                    frame_name=frame_name,
-                    definition=f"Lexical unit {lu_id_str} in frame {frame_name}",
-                )
-                framenet_lu_refs.append(lu_ref)
-
-        # Build PropBank roleset references
-        propbank_roleset_refs = []
-        if propbank_rolesets:
-            for roleset_id in propbank_rolesets:
-                # Extract descriptive name from roleset ID
-                if "." in roleset_id:
-                    lemma_part = roleset_id.split(".")[0]
-                    name = f"{lemma_part} (sense {roleset_id.split('.')[-1]})"
-                else:
-                    name = f"Roleset {roleset_id}"
-
-                roleset_ref = PropBankRolesetRef(roleset_id=roleset_id, name=name)
-                propbank_roleset_refs.append(roleset_ref)
-
-        # Build VerbNet member references
-        verbnet_member_refs = []
-        if verbnet_members:
-            for member_key in verbnet_members:
-                # Parse member key (format: "lemma#sense" or class info)
-                if "#" in member_key:
-                    lemma_part = member_key.split("#")[0]
-                    # Need to determine class - use heuristic based on lemma
-                    class_id = f"{lemma_part}-{hash(member_key) % 100}.1"
-                else:
-                    class_id = f"{lemma}-{hash(member_key) % 100}.1"
-
-                member_ref = VerbNetMemberRef(verbnet_key=member_key, class_id=class_id)
-                verbnet_member_refs.append(member_ref)
-
-        # Use provided WordNet senses directly
+        # Build references for each dataset
+        framenet_lu_refs = self._build_framenet_lu_refs(framenet_lus)
+        propbank_roleset_refs = self._build_propbank_roleset_refs(propbank_rolesets)
+        verbnet_member_refs = self._build_verbnet_member_refs(verbnet_members, lemma)
         wordnet_sense_list = wordnet_senses or []
-
-        # Validate POS is a valid WordNet POS tag
-        valid_pos_values = {"n", "v", "a", "r", "s"}
-        if pos not in valid_pos_values:
-            valid_tags = ", ".join(sorted(valid_pos_values))
-            error_msg = f"Invalid POS value '{pos}'. Must be a WordNet POS tag: {valid_tags}"
-            raise ValueError(error_msg)
-
-        # Cast to proper literal type
-        normalized_pos = cast(Literal["n", "v", "a", "r", "s"], pos)
 
         return UnifiedLemma(
             lemma=lemma,
@@ -809,3 +797,175 @@ class ReferenceMapper:
             verbnet_members=verbnet_member_refs,
             wordnet_senses=wordnet_sense_list,
         )
+
+    def _validate_and_normalize_pos(self, pos: str) -> Literal["n", "v", "a", "r", "s"]:
+        """Validate and normalize POS tag.
+
+        Parameters
+        ----------
+        pos : str
+            Part of speech tag.
+
+        Returns
+        -------
+        Literal["n", "v", "a", "r", "s"]
+            Normalized POS tag.
+
+        Raises
+        ------
+        ValueError
+            If POS tag is invalid.
+        """
+        valid_pos_values = {"n", "v", "a", "r", "s"}
+        if pos not in valid_pos_values:
+            valid_tags = ", ".join(sorted(valid_pos_values))
+            error_msg = f"Invalid POS value '{pos}'. Must be a WordNet POS tag: {valid_tags}"
+            raise ValueError(error_msg)
+        return cast(Literal["n", "v", "a", "r", "s"], pos)
+
+    def _build_framenet_lu_refs(self, framenet_lus: list[str] | None) -> list[FrameNetLURef]:
+        """Build FrameNet LU references.
+
+        Parameters
+        ----------
+        framenet_lus : list[str] | None
+            FrameNet lexical unit IDs.
+
+        Returns
+        -------
+        list[FrameNetLURef]
+            FrameNet LU reference objects.
+        """
+        if not framenet_lus:
+            return []
+
+        refs = []
+        for lu_id_str in framenet_lus:
+            lu_id, frame_name = self._parse_framenet_lu_id(lu_id_str)
+            lu_ref = FrameNetLURef(
+                lu_id=lu_id,
+                frame_name=frame_name,
+                definition=f"Lexical unit {lu_id_str} in frame {frame_name}",
+            )
+            refs.append(lu_ref)
+        return refs
+
+    def _parse_framenet_lu_id(self, lu_id_str: str) -> tuple[int, str]:
+        """Parse FrameNet LU identifier.
+
+        Parameters
+        ----------
+        lu_id_str : str
+            LU identifier string.
+
+        Returns
+        -------
+        tuple[int, str]
+            LU ID and frame name.
+        """
+        if "." in lu_id_str:
+            frame_part, lu_part = lu_id_str.split(".", 1)
+            try:
+                lu_id = int(lu_part) if lu_part.isdigit() else hash(lu_id_str) % 1000000
+                frame_name = frame_part
+            except ValueError:
+                lu_id = hash(lu_id_str) % 1000000
+                frame_name = frame_part
+        else:
+            try:
+                lu_id = int(lu_id_str)
+                frame_name = "Unknown"
+            except ValueError:
+                lu_id = hash(lu_id_str) % 1000000
+                frame_name = "Unknown"
+        return lu_id, frame_name
+
+    def _build_propbank_roleset_refs(
+        self, propbank_rolesets: list[str] | None
+    ) -> list[PropBankRolesetRef]:
+        """Build PropBank roleset references.
+
+        Parameters
+        ----------
+        propbank_rolesets : list[str] | None
+            PropBank roleset IDs.
+
+        Returns
+        -------
+        list[PropBankRolesetRef]
+            PropBank roleset reference objects.
+        """
+        if not propbank_rolesets:
+            return []
+
+        refs = []
+        for roleset_id in propbank_rolesets:
+            name = self._generate_roleset_name(roleset_id)
+            roleset_ref = PropBankRolesetRef(roleset_id=roleset_id, name=name)
+            refs.append(roleset_ref)
+        return refs
+
+    def _generate_roleset_name(self, roleset_id: str) -> str:
+        """Generate descriptive name for roleset.
+
+        Parameters
+        ----------
+        roleset_id : str
+            PropBank roleset ID.
+
+        Returns
+        -------
+        str
+            Descriptive name.
+        """
+        if "." in roleset_id:
+            lemma_part = roleset_id.split(".")[0]
+            return f"{lemma_part} (sense {roleset_id.split('.')[-1]})"
+        return f"Roleset {roleset_id}"
+
+    def _build_verbnet_member_refs(
+        self, verbnet_members: list[str] | None, lemma: str
+    ) -> list[VerbNetMemberRef]:
+        """Build VerbNet member references.
+
+        Parameters
+        ----------
+        verbnet_members : list[str] | None
+            VerbNet member keys.
+        lemma : str
+            Base lemma for fallback class ID generation.
+
+        Returns
+        -------
+        list[VerbNetMemberRef]
+            VerbNet member reference objects.
+        """
+        if not verbnet_members:
+            return []
+
+        refs = []
+        for member_key in verbnet_members:
+            class_id = self._generate_verbnet_class_id(member_key, lemma)
+            member_ref = VerbNetMemberRef(verbnet_key=member_key, class_id=class_id)
+            refs.append(member_ref)
+        return refs
+
+    def _generate_verbnet_class_id(self, member_key: str, lemma: str) -> str:
+        """Generate VerbNet class ID from member key.
+
+        Parameters
+        ----------
+        member_key : str
+            VerbNet member key.
+        lemma : str
+            Base lemma for fallback.
+
+        Returns
+        -------
+        str
+            Generated class ID.
+        """
+        if "#" in member_key:
+            lemma_part = member_key.split("#")[0]
+            return f"{lemma_part}-{hash(member_key) % 100}.1"
+        return f"{lemma}-{hash(member_key) % 100}.1"

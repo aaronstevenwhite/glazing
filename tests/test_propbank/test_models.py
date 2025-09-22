@@ -83,7 +83,7 @@ class TestAlias:
     def test_invalid_alias_text(self) -> None:
         """Test invalid alias text."""
         with pytest.raises(ValidationError) as exc_info:
-            Alias(text="123abandon", pos="v")
+            Alias(text="@abandon", pos="v")
         assert "Invalid alias text" in str(exc_info.value)
 
     def test_invalid_pos(self) -> None:
@@ -340,7 +340,7 @@ class TestFrameset:
     def test_invalid_predicate_lemma(self) -> None:
         """Test invalid predicate lemma."""
         with pytest.raises(ValidationError) as exc_info:
-            Frameset(predicate_lemma="Give", rolesets=[])
+            Frameset(predicate_lemma="@Give", rolesets=[])
         assert "Invalid predicate lemma format" in str(exc_info.value)
 
     def test_complex_predicate_lemma(self) -> None:

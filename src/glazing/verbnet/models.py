@@ -429,7 +429,7 @@ class Member(GlazingBaseModel):
         ValueError
             If member name format is invalid.
         """
-        if not re.match(r"^[a-z][a-z0-9_-]*$", v):
+        if not re.match(r"^[a-zA-Z][a-zA-Z0-9_\-\.\s]*$", v):
             msg = f"Invalid member name format: {v}"
             raise ValueError(msg)
         return v
@@ -951,7 +951,7 @@ class PredicateArgument(GlazingBaseModel):
             If event variable format is invalid.
         """
         arg_type = info.data.get("type")
-        if arg_type == "Event" and not re.match(r"^e\d+$", v):
+        if arg_type == "Event" and not re.match(r"^[eEë]\d*$", v):
             msg = f"Invalid event variable format: {v}"
             raise ValueError(msg)
         return v

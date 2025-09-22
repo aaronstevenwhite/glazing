@@ -117,22 +117,22 @@ class TextAnnotation(GlazingBaseModel):
     type: MarkupType
     name: str | None = Field(None, description="FE name for fex/fen annotations")
     ref_id: int | None = Field(None, description="ID of referenced element")
-    text: str = Field(min_length=1, description="The annotated text span")
+    text: str = Field(description="The annotated text span")  # Allow empty text
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
         """Validate FE reference names."""
-        if v is not None and not re.match(r"^[A-Z][A-Za-z0-9_]*$", v):
+        if v is not None and not re.match(FE_NAME_PATTERN, v):
             msg = f"Invalid FE name format: {v}"
             raise ValueError(msg)
         return v
 
     @model_validator(mode="after")
     def validate_positions(self) -> Self:
-        """Validate that end position is after start position."""
-        if self.end <= self.start:
-            msg = f"End position ({self.end}) must be after start position ({self.start})"
+        """Validate that end position is at or after start position."""
+        if self.end < self.start:
+            msg = f"End position ({self.end}) must be at or after start position ({self.start})"
             raise ValueError(msg)
         return self
 
@@ -1200,9 +1200,9 @@ class Label(GlazingBaseModel):
 
     @model_validator(mode="after")
     def validate_positions(self) -> Self:
-        """Validate that end position is after start position."""
-        if self.end <= self.start:
-            msg = f"End position ({self.end}) must be after start position ({self.start})"
+        """Validate that end position is at or after start position."""
+        if self.end < self.start:
+            msg = f"End position ({self.end}) must be at or after start position ({self.start})"
             raise ValueError(msg)
         return self
 

@@ -22,6 +22,34 @@ from glazing.wordnet.search import WordNetSearch
 
 
 @dataclass
+class SearchResult:
+    """Individual search result.
+
+    Parameters
+    ----------
+    dataset : str
+        Source dataset name.
+    id : str
+        Entity identifier.
+    type : str
+        Entity type.
+    name : str
+        Entity name.
+    description : str
+        Entity description.
+    score : float
+        Relevance score.
+    """
+
+    dataset: str
+    id: str
+    type: str
+    name: str
+    description: str
+    score: float
+
+
+@dataclass
 class UnifiedSearchResult:
     """Container for search results across all datasets.
 
@@ -155,7 +183,7 @@ class UnifiedSearch:
         self.wordnet = wordnet
         self.propbank = propbank
 
-    def by_lemma(self, lemma: str, pos: str | None = None) -> UnifiedSearchResult:  # noqa: C901, PLR0912
+    def by_lemma(self, lemma: str, pos: str | None = None) -> UnifiedSearchResult:
         """Search all datasets by lemma.
 
         Parameters
@@ -170,52 +198,10 @@ class UnifiedSearch:
         UnifiedSearchResult
             Results from all datasets.
         """
-        frames = []
-        verb_classes = []
-        synsets = []
-        framesets = []
-        rolesets = []
-
-        # Search FrameNet
-        if self.framenet:
-            # Convert POS if provided
-            fn_pos = None
-            if pos:
-                pos_lower = pos.lower()
-                if pos_lower in ["v", "verb"]:
-                    fn_pos = "V"
-                elif pos_lower in ["n", "noun"]:
-                    fn_pos = "N"
-                elif pos_lower in ["a", "adj", "adjective"]:
-                    fn_pos = "A"
-            frames = self.framenet.find_frames_by_lemma(lemma, fn_pos)  # type: ignore[arg-type]
-
-        # Search VerbNet
-        if self.verbnet:
-            verb_classes = self.verbnet.by_members([lemma])
-
-        # Search WordNet
-        if self.wordnet:
-            # Convert POS if provided
-            wn_pos = None
-            if pos:
-                pos_lower = pos.lower()
-                if pos_lower in ["v", "verb"]:
-                    wn_pos = "v"
-                elif pos_lower in ["n", "noun"]:
-                    wn_pos = "n"
-                elif pos_lower in ["a", "adj", "adjective", "s"]:
-                    wn_pos = "a"
-                elif pos_lower in ["r", "adv", "adverb"]:
-                    wn_pos = "r"
-            synsets = self.wordnet.by_lemma(lemma, wn_pos)  # type: ignore[arg-type]
-
-        # Search PropBank
-        if self.propbank:
-            frameset = self.propbank.by_lemma(lemma)
-            if frameset:
-                framesets = [frameset]
-                rolesets = frameset.rolesets
+        frames = self._search_framenet_by_lemma(lemma, pos)
+        verb_classes = self._search_verbnet_by_lemma(lemma)
+        synsets = self._search_wordnet_by_lemma(lemma, pos)
+        framesets, rolesets = self._search_propbank_by_lemma(lemma)
 
         return UnifiedSearchResult(
             frames=frames,
@@ -224,6 +210,146 @@ class UnifiedSearch:
             framesets=framesets,
             rolesets=rolesets,
         )
+
+    def _search_framenet_by_lemma(self, lemma: str, pos: str | None) -> list[Frame]:
+        """Search FrameNet by lemma.
+
+        Parameters
+        ----------
+        lemma : str
+            Lemma to search for.
+        pos : str | None
+            Part of speech constraint.
+
+        Returns
+        -------
+        list
+            FrameNet frames.
+        """
+        if not self.framenet:
+            return []
+
+        fn_pos = self._convert_pos_for_framenet(pos)
+        return self.framenet.find_frames_by_lemma(lemma, fn_pos)  # type: ignore[arg-type]
+
+    def _convert_pos_for_framenet(self, pos: str | None) -> str | None:
+        """Convert POS tag for FrameNet.
+
+        Parameters
+        ----------
+        pos : str | None
+            Part of speech tag.
+
+        Returns
+        -------
+        str | None
+            FrameNet POS tag.
+        """
+        if not pos:
+            return None
+
+        pos_lower = pos.lower()
+        pos_map = {
+            "v": "V",
+            "verb": "V",
+            "n": "N",
+            "noun": "N",
+            "a": "A",
+            "adj": "A",
+            "adjective": "A",
+        }
+        return pos_map.get(pos_lower)
+
+    def _search_verbnet_by_lemma(self, lemma: str) -> list[VerbClass]:
+        """Search VerbNet by lemma.
+
+        Parameters
+        ----------
+        lemma : str
+            Lemma to search for.
+
+        Returns
+        -------
+        list
+            VerbNet classes.
+        """
+        if not self.verbnet:
+            return []
+        return self.verbnet.by_members([lemma])
+
+    def _search_wordnet_by_lemma(self, lemma: str, pos: str | None) -> list[Synset]:
+        """Search WordNet by lemma.
+
+        Parameters
+        ----------
+        lemma : str
+            Lemma to search for.
+        pos : str | None
+            Part of speech constraint.
+
+        Returns
+        -------
+        list
+            WordNet synsets.
+        """
+        if not self.wordnet:
+            return []
+
+        wn_pos = self._convert_pos_for_wordnet(pos)
+        return self.wordnet.by_lemma(lemma, wn_pos)  # type: ignore[arg-type]
+
+    def _convert_pos_for_wordnet(self, pos: str | None) -> str | None:
+        """Convert POS tag for WordNet.
+
+        Parameters
+        ----------
+        pos : str | None
+            Part of speech tag.
+
+        Returns
+        -------
+        str | None
+            WordNet POS tag.
+        """
+        if not pos:
+            return None
+
+        pos_lower = pos.lower()
+        pos_map = {
+            "v": "v",
+            "verb": "v",
+            "n": "n",
+            "noun": "n",
+            "a": "a",
+            "adj": "a",
+            "adjective": "a",
+            "s": "a",
+            "r": "r",
+            "adv": "r",
+            "adverb": "r",
+        }
+        return pos_map.get(pos_lower)
+
+    def _search_propbank_by_lemma(self, lemma: str) -> tuple[list[Frameset], list[Roleset]]:
+        """Search PropBank by lemma.
+
+        Parameters
+        ----------
+        lemma : str
+            Lemma to search for.
+
+        Returns
+        -------
+        tuple[list, list]
+            PropBank framesets and rolesets.
+        """
+        if not self.propbank:
+            return [], []
+
+        frameset = self.propbank.by_lemma(lemma)
+        if frameset:
+            return [frameset], frameset.rolesets
+        return [], []
 
     def by_semantic_role(self, role_name: str) -> UnifiedSearchResult:
         """Search for frames/classes with a semantic role.
@@ -247,7 +373,11 @@ class UnifiedSearch:
 
         # Search VerbNet for classes with this thematic role
         if self.verbnet:
-            verb_classes = self.verbnet.by_themroles([role_name])  # type: ignore[list-item]
+            # Cast role_name to ThematicRoleType if it matches a valid role
+            try:
+                verb_classes = self.verbnet.by_themroles([role_name])  # type: ignore[list-item]
+            except (ValueError, KeyError):
+                verb_classes = []
 
         # PropBank uses numbered arguments, not named roles
         # WordNet doesn't have semantic roles
@@ -423,3 +553,451 @@ class UnifiedSearch:
             wordnet=wordnet,
             propbank=propbank,
         )
+
+    def search(self, query: str) -> list[SearchResult]:
+        """Search across all datasets with a text query.
+
+        Parameters
+        ----------
+        query : str
+            Search query text.
+
+        Returns
+        -------
+        list[SearchResult]
+            List of search results across all datasets.
+        """
+        results = []
+
+        # Search each dataset and convert to SearchResult format
+        if self.framenet:
+            frames = self.framenet.find_frames_by_lemma(query)
+            for frame in frames:
+                results.append(
+                    SearchResult(
+                        dataset="framenet",
+                        id=frame.name,
+                        type="frame",
+                        name=frame.name,
+                        description=frame.definition.plain_text if frame.definition else "",
+                        score=1.0,
+                    )
+                )
+
+        if self.verbnet:
+            classes = self.verbnet.by_members([query])
+            for cls in classes:
+                results.append(
+                    SearchResult(
+                        dataset="verbnet",
+                        id=cls.id,
+                        type="class",
+                        name=cls.id,
+                        description=f"VerbNet class with {len(cls.members)} members",
+                        score=1.0,
+                    )
+                )
+
+        if self.wordnet:
+            synsets = self.wordnet.by_lemma(query)
+            for synset in synsets:
+                synset_id = f"{synset.offset:08d}{synset.ss_type}"
+                results.append(
+                    SearchResult(
+                        dataset="wordnet",
+                        id=synset_id,
+                        type="synset",
+                        name=synset_id,
+                        description=synset.gloss or "",
+                        score=1.0,
+                    )
+                )
+
+        if self.propbank:
+            frameset = self.propbank.by_lemma(query)
+            if frameset:
+                results.append(
+                    SearchResult(
+                        dataset="propbank",
+                        id=frameset.predicate_lemma,
+                        type="frameset",
+                        name=frameset.predicate_lemma,
+                        description=f"PropBank frameset with {len(frameset.rolesets)} rolesets",
+                        score=1.0,
+                    )
+                )
+
+        return results
+
+    def get_entity(
+        self, entity_id: str, dataset: str
+    ) -> Frame | VerbClass | Synset | Frameset | None:
+        """Get a specific entity from a dataset.
+
+        Parameters
+        ----------
+        entity_id : str
+            Entity identifier.
+        dataset : str
+            Dataset name.
+
+        Returns
+        -------
+        Frame | VerbClass | Synset | Frameset | None
+            The entity if found, None otherwise.
+        """
+        if dataset == "framenet" and self.framenet:
+            return self.framenet.get_frame_by_name(entity_id)
+        if dataset == "verbnet" and self.verbnet:
+            # VerbNet searches by ID
+            return self.verbnet.get_by_id(entity_id)
+        if dataset == "wordnet" and self.wordnet:
+            # WordNet ID format: offset+pos (e.g., "01234567n")
+            return self.wordnet.get_synset_by_id(entity_id)
+        if dataset == "propbank" and self.propbank:
+            return self.propbank.by_lemma(entity_id)
+        return None
+
+    def search_semantic_roles(self, role_name: str) -> list[SearchResult]:
+        """Search for semantic roles across datasets.
+
+        Parameters
+        ----------
+        role_name : str
+            Role name to search for.
+
+        Returns
+        -------
+        list[SearchResult]
+            List of search results for the role.
+        """
+        results = []
+
+        # Search FrameNet for frame elements
+        if self.framenet:
+            frames = self.framenet.find_frames_with_fe(role_name)
+            for frame in frames:
+                results.append(
+                    SearchResult(
+                        dataset="framenet",
+                        id=frame.name,
+                        type="frame_element",
+                        name=frame.name,
+                        description=f"Frame with {role_name} element",
+                        score=1.0,
+                    )
+                )
+
+        # Search VerbNet for thematic roles
+        if self.verbnet:
+            # Search for classes with this thematic role
+            # Cast role_name to ThematicRoleType if it matches a valid role
+            try:
+                classes = self.verbnet.by_themroles([role_name])  # type: ignore[list-item]
+            except (ValueError, KeyError):
+                classes = []
+            for cls in classes:
+                results.append(
+                    SearchResult(
+                        dataset="verbnet",
+                        id=cls.id,
+                        type="thematic_role",
+                        name=cls.id,
+                        description=f"Class with {role_name} role",
+                        score=1.0,
+                    )
+                )
+
+        return results
+
+    def find_cross_references(
+        self, entity_id: str, source: str, target: str
+    ) -> list[dict[str, str | float]]:
+        """Find cross-references between datasets.
+
+        Parameters
+        ----------
+        entity_id : str
+            Source entity identifier.
+        source : str
+            Source dataset name.
+        target : str
+            Target dataset name.
+
+        Returns
+        -------
+        list[dict]
+            List of cross-reference mappings.
+        """
+        mapping_strategies = {
+            ("verbnet", "propbank"): self._verbnet_to_propbank_refs,
+            ("propbank", "verbnet"): self._propbank_to_verbnet_refs,
+            ("verbnet", "framenet"): self._verbnet_to_framenet_refs,
+            ("framenet", "verbnet"): self._framenet_to_verbnet_refs,
+            ("propbank", "framenet"): self._propbank_to_framenet_refs,
+        }
+
+        # Handle WordNet to other datasets
+        if source == "wordnet" and target in ["verbnet", "propbank", "framenet"]:
+            return self._wordnet_to_other_refs(entity_id, target)
+
+        strategy = mapping_strategies.get((source, target))
+        return strategy(entity_id) if strategy else []
+
+    def _verbnet_to_propbank_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        """Find VerbNet to PropBank references.
+
+        Parameters
+        ----------
+        entity_id : str
+            VerbNet class ID.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        references: list[dict[str, str | float]] = []
+        if not (self.verbnet and self.propbank):
+            return references
+
+        verb_class = self.verbnet.get_by_id(entity_id)
+        if not verb_class:
+            return references
+
+        for frameset in self.propbank.get_all_framesets():
+            for roleset in frameset.rolesets:
+                if roleset.lexlinks:
+                    for lexlink in roleset.lexlinks:
+                        if lexlink.class_name == entity_id and lexlink.resource == "VerbNet":
+                            references.append(
+                                {
+                                    "target_id": roleset.id,
+                                    "mapping_type": "lexlink",
+                                    "confidence": lexlink.confidence,
+                                }
+                            )
+        return references
+
+    def _propbank_to_verbnet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        """Find PropBank to VerbNet references.
+
+        Parameters
+        ----------
+        entity_id : str
+            PropBank roleset ID.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        references: list[dict[str, str | float]] = []
+        if not self.propbank:
+            return references
+
+        pb_frameset = self.propbank.by_lemma(entity_id.split(".")[0])
+        if not pb_frameset:
+            return references
+
+        for roleset in pb_frameset.rolesets:
+            if roleset.id == entity_id and roleset.lexlinks:
+                for lexlink in roleset.lexlinks:
+                    if lexlink.resource == "VerbNet":
+                        references.append(
+                            {
+                                "target_id": lexlink.class_name,
+                                "mapping_type": "lexlink",
+                                "confidence": lexlink.confidence,
+                            }
+                        )
+        return references
+
+    def _verbnet_to_framenet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        """Find VerbNet to FrameNet references.
+
+        Parameters
+        ----------
+        entity_id : str
+            VerbNet class ID.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        if self.verbnet:
+            verb_class = self.verbnet.get_by_id(entity_id)
+            if verb_class and verb_class.frames:
+                raise NotImplementedError(
+                    "VerbNet to FrameNet cross-references not yet implemented"
+                )
+        return []
+
+    def _framenet_to_verbnet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        """Find FrameNet to VerbNet references.
+
+        Parameters
+        ----------
+        entity_id : str
+            FrameNet frame name.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        if self.framenet:
+            frame = self.framenet.get_frame_by_name(entity_id)
+            if frame and self.verbnet:
+                raise NotImplementedError(
+                    "FrameNet to VerbNet cross-references not yet implemented"
+                )
+        return []
+
+    def _propbank_to_framenet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        """Find PropBank to FrameNet references.
+
+        Parameters
+        ----------
+        entity_id : str
+            PropBank roleset ID.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        references: list[dict[str, str | float]] = []
+        if not self.propbank:
+            return references
+
+        pb_frameset = self.propbank.by_lemma(entity_id.split(".")[0])
+        if not pb_frameset:
+            return references
+
+        for roleset in pb_frameset.rolesets:
+            if roleset.id == entity_id and roleset.usagenotes:
+                for usage in roleset.usagenotes.usage:
+                    if usage.resource == "FrameNet":
+                        references.append(
+                            {"target_id": usage.version, "mapping_type": "usage", "confidence": 0.8}
+                        )
+        return references
+
+    def _wordnet_to_other_refs(self, entity_id: str, target: str) -> list[dict[str, str | float]]:
+        """Find WordNet to other dataset references.
+
+        Parameters
+        ----------
+        entity_id : str
+            WordNet synset ID.
+        target : str
+            Target dataset name.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        references: list[dict[str, str | float]] = []
+        if not self.wordnet:
+            return references
+
+        synset = self.wordnet.get_synset_by_id(entity_id)
+        if not synset:
+            return references
+
+        for word in synset.words:
+            target_refs = self._find_target_refs_for_lemma(word.lemma, target)
+            references.extend(target_refs)
+
+        return references
+
+    def _find_target_refs_for_lemma(self, lemma: str, target: str) -> list[dict[str, str | float]]:
+        """Find target dataset references for a lemma.
+
+        Parameters
+        ----------
+        lemma : str
+            Lemma to search for.
+        target : str
+            Target dataset name.
+
+        Returns
+        -------
+        list[dict[str, str | float]]
+            Reference mappings.
+        """
+        references: list[dict[str, str | float]] = []
+
+        if target == "verbnet" and self.verbnet:
+            classes = self.verbnet.by_members([lemma])
+            for cls in classes:
+                references.append(
+                    {"target_id": cls.id, "mapping_type": "lemma_match", "confidence": 0.7}
+                )
+        elif target == "propbank" and self.propbank:
+            frameset = self.propbank.by_lemma(lemma)
+            if frameset:
+                for roleset in frameset.rolesets:
+                    references.append(
+                        {"target_id": roleset.id, "mapping_type": "lemma_match", "confidence": 0.7}
+                    )
+        elif target == "framenet" and self.framenet:
+            frames = self.framenet.find_frames_by_lemma(lemma)
+            for frame in frames:
+                references.append(
+                    {"target_id": frame.name, "mapping_type": "lemma_match", "confidence": 0.7}
+                )
+
+        return references
+
+    def load_verbnet_from_jsonl(self, filepath: str) -> None:
+        """Load VerbNet data from JSONL file."""
+        verb_classes = []
+        with Path(filepath).open(encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    verb_classes.append(VerbClass.model_validate_json(line))
+        self.verbnet = VerbNetSearch(verb_classes)
+
+    def load_propbank_from_jsonl(self, filepath: str) -> None:
+        """Load PropBank data from JSONL file."""
+        framesets = []
+        with Path(filepath).open(encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    framesets.append(Frameset.model_validate_json(line))
+        self.propbank = PropBankSearch(framesets)
+
+    def load_wordnet_from_jsonl(self, synsets_path: str, _index_path: str, _pos: str) -> None:
+        """Load WordNet data from JSONL files."""
+        synsets = []
+        with Path(synsets_path).open(encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    synsets.append(Synset.model_validate_json(line))
+
+        # Initialize or merge with existing WordNet search
+        if self.wordnet is None:
+            self.wordnet = WordNetSearch(synsets)
+        else:
+            # Merge synsets with existing ones
+            existing_synsets = self.wordnet.get_all_synsets()
+            # Create a dict to merge by offset to avoid duplicates
+            synset_dict = {f"{s.offset:08d}{s.ss_type}": s for s in existing_synsets}
+            for synset in synsets:
+                synset_id = f"{synset.offset:08d}{synset.ss_type}"
+                synset_dict[synset_id] = synset
+            # Recreate WordNetSearch with merged synsets
+            self.wordnet = WordNetSearch(list(synset_dict.values()))
+
+    def load_framenet_from_jsonl(self, filepath: str) -> None:
+        """Load FrameNet data from JSONL file."""
+        frames = []
+        with Path(filepath).open(encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    frames.append(Frame.model_validate_json(line))
+        self.framenet = FrameNetSearch(frames)

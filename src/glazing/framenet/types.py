@@ -423,9 +423,9 @@ def is_valid_hex_color(color: str) -> bool:
 
 
 # FrameNet-specific pattern constants
-FRAME_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
-FE_NAME_PATTERN = r"^[A-Z][A-Za-z0-9_]*$"
-FE_ABBREV_PATTERN = r"^[A-Za-z][A-Za-z0-9_-]*$"
+FRAME_NAME_PATTERN = r"^[A-Za-z0-9_\-]+$"  # Allow hyphens in frame names
+FE_NAME_PATTERN = r"^[A-Za-z0-9_\-\.\'\s]+$"  # Allow hyphens, periods, apostrophes, spaces
+FE_ABBREV_PATTERN = r"^[A-Za-z0-9_\-\.\'\s/]+$"  # Allow slashes for abbreviations like H/C
 LU_NAME_PATTERN = r"^[a-z][a-z0-9_\'-]*\.[a-z]+$"
 USERNAME_PATTERN = r"^[A-Za-z][A-Za-z0-9]*$"
 LEXEME_NAME_PATTERN = r"^[a-zA-Z][a-zA-Z0-9\'-]*$"

@@ -310,7 +310,7 @@ class TestMember:
         """Test that invalid member names are rejected."""
         with pytest.raises(ValidationError, match="Invalid member name format"):
             Member(
-                name="Give",  # Capital letter not allowed
+                name="@Give",
                 verbnet_key="give#2",
             )
 

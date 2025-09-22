@@ -70,10 +70,7 @@ class TestTextAnnotation:
 
     def test_invalid_positions(self):
         """Test validation of invalid positions."""
-        with pytest.raises(ValueError, match="End position.*must be after start position"):
-            TextAnnotation(start=5, end=5, type="fex", name="Agent", text="Agent")
-
-        with pytest.raises(ValueError, match="End position.*must be after start position"):
+        with pytest.raises(ValueError, match="End position.*must be at or after start position"):
             TextAnnotation(start=10, end=5, type="fex", name="Agent", text="Agent")
 
     def test_negative_positions(self):
@@ -100,12 +97,10 @@ class TestTextAnnotation:
     def test_invalid_fe_name_format(self):
         """Test validation of FE name format."""
         with pytest.raises(ValueError, match="Invalid FE name format"):
-            TextAnnotation(start=0, end=5, type="fex", name="agent", text="Agent")  # lowercase
+            TextAnnotation(start=0, end=5, type="fex", name="Agent@Bad", text="Agent")
 
         with pytest.raises(ValueError, match="Invalid FE name format"):
-            TextAnnotation(
-                start=0, end=5, type="fex", name="Agent-Bad", text="Agent"
-            )  # hyphen not allowed
+            TextAnnotation(start=0, end=5, type="fex", name="Agent!Bad", text="Agent")
 
 
 class TestAnnotatedText:
@@ -281,7 +276,7 @@ class TestFrameElement:
         with pytest.raises(ValueError, match="Invalid frame element name format"):
             FrameElement(
                 id=123,
-                name="agent",  # Should start with uppercase
+                name="agent@bad",
                 abbrev="agt",
                 definition=definition,
                 core_type="Core",
@@ -644,7 +639,7 @@ class TestFrame:
         with pytest.raises(ValueError, match="Invalid frame name format"):
             Frame(
                 id=2031,
-                name="abandonment",  # Should start with uppercase
+                name="abandonment@bad",
                 definition=definition,
                 frame_elements=[],
             )
@@ -808,7 +803,7 @@ class TestFrameIndexEntry:
         with pytest.raises(ValueError, match="Invalid frame name format"):
             FrameIndexEntry(
                 id=2031,
-                name="abandonment",  # Should start with uppercase
+                name="abandonment@bad",
                 modified_date=datetime.now(UTC),
             )
 
@@ -1022,8 +1017,8 @@ class TestLabel:
 
     def test_invalid_label_positions(self):
         """Test validation of invalid positions."""
-        with pytest.raises(ValueError, match="End position.*must be after start position"):
-            Label(name="Agent", start=5, end=5)
+        with pytest.raises(ValueError, match="End position.*must be at or after start position"):
+            Label(name="Agent", start=5, end=4)
 
     def test_label_with_fe_id(self):
         """Test label with frame element ID."""
@@ -1276,7 +1271,7 @@ class TestFERealization:
     def test_invalid_fe_name(self):
         """Test validation of FE name."""
         with pytest.raises(ValueError, match="Invalid FE name format"):
-            FERealization(fe_name="agent", total=5)  # lowercase
+            FERealization(fe_name="agent@bad", total=5)
 
 
 class TestFEGroupRealization:
@@ -1304,7 +1299,7 @@ class TestFEGroupRealization:
         """Test validation of FE names in group."""
         with pytest.raises(ValueError, match="Invalid FE name in group"):
             FEGroupRealization(
-                fe_names=["Agent", "invalid_name"],  # invalid format
+                fe_names=["Agent", "invalid@name"],
                 grammatical_function="Ext",
                 phrase_type="NP",
             )
@@ -1607,7 +1602,7 @@ class TestLexicalUnit:
                 pos="V",
                 definition="Test definition",
                 frame_id=2031,
-                frame_name="abandonment",  # Should start with uppercase
+                frame_name="abandonment@bad",
                 sentence_count=sentence_count,
                 lexemes=[lexeme],
             )

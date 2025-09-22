@@ -316,7 +316,7 @@ class WordNetConverter:
         return entries
 
     def convert_wordnet_database(
-        self, wordnet_dir: Path | str, output_dir: Path | str
+        self, wordnet_dir: Path | str, output_file: Path | str
     ) -> dict[str, int]:
         """Convert entire WordNet database to JSON Lines.
 
@@ -324,8 +324,8 @@ class WordNetConverter:
         ----------
         wordnet_dir : Path | str
             Directory containing WordNet database files.
-        output_dir : Path | str
-            Output directory for JSON Lines files.
+        output_file : Path | str
+            Output JSON Lines file path.
 
         Returns
         -------
@@ -338,15 +338,16 @@ class WordNetConverter:
             If WordNet directory does not exist.
         """
         wordnet_dir = Path(wordnet_dir)
-        output_dir = Path(output_dir)
+        output_file = Path(output_file)
 
         if not wordnet_dir.exists():
             msg = f"WordNet directory not found: {wordnet_dir}"
             raise FileNotFoundError(msg)
 
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
         counts = {}
+        all_synsets = []
 
         # Process data files
         pos_mappings: list[tuple[str, WordNetPOS]] = [
@@ -359,41 +360,15 @@ class WordNetConverter:
             data_file = wordnet_dir / f"data.{pos_name}"
             if data_file.exists():
                 synsets = self.parse_data_file(data_file, pos_code)
-                output_file = output_dir / f"synsets_{pos_name}.jsonl"
-                with output_file.open("w", encoding="utf-8") as f:
-                    for synset in synsets:
-                        f.write(f"{synset.model_dump_json()}\n")
+                all_synsets.extend(synsets)
                 counts[f"synsets_{pos_name}"] = len(synsets)
 
-            # Process index files
-            index_file = wordnet_dir / f"index.{pos_name}"
-            if index_file.exists():
-                entries = self.parse_index_file(index_file, pos_code)
-                output_file = output_dir / f"index_{pos_name}.jsonl"
-                with output_file.open("w", encoding="utf-8") as f:
-                    for entry in entries:
-                        f.write(f"{entry.model_dump_json()}\n")
-                counts[f"index_{pos_name}"] = len(entries)
+        # Write all synsets to single output file
+        with output_file.open("w", encoding="utf-8") as f:
+            for synset in all_synsets:
+                f.write(f"{synset.model_dump_json()}\n")
 
-            # Process exception files
-            exc_file = wordnet_dir / f"{pos_name}.exc"
-            if exc_file.exists():
-                exceptions = self.parse_exception_file(exc_file)
-                output_file = output_dir / f"exceptions_{pos_name}.jsonl"
-                with output_file.open("w", encoding="utf-8") as f:
-                    for exception in exceptions:
-                        f.write(f"{exception.model_dump_json()}\n")
-                counts[f"exceptions_{pos_name}"] = len(exceptions)
-
-        # Process sense index
-        sense_index_file = wordnet_dir / "index.sense"
-        if sense_index_file.exists():
-            senses = self.parse_sense_index(sense_index_file)
-            output_file = output_dir / "senses.jsonl"
-            with output_file.open("w", encoding="utf-8") as f:
-                for sense in senses:
-                    f.write(f"{sense.model_dump_json()}\n")
-            counts["senses"] = len(senses)
+        counts["total_synsets"] = len(all_synsets)
 
         return counts
 
@@ -783,15 +758,15 @@ def parse_exception_file(filepath: Path | str) -> list[ExceptionEntry]:
     return converter.parse_exception_file(filepath)
 
 
-def convert_wordnet_database(wordnet_dir: Path | str, output_dir: Path | str) -> dict[str, int]:
+def convert_wordnet_database(wordnet_dir: Path | str, output_file: Path | str) -> dict[str, int]:
     """Convert entire WordNet database to JSON Lines.
 
     Parameters
     ----------
     wordnet_dir : Path | str
         WordNet database directory.
-    output_dir : Path | str
-        Output directory.
+    output_file : Path | str
+        Output JSON Lines file path.
 
     Returns
     -------
@@ -799,4 +774,4 @@ def convert_wordnet_database(wordnet_dir: Path | str, output_dir: Path | str) ->
         Processing counts by file type.
     """
     converter = WordNetConverter()
-    return converter.convert_wordnet_database(wordnet_dir, output_dir)
+    return converter.convert_wordnet_database(wordnet_dir, output_file)

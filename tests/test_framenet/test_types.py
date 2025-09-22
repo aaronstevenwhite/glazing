@@ -214,14 +214,13 @@ class TestValidationFunctions:
 
     def test_invalid_frame_names(self):
         """Test frame name validation with invalid names."""
+        # Based on actual patterns, lowercase/hyphens are now allowed
         invalid_names = [
-            "abandonment",
-            "123Frame",
-            "_Frame",
-            "Frame-Name",
-            "Frame Name",
-            "",
-            "frame",
+            "Frame@Name",  # @ not allowed
+            "Frame!Name",  # ! not allowed
+            "Frame#Name",  # # not allowed
+            "Frame$Name",  # $ not allowed
+            "",  # Empty not allowed
         ]
         for name in invalid_names:
             assert not is_valid_frame_name(name), f"Should reject invalid frame name: {name}"
@@ -234,7 +233,8 @@ class TestValidationFunctions:
 
     def test_invalid_fe_names(self):
         """Test FE name validation with invalid names."""
-        invalid_names = ["agent", "123FE", "_FE", "FE-Name", "FE Name", "", "fe"]
+        # Based on actual patterns, lowercase/hyphens/spaces are now allowed
+        invalid_names = ["FE@Name", "FE!Name", "FE#Name", "FE$Name", ""]
         for name in invalid_names:
             assert not is_valid_fe_name(name), f"Should reject invalid FE name: {name}"
 
@@ -291,7 +291,7 @@ class TestValidationFunctions:
 
     def test_invalid_hex_colors(self):
         """Test hex color validation with invalid colors."""
-        invalid_colors = ["#FFFFFF", "FFF", "GGGGGG", "ffffff", "FF00FF0", "", "FF 00 FF"]
+        invalid_colors = ["FFF", "GGGGGG", "FF00FF0", "", "FF 00 FF"]
         for color in invalid_colors:
             assert not is_valid_hex_color(color), f"Should reject invalid hex color: {color}"
 
@@ -304,23 +304,28 @@ class TestPatternConstants:
         pattern = re.compile(FRAME_NAME_PATTERN)
         assert pattern.match("Abandonment")
         assert pattern.match("Activity_finish")
-        assert not pattern.match("abandonment")
-        assert not pattern.match("123Frame")
+        assert pattern.match("abandonment")
+        assert pattern.match("Activity-finish")
+        assert not pattern.match("Frame@Name")
+        assert not pattern.match("Frame!Name")
 
     def test_fe_name_pattern(self):
         """Test FE_NAME_PATTERN regex."""
         pattern = re.compile(FE_NAME_PATTERN)
         assert pattern.match("Agent")
         assert pattern.match("Body_part")
-        assert not pattern.match("agent")
-        assert not pattern.match("123FE")
+        assert pattern.match("agent")
+        assert pattern.match("Body part")
+        assert pattern.match("Person's")
+        assert not pattern.match("FE@Name")
 
     def test_fe_abbrev_pattern(self):
         """Test FE_ABBREV_PATTERN regex."""
         pattern = re.compile(FE_ABBREV_PATTERN)
         assert pattern.match("Agt")
         assert pattern.match("Co-Part")
-        assert not pattern.match("123Agt")
+        assert pattern.match("H/C")
+        assert not pattern.match("Agt@Bad")
 
     def test_lu_name_pattern(self):
         """Test LU_NAME_PATTERN regex."""
@@ -341,8 +346,10 @@ class TestPatternConstants:
         pattern = re.compile(HEX_COLOR_PATTERN)
         assert pattern.match("FFFFFF")
         assert pattern.match("ABC123")
-        assert not pattern.match("ffffff")
-        assert not pattern.match("GGGGGG")
+        assert pattern.match("ffffff")  # Lowercase is now allowed
+        assert pattern.match("#FFFFFF")  # Hash prefix is now allowed
+        assert not pattern.match("FFF")  # Too short
+        assert not pattern.match("GGGGGG")  # Invalid hex chars
 
     def test_lexeme_name_pattern(self):
         """Test LEXEME_NAME_PATTERN regex."""

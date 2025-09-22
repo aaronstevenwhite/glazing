@@ -349,7 +349,7 @@ class VerbNetSearch:
         classes = [self._classes[cid] for cid in matching_ids]
         return sorted(classes, key=lambda c: c.id)
 
-    def complex_search(  # noqa: C901, PLR0912
+    def complex_search(
         self,
         predicates: list[PredicateType] | None = None,
         themroles: list[ThematicRoleType] | None = None,
@@ -381,47 +381,159 @@ class VerbNetSearch:
         # Start with all classes
         results = set(self._classes.keys())
 
-        # Filter by predicates
-        if predicates:
-            pred_classes = set()
-            for predicate in predicates:
-                pred_classes |= self._classes_by_predicate.get(predicate, set())
-            results &= pred_classes
+        # Apply filters progressively
+        results = self._filter_by_predicates(results, predicates)
+        results = self._filter_by_thematic_roles(results, themroles)
 
-        # Filter by thematic roles
-        if themroles:
-            role_classes = None
-            for role in themroles:
-                role_set = self._classes_by_role.get(role, set())
-                if role_classes is None:
-                    role_classes = role_set.copy()
-                else:
-                    role_classes &= role_set
-            if role_classes:
-                results &= role_classes
-            else:
-                return []
+        if not results:  # Early exit if no classes remain
+            return []
 
-        # Filter by restrictions
-        if restrictions:
-            restriction_classes: set[VerbClassID] = set()
-            for role, role_restrictions in restrictions.items():
-                for value, rest_type in role_restrictions:
-                    role_rest_classes = {c.id for c in self.by_restriction(role, rest_type, value)}
-                    if restriction_classes:
-                        restriction_classes &= role_rest_classes
-                    else:
-                        restriction_classes = role_rest_classes
-            results &= restriction_classes
+        results = self._filter_by_restrictions(results, restrictions)
+        results = self._filter_by_syntax(results, syntax)
 
-        # Filter by syntax
-        if syntax:
-            syntax_classes = {c.id for c in self.by_syntax(syntax)}
-            results &= syntax_classes
-
-        # Get class objects
+        # Get class objects and sort
         classes = [self._classes[cid] for cid in results]
         return sorted(classes, key=lambda c: c.id)
+
+    def _filter_by_predicates(
+        self, class_ids: set[VerbClassID], predicates: list[PredicateType] | None
+    ) -> set[VerbClassID]:
+        """Filter class IDs by predicates.
+
+        Parameters
+        ----------
+        class_ids : set[VerbClassID]
+            Class IDs to filter.
+        predicates : list[PredicateType] | None
+            Predicates to require.
+
+        Returns
+        -------
+        set[VerbClassID]
+            Filtered class IDs.
+        """
+        if not predicates:
+            return class_ids
+
+        pred_classes = set()
+        for predicate in predicates:
+            pred_classes |= self._classes_by_predicate.get(predicate, set())
+        return class_ids & pred_classes
+
+    def _filter_by_thematic_roles(
+        self, class_ids: set[VerbClassID], themroles: list[ThematicRoleType] | None
+    ) -> set[VerbClassID]:
+        """Filter class IDs by thematic roles.
+
+        Parameters
+        ----------
+        class_ids : set[VerbClassID]
+            Class IDs to filter.
+        themroles : list[ThematicRoleType] | None
+            Thematic roles to require.
+
+        Returns
+        -------
+        set[VerbClassID]
+            Filtered class IDs.
+        """
+        if not themroles:
+            return class_ids
+
+        role_classes = None
+        for role in themroles:
+            role_set = self._classes_by_role.get(role, set())
+            if role_classes is None:
+                role_classes = role_set.copy()
+            else:
+                role_classes &= role_set
+
+        return class_ids & role_classes if role_classes else set()
+
+    def _filter_by_restrictions(
+        self,
+        class_ids: set[VerbClassID],
+        restrictions: (
+            dict[ThematicRoleType, list[tuple[RestrictionValue, SelectionalRestrictionType]]] | None
+        ),
+    ) -> set[VerbClassID]:
+        """Filter class IDs by selectional restrictions.
+
+        Parameters
+        ----------
+        class_ids : set[VerbClassID]
+            Class IDs to filter.
+        restrictions : dict | None
+            Selectional restrictions by role.
+
+        Returns
+        -------
+        set[VerbClassID]
+            Filtered class IDs.
+        """
+        if not restrictions:
+            return class_ids
+
+        restriction_classes: set[VerbClassID] = set()
+        for role, role_restrictions in restrictions.items():
+            role_class_set = self._get_classes_with_role_restrictions(role, role_restrictions)
+            if restriction_classes:
+                restriction_classes &= role_class_set
+            else:
+                restriction_classes = role_class_set
+
+        return class_ids & restriction_classes
+
+    def _get_classes_with_role_restrictions(
+        self,
+        role: ThematicRoleType,
+        role_restrictions: list[tuple[RestrictionValue, SelectionalRestrictionType]],
+    ) -> set[VerbClassID]:
+        """Get classes with specific role restrictions.
+
+        Parameters
+        ----------
+        role : ThematicRoleType
+            Thematic role.
+        role_restrictions : list[tuple[RestrictionValue, SelectionalRestrictionType]]
+            List of restrictions for the role.
+
+        Returns
+        -------
+        set[VerbClassID]
+            Class IDs with matching restrictions.
+        """
+        role_class_set: set[str] = set()
+        for value, rest_type in role_restrictions:
+            role_rest_classes = {c.id for c in self.by_restriction(role, rest_type, value)}
+            if role_class_set:
+                role_class_set &= role_rest_classes
+            else:
+                role_class_set = role_rest_classes
+        return role_class_set
+
+    def _filter_by_syntax(
+        self, class_ids: set[VerbClassID], syntax: str | None
+    ) -> set[VerbClassID]:
+        """Filter class IDs by syntax.
+
+        Parameters
+        ----------
+        class_ids : set[VerbClassID]
+            Class IDs to filter.
+        syntax : str | None
+            Syntactic pattern to match.
+
+        Returns
+        -------
+        set[VerbClassID]
+            Filtered class IDs.
+        """
+        if not syntax:
+            return class_ids
+
+        syntax_classes = {c.id for c in self.by_syntax(syntax)}
+        return class_ids & syntax_classes
 
     def get_all_predicates(self) -> list[PredicateType]:
         """Get all unique semantic predicates.
@@ -452,6 +564,31 @@ class VerbNetSearch:
             Sorted list of unique member lemmas.
         """
         return sorted(self._classes_by_member.keys())
+
+    def get_by_id(self, class_id: VerbClassID) -> VerbClass | None:
+        """Get a verb class by its ID.
+
+        Parameters
+        ----------
+        class_id : VerbClassID
+            ID of the verb class to retrieve.
+
+        Returns
+        -------
+        VerbClass | None
+            The verb class if found, None otherwise.
+        """
+        return self._classes.get(class_id)
+
+    def get_all_classes(self) -> list[VerbClass]:
+        """Get all verb classes in the search index.
+
+        Returns
+        -------
+        list[VerbClass]
+            All verb classes sorted by ID.
+        """
+        return sorted(self._classes.values(), key=lambda c: c.id)
 
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.

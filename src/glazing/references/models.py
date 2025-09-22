@@ -924,7 +924,7 @@ class MappingIndex(BaseModel):
                 self.reverse_index[key] = []
             self.reverse_index[key].append(mapping)
 
-    def find_transitive_mappings(  # noqa: C901, PLR0912
+    def find_transitive_mappings(
         self, source: str, target_dataset: DatasetType, max_hops: int = 3
     ) -> list[TransitiveMapping]:
         """Find indirect mappings through intermediate resources.
@@ -947,6 +947,31 @@ class MappingIndex(BaseModel):
         if cache_key in self.transitive_cache:
             return self.transitive_cache[cache_key]
 
+        mappings = self._search_transitive_mappings(source, target_dataset, max_hops)
+        mappings.sort(key=lambda m: m.combined_confidence, reverse=True)
+
+        self.transitive_cache[cache_key] = mappings
+        return mappings
+
+    def _search_transitive_mappings(
+        self, source: str, target_dataset: DatasetType, max_hops: int
+    ) -> list[TransitiveMapping]:
+        """Perform breadth-first search for transitive mappings.
+
+        Parameters
+        ----------
+        source : str
+            Source identifier.
+        target_dataset : DatasetType
+            Target dataset.
+        max_hops : int
+            Maximum number of intermediate steps.
+
+        Returns
+        -------
+        list[TransitiveMapping]
+            Found transitive mappings.
+        """
         mappings: list[TransitiveMapping] = []
         visited: set[str] = set()
         queue: deque[tuple[str, list[CrossReference], int]] = deque()
@@ -956,58 +981,142 @@ class MappingIndex(BaseModel):
 
         while queue:
             current_node, path, hops = queue.popleft()
-
             direct_mappings = self.forward_index.get(current_node, [])
 
             for mapping in direct_mappings:
                 new_path = [*path, mapping]
-
-                targets = (
-                    mapping.target_id
-                    if isinstance(mapping.target_id, list)
-                    else [mapping.target_id]
-                )
+                targets = self._get_target_list(mapping.target_id)
 
                 for target in targets:
                     target_key = f"{mapping.target_dataset}:{target}"
 
                     if mapping.target_dataset == target_dataset:
-                        # Determine the original source from the initial query
-                        source_parts = source.split(":")
-                        if len(source_parts) == 2:
-                            source_dataset_str = source_parts[0]
-                            source_id = source_parts[1]
-                            if source_dataset_str in ["FrameNet", "PropBank", "VerbNet", "WordNet"]:
-                                source_dataset: DatasetType = source_dataset_str  # type: ignore[assignment]
-                            else:
-                                source_dataset = (
-                                    new_path[0].source_dataset if new_path else "FrameNet"
-                                )
-                        else:
-                            source_dataset = new_path[0].source_dataset if new_path else "FrameNet"
-                            source_id = source
-
-                        combined_confidence = 1.0
-                        for ref in new_path:
-                            if ref.confidence:
-                                combined_confidence *= ref.confidence.score
-                            else:
-                                combined_confidence *= 0.5
-
-                        transitive = TransitiveMapping(
-                            source_dataset=source_dataset,
-                            source_id=source_id,
-                            target_dataset=target_dataset,
-                            target_id=target,
-                            path=new_path,
-                            combined_confidence=combined_confidence,
+                        transitive = self._create_transitive_mapping(
+                            source, target, target_dataset, new_path
                         )
                         mappings.append(transitive)
-
-                    elif target_key not in visited and hops + 1 < max_hops:
+                    elif self._should_continue_search(target_key, visited, hops, max_hops):
                         visited.add(target_key)
                         queue.append((target_key, new_path, hops + 1))
 
-        mappings.sort(key=lambda m: m.combined_confidence, reverse=True)
-        self.transitive_cache[cache_key] = mappings
         return mappings
+
+    def _get_target_list(self, target_id: str | list[str]) -> list[str]:
+        """Get normalized list of target IDs.
+
+        Parameters
+        ----------
+        target_id : str | list[str]
+            Target ID(s).
+
+        Returns
+        -------
+        list[str]
+            List of target IDs.
+        """
+        return target_id if isinstance(target_id, list) else [target_id]
+
+    def _should_continue_search(
+        self, target_key: str, visited: set[str], hops: int, max_hops: int
+    ) -> bool:
+        """Check if search should continue to this target.
+
+        Parameters
+        ----------
+        target_key : str
+            Target key to check.
+        visited : set[str]
+            Set of visited nodes.
+        hops : int
+            Current hop count.
+        max_hops : int
+            Maximum allowed hops.
+
+        Returns
+        -------
+        bool
+            True if search should continue.
+        """
+        return target_key not in visited and hops + 1 < max_hops
+
+    def _create_transitive_mapping(
+        self, source: str, target: str, target_dataset: DatasetType, path: list[CrossReference]
+    ) -> TransitiveMapping:
+        """Create a transitive mapping from search results.
+
+        Parameters
+        ----------
+        source : str
+            Original source identifier.
+        target : str
+            Target identifier.
+        target_dataset : DatasetType
+            Target dataset.
+        path : list[CrossReference]
+            Path of references leading to target.
+
+        Returns
+        -------
+        TransitiveMapping
+            Created transitive mapping.
+        """
+        source_dataset, source_id = self._parse_source_identifier(source, path)
+        combined_confidence = self._calculate_combined_confidence(path)
+
+        return TransitiveMapping(
+            source_dataset=source_dataset,
+            source_id=source_id,
+            target_dataset=target_dataset,
+            target_id=target,
+            path=path,
+            combined_confidence=combined_confidence,
+        )
+
+    def _parse_source_identifier(
+        self, source: str, path: list[CrossReference]
+    ) -> tuple[DatasetType, str]:
+        """Parse source identifier to extract dataset and ID.
+
+        Parameters
+        ----------
+        source : str
+            Source identifier.
+        path : list[CrossReference]
+            Reference path for fallback dataset.
+
+        Returns
+        -------
+        tuple[DatasetType, str]
+            Source dataset and ID.
+        """
+        source_parts = source.split(":")
+        if len(source_parts) == 2:
+            source_dataset_str, source_id = source_parts
+            if source_dataset_str in ["FrameNet", "PropBank", "VerbNet", "WordNet"]:
+                return source_dataset_str, source_id  # type: ignore[return-value]
+
+        # Fallback to path or default
+        fallback_dataset = path[0].source_dataset if path else "FrameNet"
+        source_id = source_parts[1] if len(source_parts) == 2 else source
+        return fallback_dataset, source_id
+
+    def _calculate_combined_confidence(self, path: list[CrossReference]) -> float:
+        """Calculate combined confidence for a path.
+
+        Parameters
+        ----------
+        path : list[CrossReference]
+            Path of cross-references.
+
+        Returns
+        -------
+        float
+            Combined confidence score.
+        """
+        combined_confidence = 1.0
+        for ref in path:
+            if ref.confidence:
+                combined_confidence *= ref.confidence.score
+            else:
+                combined_confidence *= 0.5
+        return combined_confidence

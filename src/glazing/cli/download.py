@@ -74,17 +74,32 @@ def download() -> None:
     is_flag=True,
     help="Force re-download even if dataset already exists",
 )
-def download_dataset_cmd(  # noqa: C901
-    dataset: str, output_dir: str | Path, skip_manual: bool, force: bool
-) -> None:
+def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, force: bool) -> None:
     """Download a specific dataset or all datasets.
 
     Downloads the specified dataset(s) to the output directory.
     By default, skips datasets that require manual download.
 
-    Examples:
+    Parameters
+    ----------
+    dataset : str
+        Dataset name to download ('all' for all datasets).
+    output_dir : str | Path
+        Output directory for downloaded datasets.
+    skip_manual : bool
+        Skip datasets requiring manual download (FrameNet).
+    force : bool
+        Force re-download even if dataset already exists.
+
+    Examples
+    --------
+    Download VerbNet:
         glazing download dataset --dataset verbnet
+
+    Download all datasets:
         glazing download dataset --dataset all --output-dir /data
+
+    Download with force:
         glazing download dataset --dataset framenet --no-skip-manual
     """
     # Convert output_dir to Path and resolve to absolute path
@@ -98,68 +113,96 @@ def download_dataset_cmd(  # noqa: C901
         click.get_current_context().exit(1)
 
     if dataset == "all":
-        click.echo(f"Downloading all datasets to: {output_path}")
-
-        # Get list of datasets to download
-        datasets_to_download = get_available_datasets()
-        if skip_manual:
-            datasets_to_download = [d for d in datasets_to_download if d != "FrameNet"]
-
-        click.echo(f"Datasets to download: {', '.join(datasets_to_download)}")
-
-        results = download_all(output_path, datasets_to_download, skip_manual=False)
-
-        # Report results
-        success_count = 0
-        failure_count = 0
-
-        for ds_name, result in results.items():
-            if isinstance(result, Path):
-                click.echo(f"✓ {ds_name}: Downloaded to {result}")
-                success_count += 1
-            else:
-                click.echo(f"✗ {ds_name}: {result}", err=True)
-                failure_count += 1
-
-        click.echo(f"\nSummary: {success_count} successful, {failure_count} failed")
-
-        if failure_count > 0:
-            click.get_current_context().exit(1)
-
+        _download_all_datasets(output_path, skip_manual)
     else:
-        # Map CLI names to DatasetType
-        dataset_map = {
-            "verbnet": "VerbNet",
-            "propbank": "PropBank",
-            "wordnet": "WordNet",
-            "framenet": "FrameNet",
-        }
+        _download_single_dataset(dataset, output_path, force)
 
-        dataset_name: DatasetType = dataset_map[dataset]  # type: ignore[assignment]
 
-        click.echo(f"Downloading {dataset_name} to: {output_path}")
+def _download_all_datasets(output_path: Path, skip_manual: bool) -> None:
+    """Handle downloading all datasets.
 
-        # Check if dataset already exists and force flag
-        if not force and any(output_path.glob(f"{dataset.lower()}-*")):
-            click.echo(f"Dataset {dataset_name} already exists. Use --force to re-download.")
-            return
+    Parameters
+    ----------
+    output_path : Path
+        Output directory path.
+    skip_manual : bool
+        Skip datasets requiring manual download.
+    """
+    click.echo(f"Downloading all datasets to: {output_path}")
 
-        try:
-            path = download_dataset(dataset_name, output_path)
-            click.echo(f"✓ {dataset_name}: Downloaded to {path}")
+    datasets_to_download: list[DatasetType] = get_available_datasets()
+    if skip_manual:
+        datasets_to_download = [d for d in datasets_to_download if d != "FrameNet"]
 
-        except NotImplementedError as e:
-            click.echo(f"Manual download required for {dataset_name}:", err=True)
-            click.echo(str(e), err=True)
-            click.get_current_context().exit(2)
+    click.echo(f"Datasets to download: {', '.join(datasets_to_download)}")
 
-        except (DownloadError, ExtractionError) as e:
-            click.echo(f"✗ Failed to download {dataset_name}: {e}", err=True)
-            click.get_current_context().exit(1)
+    results = download_all(output_path, datasets_to_download, skip_manual=False)
 
-        except (OSError, ValueError) as e:
-            click.echo(f"✗ Unexpected error downloading {dataset_name}: {e}", err=True)
-            click.get_current_context().exit(1)
+    # Report results
+    success_count = 0
+    failure_count = 0
+
+    for ds_name, result in results.items():
+        if isinstance(result, Path):
+            click.echo(f"✓ {ds_name}: Downloaded to {result}")
+            success_count += 1
+        else:
+            click.echo(f"✗ {ds_name}: {result}", err=True)
+            failure_count += 1
+
+    click.echo(f"\nSummary: {success_count} successful, {failure_count} failed")
+
+    if failure_count > 0:
+        click.get_current_context().exit(1)
+
+
+def _download_single_dataset(dataset: str, output_path: Path, force: bool) -> None:
+    """Handle downloading a single dataset.
+
+    Parameters
+    ----------
+    dataset : str
+        Dataset name (lowercase).
+    output_path : Path
+        Output directory path.
+    force : bool
+        Force re-download.
+    """
+    dataset_map = {
+        "verbnet": "VerbNet",
+        "propbank": "PropBank",
+        "wordnet": "WordNet",
+        "framenet": "FrameNet",
+    }
+
+    dataset_name: DatasetType = dataset_map[dataset]  # type: ignore[assignment]
+    click.echo(f"Downloading {dataset_name} to: {output_path}")
+
+    # Check if dataset already exists and force flag
+    if not force and any(output_path.glob(f"{dataset.lower()}-*")):
+        click.echo(f"Dataset {dataset_name} already exists. Use --force to re-download.")
+        return
+
+    try:
+        path = download_dataset(dataset_name, output_path)
+        click.echo(f"✓ {dataset_name}: Downloaded to {path}")
+
+    except NotImplementedError as e:
+        click.echo(f"Manual download required for {dataset_name}:", err=True)
+        click.echo(str(e), err=True)
+        click.get_current_context().exit(2)
+
+    except (DownloadError, ExtractionError) as e:
+        click.echo(f"✗ Failed to download {dataset_name}: {e}", err=True)
+        click.get_current_context().exit(1)
+
+    except (OSError, ValueError) as e:
+        click.echo(f"✗ Unexpected error downloading {dataset_name}: {e}", err=True)
+        click.get_current_context().exit(1)
+
+
+# Export the Click command for testing
+download_dataset_cmd = dataset_command
 
 
 @download.command(name="list")

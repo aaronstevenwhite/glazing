@@ -366,6 +366,35 @@ class WordNetSearch:
         """
         return sorted(self._synsets_by_domain.keys())
 
+    def get_all_synsets(self) -> list[Synset]:
+        """Get all synsets in the search index.
+
+        Returns
+        -------
+        list[Synset]
+            All synsets sorted by offset.
+        """
+        return sorted(self._synsets.values(), key=lambda s: s.offset)
+
+    def get_synset_by_id(self, synset_id: str) -> Synset | None:
+        """Get a synset by its ID string.
+
+        Parameters
+        ----------
+        synset_id : str
+            Synset ID in format "offsetpos" (e.g., "01234567n").
+
+        Returns
+        -------
+        Synset | None
+            The synset if found, None otherwise.
+        """
+        if len(synset_id) == 9 and synset_id[:-1].isdigit() and synset_id[-1] in "nvasr":
+            offset = synset_id[:-1]
+            pos = synset_id[-1]
+            return self.by_offset(offset, pos)  # type: ignore[arg-type]
+        return None
+
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.
 

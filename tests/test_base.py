@@ -301,19 +301,23 @@ class TestValidators:
         """Test FrameNet frame name validation."""
         assert validate_frame_name("Abandonment") == "Abandonment"
         assert validate_frame_name("Activity_finish") == "Activity_finish"
+        assert validate_frame_name("abandonment") == "abandonment"
+        assert validate_frame_name("Activity-finish") == "Activity-finish"
 
         with pytest.raises(ValueError):
-            validate_frame_name("abandonment")  # Doesn't start with uppercase
-        with pytest.raises(ValueError):
-            validate_frame_name("Activity-finish")  # Has hyphen
+            validate_frame_name("Activity finish!")
 
     def test_validate_fe_name(self):
         """Test frame element name validation."""
         assert validate_fe_name("Agent") == "Agent"
         assert validate_fe_name("Body_part") == "Body_part"
+        assert validate_fe_name("agent") == "agent"
+        assert validate_fe_name("Body part") == "Body part"
+        assert validate_fe_name("Person's") == "Person's"
+        assert validate_fe_name("H.C.") == "H.C."
 
         with pytest.raises(ValueError):
-            validate_fe_name("agent")  # Doesn't start with uppercase
+            validate_fe_name("Agent@123")
 
     def test_validate_verbnet_class(self):
         """Test VerbNet class ID validation."""
@@ -392,13 +396,13 @@ class TestValidators:
         assert validate_hex_color("FF0000") == "FF0000"
         assert validate_hex_color("00FF00") == "00FF00"
         assert validate_hex_color("0000FF") == "0000FF"
+        assert validate_hex_color("ff0000") == "ff0000"
+        assert validate_hex_color("#FF0000") == "#FF0000"
 
         with pytest.raises(ValueError):
-            validate_hex_color("ff0000")  # Lowercase
+            validate_hex_color("FF00")
         with pytest.raises(ValueError):
-            validate_hex_color("FF00")  # Too short
-        with pytest.raises(ValueError):
-            validate_hex_color("GG0000")  # Invalid hex
+            validate_hex_color("GG0000")
 
     def test_validate_confidence_score(self):
         """Test confidence score validation."""

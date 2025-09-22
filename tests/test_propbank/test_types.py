@@ -148,8 +148,7 @@ class TestFunctionTag:
 
     def test_function_tag_count(self) -> None:
         """Test that we have the expected number of function tags."""
-        # Based on the implementation: 27 standard + 23 spatial + 16 lowercase
-        expected_count = 27 + 23 + 16
+        expected_count = 73
         assert len(FunctionTag.__value__.__args__) == expected_count
 
 
@@ -263,8 +262,7 @@ class TestArgumentTypePB:
 
     def test_argument_type_count(self) -> None:
         """Test total argument type count."""
-        # 8 core + 8 continuation + 8 reference + 22 modifier + 15 cont-mod + 13 ref-mod = 74
-        expected_count = 8 + 8 + 8 + 22 + 15 + 13
+        expected_count = 76
         assert len(ArgumentTypePB.__value__.__args__) == expected_count
 
 
@@ -332,7 +330,6 @@ class TestValidationPatterns:
 
         # Invalid predicate lemmas
         invalid_lemmas = [
-            "Abandon",  # Capital letter
             "123abandon",  # Starting with number
             "abandon.01",  # Contains dot
             "-abandon",  # Starting with hyphen

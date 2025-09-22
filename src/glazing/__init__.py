@@ -26,7 +26,41 @@ Examples
 >>> frames = fn.get_frames_by_lemma("give")
 """
 
+import os
+import sys
+import warnings
+
 from glazing.__version__ import __version__, __version_info__
+from glazing.initialize import check_initialization, get_default_data_dir
+
+
+def _check_initialization() -> None:
+    """Check if datasets are initialized and prompt user if not."""
+    # Skip check in certain environments
+    if any(
+        [
+            os.environ.get("GLAZING_SKIP_INIT_CHECK"),
+            "sphinx" in sys.modules,  # Building docs
+            "pytest" in sys.modules,  # Running tests
+            os.environ.get("CI"),  # CI environment
+        ]
+    ):
+        return
+
+    if not check_initialization():
+        data_dir = get_default_data_dir()
+        warnings.warn(
+            f"\nGlazing datasets not initialized.\n"
+            f"Run 'glazing init' to download and convert all datasets.\n"
+            f"Data will be stored in: {data_dir}",
+            UserWarning,
+            stacklevel=2,
+        )
+
+
+# Check initialization on import (can be disabled via env var)
+_check_initialization()
+
 
 __all__ = [
     "__version__",

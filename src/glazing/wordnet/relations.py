@@ -8,9 +8,13 @@ causation relations, and similarity measure calculations.
 from __future__ import annotations
 
 from collections import deque
+from typing import TYPE_CHECKING
 
 from glazing.wordnet.models import Synset
 from glazing.wordnet.types import SynsetOffset
+
+if TYPE_CHECKING:
+    from glazing.wordnet.models import Pointer
 
 
 class WordNetRelationTraverser:
@@ -387,9 +391,7 @@ class WordNetRelationTraverser:
 
         return also_see
 
-    def get_antonyms(  # noqa: C901
-        self, synset: Synset, lemma: str | None = None
-    ) -> list[tuple[Synset, str]]:
+    def get_antonyms(self, synset: Synset, lemma: str | None = None) -> list[tuple[Synset, str]]:
         """Get antonyms for a synset or specific lemma.
 
         Parameters
@@ -408,42 +410,126 @@ class WordNetRelationTraverser:
 
         for pointer in synset.pointers:
             if pointer.symbol == "!":
-                # This is an antonym relation
-                if lemma:
-                    # Check if this antonym is for the specified lemma
-                    word_idx = None
-                    for i, word in enumerate(synset.words, 1):
-                        if word.lemma == lemma:
-                            word_idx = i
-                            break
-
-                    if word_idx and pointer.source == word_idx:
-                        ant_synset = self._synsets.get(pointer.offset)
-                        if (
-                            ant_synset
-                            and pointer.target > 0
-                            and pointer.target <= len(ant_synset.words)
-                        ):
-                            ant_lemma = ant_synset.words[pointer.target - 1].lemma
-                            antonyms.append((ant_synset, ant_lemma))
-                else:
-                    # Get all antonyms
-                    ant_synset = self._synsets.get(pointer.offset)
-                    if ant_synset:
-                        if pointer.target > 0 and pointer.target <= len(ant_synset.words):
-                            # Specific word antonym
-                            ant_lemma = ant_synset.words[pointer.target - 1].lemma
-                            antonyms.append((ant_synset, ant_lemma))
-                        else:
-                            # Synset-level antonym
-                            for word in ant_synset.words:
-                                antonyms.append((ant_synset, word.lemma))
+                antonym_pairs = self._extract_antonym_pairs(synset, pointer, lemma)
+                antonyms.extend(antonym_pairs)
 
         return antonyms
 
-    def get_derivations(  # noqa: C901
-        self, synset: Synset, lemma: str | None = None
+    def _extract_antonym_pairs(
+        self, synset: Synset, pointer: Pointer, lemma: str | None
     ) -> list[tuple[Synset, str]]:
+        """Extract antonym pairs from a pointer.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        pointer : Pointer
+            Antonym pointer.
+        lemma : str | None
+            Specific lemma filter.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            Antonym pairs.
+        """
+        ant_synset = self._synsets.get(pointer.offset)
+        if not ant_synset:
+            return []
+
+        if lemma:
+            return self._get_lemma_specific_antonyms(synset, pointer, ant_synset, lemma)
+        return self._get_all_antonyms(pointer, ant_synset)
+
+    def _get_lemma_specific_antonyms(
+        self, synset: Synset, pointer: Pointer, ant_synset: Synset, lemma: str
+    ) -> list[tuple[Synset, str]]:
+        """Get antonyms for a specific lemma.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        pointer : Pointer
+            Antonym pointer.
+        ant_synset : Synset
+            Antonym synset.
+        lemma : str
+            Target lemma.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            Antonym pairs for the specific lemma.
+        """
+        word_idx = self._find_word_index(synset, lemma)
+        if word_idx and pointer.source == word_idx and self._is_valid_target(pointer, ant_synset):
+            ant_lemma = ant_synset.words[pointer.target - 1].lemma
+            return [(ant_synset, ant_lemma)]
+        return []
+
+    def _get_all_antonyms(self, pointer: Pointer, ant_synset: Synset) -> list[tuple[Synset, str]]:
+        """Get all antonyms from a synset.
+
+        Parameters
+        ----------
+        pointer : Pointer
+            Antonym pointer.
+        ant_synset : Synset
+            Antonym synset.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            All antonym pairs.
+        """
+        if self._is_valid_target(pointer, ant_synset):
+            # Specific word antonym
+            ant_lemma = ant_synset.words[pointer.target - 1].lemma
+            return [(ant_synset, ant_lemma)]
+
+        # Synset-level antonym
+        return [(ant_synset, word.lemma) for word in ant_synset.words]
+
+    def _find_word_index(self, synset: Synset, lemma: str) -> int | None:
+        """Find the index of a word in a synset.
+
+        Parameters
+        ----------
+        synset : Synset
+            Synset to search.
+        lemma : str
+            Lemma to find.
+
+        Returns
+        -------
+        int | None
+            Word index (1-based) or None.
+        """
+        for i, word in enumerate(synset.words, 1):
+            if word.lemma == lemma:
+                return i
+        return None
+
+    def _is_valid_target(self, pointer: Pointer, target_synset: Synset) -> bool:
+        """Check if pointer target is valid.
+
+        Parameters
+        ----------
+        pointer : Pointer
+            Pointer to check.
+        target_synset : Synset
+            Target synset.
+
+        Returns
+        -------
+        bool
+            True if target is valid.
+        """
+        return pointer.target > 0 and pointer.target <= len(target_synset.words)
+
+    def get_derivations(self, synset: Synset, lemma: str | None = None) -> list[tuple[Synset, str]]:
         """Get derivationally related forms.
 
         Parameters
@@ -462,38 +548,89 @@ class WordNetRelationTraverser:
 
         for pointer in synset.pointers:
             if pointer.symbol == "+":
-                # This is a derivation relation
-                if lemma:
-                    # Check if this derivation is for the specified lemma
-                    word_idx = None
-                    for i, word in enumerate(synset.words, 1):
-                        if word.lemma == lemma:
-                            word_idx = i
-                            break
-
-                    if word_idx and pointer.source == word_idx:
-                        der_synset = self._synsets.get(pointer.offset)
-                        if (
-                            der_synset
-                            and pointer.target > 0
-                            and pointer.target <= len(der_synset.words)
-                        ):
-                            der_lemma = der_synset.words[pointer.target - 1].lemma
-                            derivations.append((der_synset, der_lemma))
-                else:
-                    # Get all derivations
-                    der_synset = self._synsets.get(pointer.offset)
-                    if der_synset:
-                        if pointer.target > 0 and pointer.target <= len(der_synset.words):
-                            # Specific word derivation
-                            der_lemma = der_synset.words[pointer.target - 1].lemma
-                            derivations.append((der_synset, der_lemma))
-                        else:
-                            # Synset-level derivation
-                            for word in der_synset.words:
-                                derivations.append((der_synset, word.lemma))
+                derivation_pairs = self._extract_derivation_pairs(synset, pointer, lemma)
+                derivations.extend(derivation_pairs)
 
         return derivations
+
+    def _extract_derivation_pairs(
+        self, synset: Synset, pointer: Pointer, lemma: str | None
+    ) -> list[tuple[Synset, str]]:
+        """Extract derivation pairs from a pointer.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        pointer : Pointer
+            Derivation pointer.
+        lemma : str | None
+            Specific lemma filter.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            Derivation pairs.
+        """
+        der_synset = self._synsets.get(pointer.offset)
+        if not der_synset:
+            return []
+
+        if lemma:
+            return self._get_lemma_specific_derivations(synset, pointer, der_synset, lemma)
+        return self._get_all_derivations(pointer, der_synset)
+
+    def _get_lemma_specific_derivations(
+        self, synset: Synset, pointer: Pointer, der_synset: Synset, lemma: str
+    ) -> list[tuple[Synset, str]]:
+        """Get derivations for a specific lemma.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        pointer : Pointer
+            Derivation pointer.
+        der_synset : Synset
+            Derivation synset.
+        lemma : str
+            Target lemma.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            Derivation pairs for the specific lemma.
+        """
+        word_idx = self._find_word_index(synset, lemma)
+        if word_idx and pointer.source == word_idx and self._is_valid_target(pointer, der_synset):
+            der_lemma = der_synset.words[pointer.target - 1].lemma
+            return [(der_synset, der_lemma)]
+        return []
+
+    def _get_all_derivations(
+        self, pointer: Pointer, der_synset: Synset
+    ) -> list[tuple[Synset, str]]:
+        """Get all derivations from a synset.
+
+        Parameters
+        ----------
+        pointer : Pointer
+            Derivation pointer.
+        der_synset : Synset
+            Derivation synset.
+
+        Returns
+        -------
+        list[tuple[Synset, str]]
+            All derivation pairs.
+        """
+        if self._is_valid_target(pointer, der_synset):
+            # Specific word derivation
+            der_lemma = der_synset.words[pointer.target - 1].lemma
+            return [(der_synset, der_lemma)]
+
+        # Synset-level derivation
+        return [(der_synset, word.lemma) for word in der_synset.words]
 
     def calculate_path_similarity(self, synset1: Synset, synset2: Synset) -> float:
         """Calculate path-based similarity between synsets.
@@ -624,7 +761,7 @@ class WordNetRelationTraverser:
 
         return groups
 
-    def get_all_relations(self, synset: Synset) -> dict[str, list[Synset]]:  # noqa: C901
+    def get_all_relations(self, synset: Synset) -> dict[str, list[Synset]]:
         """Get all relations for a synset.
 
         Parameters
@@ -637,9 +774,34 @@ class WordNetRelationTraverser:
         dict[str, list[Synset]]
             Dictionary mapping relation names to related synsets.
         """
-        relations = {}
+        relations: dict[str, list[Synset]] = {}
 
-        # Hypernyms and hyponyms
+        # Add general hierarchical relations
+        self._add_hierarchical_relations(synset, relations)
+
+        # Add part-whole relations
+        self._add_meronymy_relations(synset, relations)
+
+        # Add POS-specific relations
+        self._add_pos_specific_relations(synset, relations)
+
+        # Add general relations
+        self._add_general_relations(synset, relations)
+
+        return relations
+
+    def _add_hierarchical_relations(
+        self, synset: Synset, relations: dict[str, list[Synset]]
+    ) -> None:
+        """Add hypernym and hyponym relations.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
         hypernyms = self.get_hypernyms(synset, direct_only=True)
         if hypernyms:
             relations["hypernyms"] = hypernyms
@@ -648,7 +810,16 @@ class WordNetRelationTraverser:
         if hyponyms:
             relations["hyponyms"] = hyponyms
 
-        # Meronyms and holonyms
+    def _add_meronymy_relations(self, synset: Synset, relations: dict[str, list[Synset]]) -> None:
+        """Add meronym and holonym relations.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
         meronyms = self.get_meronyms(synset)
         if meronyms:
             relations["meronyms"] = meronyms
@@ -657,29 +828,69 @@ class WordNetRelationTraverser:
         if holonyms:
             relations["holonyms"] = holonyms
 
-        # Verb-specific
+    def _add_pos_specific_relations(
+        self, synset: Synset, relations: dict[str, list[Synset]]
+    ) -> None:
+        """Add part-of-speech specific relations.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
         if synset.ss_type == "v":
-            entailments = self.get_entailments(synset)
-            if entailments:
-                relations["entailments"] = entailments
+            self._add_verb_relations(synset, relations)
+        elif synset.ss_type in ["a", "s"]:
+            self._add_adjective_relations(synset, relations)
 
-            causes = self.get_causes(synset)
-            if causes:
-                relations["causes"] = causes
+    def _add_verb_relations(self, synset: Synset, relations: dict[str, list[Synset]]) -> None:
+        """Add verb-specific relations.
 
-            groups = self.get_verb_groups(synset)
-            if groups:
-                relations["verb_groups"] = groups
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
+        entailments = self.get_entailments(synset)
+        if entailments:
+            relations["entailments"] = entailments
 
-        # Adjective-specific
-        if synset.ss_type in ["a", "s"]:
-            similar = self.get_similar_to(synset)
-            if similar:
-                relations["similar_to"] = similar
+        causes = self.get_causes(synset)
+        if causes:
+            relations["causes"] = causes
 
-        # General
+        groups = self.get_verb_groups(synset)
+        if groups:
+            relations["verb_groups"] = groups
+
+    def _add_adjective_relations(self, synset: Synset, relations: dict[str, list[Synset]]) -> None:
+        """Add adjective-specific relations.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
+        similar = self.get_similar_to(synset)
+        if similar:
+            relations["similar_to"] = similar
+
+    def _add_general_relations(self, synset: Synset, relations: dict[str, list[Synset]]) -> None:
+        """Add general relations.
+
+        Parameters
+        ----------
+        synset : Synset
+            Source synset.
+        relations : dict[str, list[Synset]]
+            Relations dictionary to update.
+        """
         also_see = self.get_also_see(synset)
         if also_see:
             relations["also_see"] = also_see
-
-        return relations

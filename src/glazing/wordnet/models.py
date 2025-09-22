@@ -539,12 +539,14 @@ class ExceptionEntry(GlazingBaseModel):
             If word form is invalid.
         """
         if isinstance(v, str):
-            if not v or not v.replace("_", "").replace("-", "").isalpha():
+            cleaned = v.replace("_", "").replace("-", "").replace("'", "").replace(".", "")
+            if not v or not cleaned.isalpha():
                 msg = f"Invalid word form: {v}"
                 raise ValueError(msg)
         elif isinstance(v, list):
             for form in v:
-                if not form or not form.replace("_", "").replace("-", "").isalpha():
+                cleaned = form.replace("_", "").replace("-", "").replace("'", "").replace(".", "")
+                if not form or not cleaned.isalpha():
                     msg = f"Invalid word form: {form}"
                     raise ValueError(msg)
         return v

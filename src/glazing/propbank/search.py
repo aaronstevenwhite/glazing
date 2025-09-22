@@ -321,6 +321,16 @@ class PropBankSearch:
         """
         return sorted(self._rolesets_by_function.keys())
 
+    def get_all_framesets(self) -> list[Frameset]:
+        """Get all framesets in the search index.
+
+        Returns
+        -------
+        list[Frameset]
+            All framesets sorted by predicate lemma.
+        """
+        return sorted(self._framesets.values(), key=lambda f: f.predicate_lemma)
+
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.
 

@@ -237,7 +237,7 @@ class TestPredicateArgument:
 
     def test_event_argument_invalid(self) -> None:
         """Test invalid event variable formats."""
-        invalid_events = ["e", "1", "e1a", "E1", "event1"]
+        invalid_events = ["1", "e1a", "event1", "x1"]
         for event in invalid_events:
             with pytest.raises(ValidationError) as exc_info:
                 PredicateArgument(type="Event", value=event)

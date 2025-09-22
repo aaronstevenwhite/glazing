@@ -101,7 +101,7 @@ class TestWordNetSearch:
     @pytest.fixture
     def sample_senses(self):
         """Create sample senses for testing."""
-        senses = [
+        return [
             Sense(
                 sense_key="dog%1:05:00::",
                 lemma="dog",
@@ -153,7 +153,6 @@ class TestWordNetSearch:
                 tag_count=12,
             ),
         ]
-        return senses  # noqa: RET504
 
     def test_init_empty(self):
         """Test initialization with empty search."""

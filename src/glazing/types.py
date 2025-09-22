@@ -56,7 +56,16 @@ type DatasetType = Literal["FrameNet", "PropBank", "VerbNet", "WordNet"]
 
 # Extended resource types including additional datasets
 type ResourceType = Literal[
-    "VerbNet", "FrameNet", "WordNet", "PropBank", "AMR", "UMR", "Flickr", "THYME", "Spatial"
+    "VerbNet",
+    "FrameNet",
+    "WordNet",
+    "PropBank",
+    "AMR",
+    "UMR",
+    "Flickr",
+    "THYME",
+    "Spatial",
+    "Framenet",  # Variant capitalization found in some PropBank files
 ]
 
 # Mapping source provenance
@@ -152,7 +161,7 @@ VERBNET_KEY_PATTERN = r"^[a-z_-]+#\d+$"  # e.g., "give#2"
 LEMMA_PATTERN = r"^[a-z][a-z0-9_\'-]*$"  # Word lemmas
 
 # Color validation for FrameNet
-HEX_COLOR_PATTERN = r"^[0-9A-F]{6}$"  # 6-digit hex color
+HEX_COLOR_PATTERN = r"^#?[0-9A-Fa-f]{6}$"  # 6-digit hex color with optional # prefix
 
 
 # Shared error types

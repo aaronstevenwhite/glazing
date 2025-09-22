@@ -247,30 +247,24 @@ women woman
         # Create exception file
         (wordnet_dir / "noun.exc").write_text("mice mouse\n", encoding="utf-8")
 
-        output_dir = tmp_path / "output"
+        output_file = tmp_path / "output" / "synsets.jsonl"
 
-        counts = converter.convert_wordnet_database(wordnet_dir, output_dir)
+        counts = converter.convert_wordnet_database(wordnet_dir, output_file)
 
         # Check counts
         assert counts["synsets_noun"] == 1
         assert counts["synsets_verb"] == 1
-        assert counts["index_noun"] == 1
-        assert counts["index_verb"] == 1
-        assert counts["senses"] == 1
-        assert counts["exceptions_noun"] == 1
+        assert counts["total_synsets"] == 2
 
-        # Check output files exist
-        assert (output_dir / "synsets_noun.jsonl").exists()
-        assert (output_dir / "synsets_verb.jsonl").exists()
-        assert (output_dir / "index_noun.jsonl").exists()
-        assert (output_dir / "senses.jsonl").exists()
+        # Check output file exists
+        assert output_file.exists()
 
     def test_convert_wordnet_database_nonexistent_dir(self, converter, tmp_path):
         """Test conversion of non-existent directory raises FileNotFoundError."""
-        output_dir = tmp_path / "output"
+        output_file = tmp_path / "output" / "synsets.jsonl"
 
         with pytest.raises(FileNotFoundError, match="WordNet directory not found"):
-            converter.convert_wordnet_database("nonexistent", output_dir)
+            converter.convert_wordnet_database("nonexistent", output_file)
 
     def test_parse_data_line_malformed(self, converter):
         """Test parsing malformed data line returns None."""
@@ -397,9 +391,10 @@ class TestWordNetConverterFunctions:
             "00001740 03 n 01 entity 0 000 | something existing\n", encoding="utf-8"
         )
 
-        output_dir = tmp_path / "output"
+        output_file = tmp_path / "output" / "synsets.jsonl"
 
-        counts = convert_wordnet_database(wordnet_dir, output_dir)
+        counts = convert_wordnet_database(wordnet_dir, output_file)
 
         assert counts["synsets_noun"] == 1
-        assert (output_dir / "synsets_noun.jsonl").exists()
+        assert counts["total_synsets"] == 1
+        assert output_file.exists()

@@ -183,7 +183,80 @@ class FrameNetConverter:
         )
         raise ValueError(error_msg)
 
-    def _parse_frame_element(self, fe_elem: etree._Element) -> FrameElement:  # noqa: C901
+    def _validate_fe_attributes(self, attrs: dict[str, str | int | float | bool]) -> None:
+        """Validate required frame element attributes.
+
+        Parameters
+        ----------
+        attrs : dict[str, str | int]
+            Attributes to validate.
+
+        Raises
+        ------
+        ValueError
+            If required attributes are missing.
+        """
+        required = ["ID", "name", "coreType", "bgColor", "fgColor"]
+        for attr in required:
+            if attr not in attrs:
+                msg = f"Missing required '{attr}' attribute in FrameElement"
+                raise ValueError(msg)
+
+    def _parse_fe_constraints(self, fe_elem: etree._Element) -> tuple[list[str], list[str]]:
+        """Parse frame element constraints.
+
+        Parameters
+        ----------
+        fe_elem : etree._Element
+            The FE element.
+
+        Returns
+        -------
+        tuple[list[str], list[str]]
+            Requires and excludes lists.
+        """
+        requires_fe = []
+        excludes_fe = []
+
+        requires_elem = fe_elem.find(
+            f"{{{self.namespace}}}requiresFE" if self.namespace else "requiresFE"
+        )
+        if requires_elem is not None:
+            requires_fe = [req.get("name", "") for req in requires_elem]
+
+        excludes_elem = fe_elem.find(
+            f"{{{self.namespace}}}excludesFE" if self.namespace else "excludesFE"
+        )
+        if excludes_elem is not None:
+            excludes_fe = [exc.get("name", "") for exc in excludes_elem]
+
+        return requires_fe, excludes_fe
+
+    def _parse_fe_semtypes(self, fe_elem: etree._Element) -> list[int]:
+        """Parse frame element semantic types.
+
+        Parameters
+        ----------
+        fe_elem : etree._Element
+            The FE element.
+
+        Returns
+        -------
+        list[int]
+            Semantic type IDs.
+        """
+        semtype_refs = []
+        semtypes_elem = fe_elem.find(
+            f"{{{self.namespace}}}semTypes" if self.namespace else "semTypes"
+        )
+        if semtypes_elem is not None:
+            for semtype in semtypes_elem:
+                sem_id = semtype.get("ID")
+                if sem_id:
+                    semtype_refs.append(int(sem_id))
+        return semtype_refs
+
+    def _parse_frame_element(self, fe_elem: etree._Element) -> FrameElement:
         """Parse a frame element from XML.
 
         Parameters
@@ -197,6 +270,7 @@ class FrameNetConverter:
             Parsed frame element.
         """
         attrs = parse_attributes(fe_elem, {"ID": int})
+        self._validate_fe_attributes(attrs)
 
         # Parse definition
         def_elem = fe_elem.find(
@@ -204,48 +278,12 @@ class FrameNetConverter:
         )
         definition = self._parse_definition(def_elem)
 
-        # Parse FE constraints
-        requires_fe = []
-        excludes_fe = []
-
-        # Look for requiresFE and excludesFE elements
-        requires_elem = fe_elem.find(
-            f"{{{self.namespace}}}requiresFE" if self.namespace else "requiresFE"
-        )
-        if requires_elem is not None:
-            requires_fe = [req.get("name", "") for req in requires_elem]
-
-        excludes_elem = fe_elem.find(
-            f"{{{self.namespace}}}excludesFE" if self.namespace else "excludesFE"
-        )
-        if excludes_elem is not None:
-            excludes_fe = [exc.get("name", "") for exc in excludes_elem]
-
-        # Parse semantic types
-        semtype_refs = []
-        semtypes_elem = fe_elem.find(
-            f"{{{self.namespace}}}semTypes" if self.namespace else "semTypes"
-        )
-        if semtypes_elem is not None:
-            for semtype in semtypes_elem:
-                sem_id = semtype.get("ID")
-                if sem_id:
-                    semtype_refs.append(int(sem_id))
+        # Parse constraints and semantic types
+        requires_fe, excludes_fe = self._parse_fe_constraints(fe_elem)
+        semtype_refs = self._parse_fe_semtypes(fe_elem)
 
         # Get abbreviation - no fallback generation
         abbrev = str(attrs.get("abbrev", ""))
-
-        # Validate required attributes
-        if "ID" not in attrs:
-            raise ValueError("Missing required 'ID' attribute in FrameElement")
-        if "name" not in attrs:
-            raise ValueError("Missing required 'name' attribute in FrameElement")
-        if "coreType" not in attrs:
-            raise ValueError("Missing required 'coreType' attribute in FrameElement")
-        if "bgColor" not in attrs:
-            raise ValueError("Missing required 'bgColor' attribute in FrameElement")
-        if "fgColor" not in attrs:
-            raise ValueError("Missing required 'fgColor' attribute in FrameElement")
 
         return FrameElement(
             id=int(attrs["ID"]),

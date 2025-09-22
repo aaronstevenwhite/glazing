@@ -32,30 +32,36 @@ class TestWordNetDownloader:
 
     def test_download_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test successful WordNet download and extraction."""
-        # Setup mocks
-        extracted_dir = tmp_path / "wordnet-3.1"
-        extracted_dir.mkdir()
+        import tarfile
+
+        # Setup mocks - WordNet now extracts to wn31-dict
+        extracted_dir = tmp_path / "wn31-dict"
 
         def mock_download_file(self: WordNetDownloader, url: str, path: Path) -> None:
-            # Create fake archive
-            path.write_bytes(b"fake tar.gz archive")
+            # Create a real tar.gz with dict folder structure
+            import tempfile
 
-        def mock_extract_archive(
-            self: WordNetDownloader, archive_path: Path, output_dir: Path
-        ) -> Path:
-            return extracted_dir
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                dict_dir = temp_path / "dict"
+                dict_dir.mkdir()
+                # Create sample files
+                (dict_dir / "data.noun").write_text("sample noun data")
+                (dict_dir / "index.noun").write_text("sample index")
+
+                # Create actual tar.gz file
+                with tarfile.open(str(path), "w:gz") as tar:
+                    tar.add(dict_dir, arcname="dict")
 
         monkeypatch.setattr(WordNetDownloader, "_download_file", mock_download_file)
-        monkeypatch.setattr(WordNetDownloader, "_extract_archive", mock_extract_archive)
 
         downloader = WordNetDownloader()
         result = downloader.download(tmp_path)
 
-        # Verify the correct URL and archive path
-        expected_url = "https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz"
-        expected_archive = tmp_path / "wordnet-3.1.tar.gz"
-
+        # Verify the result - should be wn31-dict now
         assert result == extracted_dir
+        assert result.exists()
+        assert (result / "data.noun").exists()
 
     def test_download_url_format(self) -> None:
         """Test that download URL points to Princeton University."""
@@ -87,24 +93,26 @@ class TestWordNetDownloader:
 
     def test_cleanup_behavior(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that tar.gz archive cleanup works correctly."""
-        # Create archive file
-        archive_path = tmp_path / "wordnet-3.1.tar.gz"
-        archive_path.write_bytes(b"fake tar.gz archive")
+        import tarfile
 
-        extracted_dir = tmp_path / "extracted"
-        extracted_dir.mkdir()
+        # Archive path
+        archive_path = tmp_path / "wordnet-3.1.tar.gz"
+        extracted_dir = tmp_path / "wn31-dict"
 
         def mock_download_file(self: WordNetDownloader, url: str, path: Path) -> None:
-            # File already exists from setup
-            pass
+            # Create a real tar.gz with dict folder structure
+            import tempfile
 
-        def mock_extract_archive(
-            self: WordNetDownloader, archive_path: Path, output_dir: Path
-        ) -> Path:
-            return extracted_dir
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                dict_dir = temp_path / "dict"
+                dict_dir.mkdir()
+                (dict_dir / "data.noun").write_text("sample")
+
+                with tarfile.open(str(path), "w:gz") as tar:
+                    tar.add(dict_dir, arcname="dict")
 
         monkeypatch.setattr(WordNetDownloader, "_download_file", mock_download_file)
-        monkeypatch.setattr(WordNetDownloader, "_extract_archive", mock_extract_archive)
 
         downloader = WordNetDownloader()
         result = downloader.download(tmp_path)
@@ -117,24 +125,18 @@ class TestWordNetDownloader:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test cleanup when tar.gz extraction fails."""
-        # Create archive file
+        # Archive path
         archive_path = tmp_path / "wordnet-3.1.tar.gz"
-        archive_path.write_bytes(b"corrupted tar.gz")
 
         def mock_download_file(self: WordNetDownloader, url: str, path: Path) -> None:
-            pass
-
-        def mock_extract_archive(
-            self: WordNetDownloader, archive_path: Path, output_dir: Path
-        ) -> Path:
-            raise ExtractionError("Corrupted tar.gz")
+            # Create corrupted tar.gz file
+            path.write_bytes(b"corrupted tar.gz")
 
         monkeypatch.setattr(WordNetDownloader, "_download_file", mock_download_file)
-        monkeypatch.setattr(WordNetDownloader, "_extract_archive", mock_extract_archive)
 
         downloader = WordNetDownloader()
 
-        with pytest.raises(ExtractionError, match="Corrupted tar.gz"):
+        with pytest.raises(ExtractionError, match="Failed to extract WordNet archive"):
             downloader.download(tmp_path)
 
         # Archive should still be cleaned up
