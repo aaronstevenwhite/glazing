@@ -25,7 +25,7 @@ class TestConvertDatasetCommand:
         input_dir.mkdir()
 
         def mock_convert_verbnet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "verbnet_classes.jsonl").touch()
+            (out_dir / "verbnet.jsonl").touch()
 
         monkeypatch.setattr(
             sys.modules["glazing.cli.convert"], "convert_verbnet", mock_convert_verbnet
@@ -57,7 +57,7 @@ class TestConvertDatasetCommand:
         input_dir.mkdir()
 
         def mock_convert_propbank(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "propbank_framesets.jsonl").touch()
+            (out_dir / "propbank.jsonl").touch()
 
         monkeypatch.setattr(
             sys.modules["glazing.cli.convert"], "convert_propbank", mock_convert_propbank
@@ -121,7 +121,7 @@ class TestConvertDatasetCommand:
         input_dir.mkdir()
 
         def mock_convert_framenet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "framenet_frames.jsonl").touch()
+            (out_dir / "framenet.jsonl").touch()
 
         monkeypatch.setattr(
             sys.modules["glazing.cli.convert"], "convert_framenet", mock_convert_framenet
@@ -153,16 +153,16 @@ class TestConvertDatasetCommand:
         input_dir.mkdir()
 
         def mock_convert_verbnet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "verbnet_classes.jsonl").touch()
+            (out_dir / "verbnet.jsonl").touch()
 
         def mock_convert_propbank(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "propbank_framesets.jsonl").touch()
+            (out_dir / "propbank.jsonl").touch()
 
         def mock_convert_wordnet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
             (out_dir / "synsets_noun.jsonl").touch()
 
         def mock_convert_framenet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
-            (out_dir / "framenet_frames.jsonl").touch()
+            (out_dir / "framenet.jsonl").touch()
 
         monkeypatch.setattr(
             sys.modules["glazing.cli.convert"], "convert_verbnet", mock_convert_verbnet
@@ -240,7 +240,7 @@ class TestConvertDatasetCommand:
         def mock_convert_verbnet(in_dir: Path, out_dir: Path, verbose: bool = False) -> None:
             nonlocal verbose_called
             verbose_called = verbose
-            (out_dir / "verbnet_classes.jsonl").touch()
+            (out_dir / "verbnet.jsonl").touch()
 
         monkeypatch.setattr(
             sys.modules["glazing.cli.convert"], "convert_verbnet", mock_convert_verbnet
@@ -322,7 +322,7 @@ class TestDatasetInfoCommand:
         assert result.exit_code == 0
         assert "VerbNet Conversion Information" in result.output
         assert "XML files" in result.output
-        assert "verbnet_classes.jsonl" in result.output
+        assert "verbnet.jsonl" in result.output
         assert "VerbNetConverter" in result.output
 
     def test_dataset_info_propbank(self) -> None:
@@ -332,7 +332,7 @@ class TestDatasetInfoCommand:
 
         assert result.exit_code == 0
         assert "PropBank Conversion Information" in result.output
-        assert "propbank_framesets.jsonl" in result.output
+        assert "propbank.jsonl" in result.output
 
     def test_dataset_info_wordnet(self) -> None:
         """Test getting WordNet dataset info."""
@@ -341,7 +341,7 @@ class TestDatasetInfoCommand:
 
         assert result.exit_code == 0
         assert "WordNet Conversion Information" in result.output
-        assert "synsets_noun.jsonl" in result.output
+        assert "wordnet.jsonl" in result.output
         assert "Database files" in result.output
 
     def test_dataset_info_framenet(self) -> None:
@@ -351,7 +351,7 @@ class TestDatasetInfoCommand:
 
         assert result.exit_code == 0
         assert "FrameNet Conversion Information" in result.output
-        assert "framenet_frames.jsonl" in result.output
+        assert "framenet.jsonl" in result.output
 
     def test_dataset_info_invalid(self) -> None:
         """Test getting info for invalid dataset."""

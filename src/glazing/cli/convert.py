@@ -50,42 +50,28 @@ DATASET_INFO: dict[str, DatasetInfoDict] = {
         "name": "VerbNet",
         "description": "Convert VerbNet XML files to JSON Lines",
         "input_format": "XML files (*.xml)",
-        "output_files": ["verbnet_classes.jsonl"],
+        "output_files": ["verbnet.jsonl"],
         "converter": VerbNetConverter,
     },
     "propbank": {
         "name": "PropBank",
         "description": "Convert PropBank XML framesets to JSON Lines",
         "input_format": "XML files (*.xml)",
-        "output_files": ["propbank_framesets.jsonl"],
+        "output_files": ["propbank.jsonl"],
         "converter": PropBankConverter,
     },
     "wordnet": {
         "name": "WordNet",
         "description": "Convert WordNet database files to JSON Lines",
         "input_format": "Database files (data.*, index.*, *.exc)",
-        "output_files": [
-            "synsets_noun.jsonl",
-            "synsets_verb.jsonl",
-            "synsets_adj.jsonl",
-            "synsets_adv.jsonl",
-            "index_noun.jsonl",
-            "index_verb.jsonl",
-            "index_adj.jsonl",
-            "index_adv.jsonl",
-            "exceptions_noun.jsonl",
-            "exceptions_verb.jsonl",
-            "exceptions_adj.jsonl",
-            "exceptions_adv.jsonl",
-            "senses.jsonl",
-        ],
+        "output_files": ["wordnet.jsonl"],
         "converter": WordNetConverter,
     },
     "framenet": {
         "name": "FrameNet",
         "description": "Convert FrameNet XML frames to JSON Lines",
         "input_format": "XML files in frame/ directory",
-        "output_files": ["framenet_frames.jsonl", "framenet_lexical_units.jsonl"],
+        "output_files": ["framenet.jsonl"],
         "converter": FrameNetConverter,
     },
 }
@@ -104,7 +90,7 @@ def convert_verbnet(input_dir: Path, output_dir: Path, verbose: bool = False) ->
         Show verbose output.
     """
     converter = VerbNetConverter()
-    output_file = output_dir / "verbnet_classes.jsonl"
+    output_file = output_dir / "verbnet.jsonl"
 
     with Progress(
         SpinnerColumn(),
@@ -138,7 +124,7 @@ def convert_propbank(input_dir: Path, output_dir: Path, verbose: bool = False) -
         Show verbose output.
     """
     converter = PropBankConverter()
-    output_file = output_dir / "propbank_framesets.jsonl"
+    output_file = output_dir / "propbank.jsonl"
 
     with Progress(
         SpinnerColumn(),
@@ -183,7 +169,8 @@ def convert_wordnet(input_dir: Path, output_dir: Path, verbose: bool = False) ->
     ) as progress:
         task = progress.add_task("Converting WordNet database...", total=None)
 
-        stats = converter.convert_wordnet_database(str(input_dir), str(output_dir))
+        output_file = output_dir / "wordnet.jsonl"
+        stats = converter.convert_wordnet_database(str(input_dir), str(output_file))
 
         progress.update(task, completed=True)
 
@@ -212,7 +199,7 @@ def convert_framenet(input_dir: Path, output_dir: Path, verbose: bool = False) -
     if not frames_dir.exists():
         frames_dir = input_dir  # Fallback to input_dir if no frame/ subdirectory
 
-    output_file = output_dir / "framenet_frames.jsonl"
+    output_file = output_dir / "framenet.jsonl"
 
     with Progress(
         SpinnerColumn(),

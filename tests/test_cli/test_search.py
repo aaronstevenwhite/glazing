@@ -23,7 +23,7 @@ class TestSearchQueryCommand:
         # Create mock data files
         data_dir = tmp_path / "data"
         data_dir.mkdir()
-        (data_dir / "verbnet_classes.jsonl").touch()
+        (data_dir / "verbnet.jsonl").touch()
 
         # Mock the search functionality
         class MockSearchResult:

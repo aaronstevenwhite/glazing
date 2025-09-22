@@ -116,11 +116,11 @@ def _load_dataset_files(search: UnifiedSearch, data_dir: Path, dataset: str) -> 
         Dataset name to load.
     """
     if dataset == "verbnet":
-        file = data_dir / "verbnet_classes.jsonl"
+        file = data_dir / "verbnet.jsonl"
         if file.exists():
             search.load_verbnet_from_jsonl(str(file))
     elif dataset == "propbank":
-        file = data_dir / "propbank_framesets.jsonl"
+        file = data_dir / "propbank.jsonl"
         if file.exists():
             search.load_propbank_from_jsonl(str(file))
     elif dataset == "wordnet":
@@ -131,7 +131,7 @@ def _load_dataset_files(search: UnifiedSearch, data_dir: Path, dataset: str) -> 
             if synset_file.exists() and index_file.exists():
                 search.load_wordnet_from_jsonl(str(synset_file), str(index_file), pos)
     elif dataset == "framenet":
-        file = data_dir / "framenet_frames.jsonl"
+        file = data_dir / "framenet.jsonl"
         if file.exists():
             search.load_framenet_from_jsonl(str(file))
 
