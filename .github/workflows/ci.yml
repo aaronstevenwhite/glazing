@@ -71,25 +71,20 @@ jobs:
         run: mypy --strict src/
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.13"]
-        include:
-          # Test on minimum supported version on Ubuntu only
-          - os: ubuntu-latest
-            python-version: "3.12"
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip packages
         uses: actions/cache@v4
@@ -98,9 +93,8 @@ jobs:
             ~/.cache/pip
             ~/Library/Caches/pip
             ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-test-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-pip-test-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-pip-test-${{ matrix.python-version }}-
             ${{ runner.os }}-pip-test-
             ${{ runner.os }}-pip-
 
@@ -114,7 +108,7 @@ jobs:
           pytest tests/ -v --cov=src/glazing --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_VERSION
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
