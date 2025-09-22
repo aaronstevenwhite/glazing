@@ -176,7 +176,7 @@ jobs:
 
           # Test convert commands
           glazing convert list
-          glazing convert info verbnet
+          glazing convert info --dataset verbnet
 
           # Test search help
           glazing search --help
