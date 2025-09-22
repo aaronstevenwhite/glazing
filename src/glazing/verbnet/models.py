@@ -91,7 +91,7 @@ from glazing.verbnet.types import (
 class SelectionalRestriction(GlazingBaseModel):
     """Single selectional restriction.
 
-    Parameters
+    Attributes
     ----------
     value : RestrictionValue
         Restriction polarity ("+" or "-").
@@ -112,7 +112,7 @@ class SelectionalRestriction(GlazingBaseModel):
 class SelectionalRestrictions(GlazingBaseModel):
     """Container for selectional restrictions with logic.
 
-    Parameters
+    Attributes
     ----------
     logic : LogicType | None, default=None
         Logical operator ("or", "and", or None for implicit AND).
@@ -213,7 +213,7 @@ class SelectionalRestrictions(GlazingBaseModel):
 class ThematicRole(GlazingBaseModel):
     """Thematic role with selectional restrictions.
 
-    Parameters
+    Attributes
     ----------
     type : ThematicRoleType
         Type of thematic role (e.g., "Agent", "Theme", "Patient").
@@ -261,7 +261,7 @@ class ThematicRole(GlazingBaseModel):
 class WordNetCrossRef(GlazingBaseModel):
     """Cross-reference to WordNet from VerbNet.
 
-    Parameters
+    Attributes
     ----------
     sense_key : WordNetSense | None, default=None
         WordNet sense key (preferred, stable across versions).
@@ -349,7 +349,7 @@ class WordNetCrossRef(GlazingBaseModel):
 class Member(GlazingBaseModel):
     """VerbNet member with comprehensive cross-references.
 
-    Parameters
+    Attributes
     ----------
     name : str
         Lemma form (validated).
@@ -536,7 +536,7 @@ class Member(GlazingBaseModel):
 class VerbClass(GlazingBaseModel):
     """A VerbNet verb class with members and frames.
 
-    Parameters
+    Attributes
     ----------
     id : VerbClassID
         Validated VerbNet class ID (e.g., "give-13.1").
@@ -698,7 +698,7 @@ class VerbClass(GlazingBaseModel):
 class Example(GlazingBaseModel):
     """Frame example sentence.
 
-    Parameters
+    Attributes
     ----------
     text : str
         The example sentence text.
@@ -714,7 +714,7 @@ class Example(GlazingBaseModel):
 class FrameDescription(GlazingBaseModel):
     """Frame syntactic pattern description.
 
-    Parameters
+    Attributes
     ----------
     description_number : DescriptionNumber
         The description number (e.g., "0.2", "2.5.1").
@@ -807,7 +807,7 @@ class FrameDescription(GlazingBaseModel):
 class SyntacticRestriction(GlazingBaseModel):
     """Syntactic restriction on an element.
 
-    Parameters
+    Attributes
     ----------
     type : SyntacticRestrictionType
         The type of syntactic restriction.
@@ -829,7 +829,7 @@ class SyntacticRestriction(GlazingBaseModel):
 class SyntaxElement(GlazingBaseModel):
     """Element in syntactic structure.
 
-    Parameters
+    Attributes
     ----------
     pos : SyntacticPOS
         Part of speech (NP, VERB, PREP, ADV, ADJ, LEX, ADVP, S, SBAR).
@@ -892,7 +892,7 @@ class SyntaxElement(GlazingBaseModel):
 class Syntax(GlazingBaseModel):
     """Syntactic structure of a frame.
 
-    Parameters
+    Attributes
     ----------
     elements : list[SyntaxElement]
         List of syntactic elements in order.
@@ -912,7 +912,7 @@ class Syntax(GlazingBaseModel):
 class PredicateArgument(GlazingBaseModel):
     """Argument to a semantic predicate.
 
-    Parameters
+    Attributes
     ----------
     type : ArgumentType
         Type of argument (Event, ThemRole, etc.).
@@ -960,7 +960,7 @@ class PredicateArgument(GlazingBaseModel):
 class Predicate(GlazingBaseModel):
     """Semantic predicate in frame representation.
 
-    Parameters
+    Attributes
     ----------
     value : PredicateType
         The predicate type (e.g., "motion", "cause", "transfer").
@@ -1007,7 +1007,7 @@ class Predicate(GlazingBaseModel):
 class Semantics(GlazingBaseModel):
     """Semantic representation of a frame.
 
-    Parameters
+    Attributes
     ----------
     predicates : list[Predicate]
         List of semantic predicates.
@@ -1028,7 +1028,7 @@ class Semantics(GlazingBaseModel):
 class VNFrame(GlazingBaseModel):
     """Syntactic-semantic frame pattern.
 
-    Parameters
+    Attributes
     ----------
     description : FrameDescription
         Frame syntactic pattern description.

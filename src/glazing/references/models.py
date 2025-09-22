@@ -71,7 +71,7 @@ type ConflictType = Literal["ambiguous", "contradictory", "version_mismatch", "i
 class MappingMetadata(BaseModel):
     """Metadata for cross-dataset mappings.
 
-    Parameters
+    Attributes
     ----------
     created_date : datetime
         When the mapping was created.
@@ -104,7 +104,7 @@ class MappingMetadata(BaseModel):
 class MappingConfidence(BaseModel):
     """Confidence scoring for mappings.
 
-    Parameters
+    Attributes
     ----------
     score : float
         Confidence score between 0.0 and 1.0.
@@ -152,7 +152,7 @@ class MappingConfidence(BaseModel):
 class CrossReference(BaseModel):
     """Enhanced cross-dataset reference with full metadata.
 
-    Parameters
+    Attributes
     ----------
     source_dataset : DatasetType
         Source dataset name.
@@ -188,7 +188,7 @@ class CrossReference(BaseModel):
 class MultiMapping(BaseModel):
     """One-to-many mapping with ranked alternatives.
 
-    Parameters
+    Attributes
     ----------
     source_dataset : DatasetType
         Source dataset name.
@@ -233,7 +233,7 @@ class MultiMapping(BaseModel):
 class TransitiveMapping(BaseModel):
     """Indirect mapping through intermediate resource.
 
-    Parameters
+    Attributes
     ----------
     source_dataset : DatasetType
         Source dataset name.
@@ -279,7 +279,7 @@ class TransitiveMapping(BaseModel):
 class VerbNetFrameNetMapping(BaseModel):
     """VerbNet to FrameNet mapping with confidence.
 
-    Parameters
+    Attributes
     ----------
     frame_name : str
         FrameNet frame name.
@@ -300,7 +300,7 @@ class VerbNetFrameNetMapping(BaseModel):
 class VerbNetFrameNetRoleMapping(BaseModel):
     """Role-level mapping between VerbNet and FrameNet.
 
-    Parameters
+    Attributes
     ----------
     vn_role : str
         VerbNet thematic role.
@@ -321,7 +321,7 @@ class VerbNetFrameNetRoleMapping(BaseModel):
 class VerbNetCrossRefs(BaseModel):
     """Enhanced VerbNet member cross-references.
 
-    Parameters
+    Attributes
     ----------
     verbnet_key : str
         Unique identifier for VerbNet member.
@@ -377,7 +377,7 @@ class VerbNetCrossRefs(BaseModel):
 class PropBankCrossRefs(BaseModel):
     """PropBank roleset cross-references with confidence.
 
-    Parameters
+    Attributes
     ----------
     roleset_id : str
         PropBank roleset identifier.
@@ -427,7 +427,7 @@ class PropBankCrossRefs(BaseModel):
 class PropBankRoleMapping(BaseModel):
     """PropBank role to other dataset role mapping.
 
-    Parameters
+    Attributes
     ----------
     pb_arg : str
         PropBank argument (e.g., "ARG0").
@@ -451,7 +451,7 @@ class PropBankRoleMapping(BaseModel):
 class UnifiedRoleMapping(BaseModel):
     """Complete role mapping across all datasets.
 
-    Parameters
+    Attributes
     ----------
     concept : str
         Semantic concept (e.g., "agent", "patient").
@@ -493,7 +493,7 @@ class UnifiedRoleMapping(BaseModel):
 class FrameNetLURef(BaseModel):
     """Reference to a FrameNet lexical unit.
 
-    Parameters
+    Attributes
     ----------
     lu_id : int
         Lexical unit ID.
@@ -511,7 +511,7 @@ class FrameNetLURef(BaseModel):
 class PropBankRolesetRef(BaseModel):
     """Reference to a PropBank roleset.
 
-    Parameters
+    Attributes
     ----------
     roleset_id : str
         Roleset identifier.
@@ -526,7 +526,7 @@ class PropBankRolesetRef(BaseModel):
 class VerbNetMemberRef(BaseModel):
     """Reference to a VerbNet member.
 
-    Parameters
+    Attributes
     ----------
     verbnet_key : str
         Unique member identifier.
@@ -541,7 +541,7 @@ class VerbNetMemberRef(BaseModel):
 class UnifiedLemma(BaseModel):
     """A lemma with all its representations across datasets.
 
-    Parameters
+    Attributes
     ----------
     lemma : str
         Base lemma form.
@@ -593,7 +593,7 @@ class UnifiedLemma(BaseModel):
 class ConceptAlignment(BaseModel):
     """Alignment of semantic concepts across datasets.
 
-    Parameters
+    Attributes
     ----------
     concept_name : str
         Name of the semantic concept.
@@ -629,7 +629,7 @@ class ConceptAlignment(BaseModel):
 class RoleMappingTable(BaseModel):
     """Maps roles across different datasets.
 
-    Parameters
+    Attributes
     ----------
     verbnet_role : str
         VerbNet thematic role.
@@ -668,7 +668,7 @@ class RoleMappingTable(BaseModel):
 class FEAlignment(BaseModel):
     """Cross-dataset FE alignment with full metadata.
 
-    Parameters
+    Attributes
     ----------
     source_frame : str
         FrameNet frame name.
@@ -715,7 +715,7 @@ class FEAlignment(BaseModel):
 class FERelation(BaseModel):
     """Enhanced FE mapping between related frames with alignment metadata.
 
-    Parameters
+    Attributes
     ----------
     sub_fe_id : int | None
         Sub-frame FE ID.
@@ -796,7 +796,7 @@ class FERelation(BaseModel):
 class FEInheritanceChain(BaseModel):
     """Tracks FE inheritance through frame hierarchy.
 
-    Parameters
+    Attributes
     ----------
     fe_name : str
         Frame element name.
@@ -827,7 +827,7 @@ class FEInheritanceChain(BaseModel):
 class MappingConflict(BaseModel):
     """Represents a conflict in cross-dataset mappings.
 
-    Parameters
+    Attributes
     ----------
     conflict_type : ConflictType
         Type of conflict.
@@ -886,7 +886,7 @@ class MappingConflict(BaseModel):
 class MappingIndex(BaseModel):
     """Bidirectional index for fast mapping lookups.
 
-    Parameters
+    Attributes
     ----------
     forward_index : dict[str, list[CrossReference]]
         Source to target mappings.

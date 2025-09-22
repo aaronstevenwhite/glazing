@@ -60,7 +60,7 @@ from glazing.wordnet.types import (
 class Word(GlazingBaseModel):
     """A word/lemma in a synset.
 
-    Parameters
+    Attributes
     ----------
     lemma : str
         Word form (lowercase, underscores for spaces).
@@ -108,7 +108,7 @@ class Word(GlazingBaseModel):
 class Pointer(GlazingBaseModel):
     """A relation/pointer to another synset or word.
 
-    Parameters
+    Attributes
     ----------
     symbol : PointerSymbol
         Relation type symbol.
@@ -171,7 +171,7 @@ class Pointer(GlazingBaseModel):
 class VerbFrame(GlazingBaseModel):
     """Syntactic frame for a verb.
 
-    Parameters
+    Attributes
     ----------
     frame_number : VerbFrameNumber
         Frame number (1-35).
@@ -220,7 +220,7 @@ class VerbFrame(GlazingBaseModel):
 class Synset(GlazingBaseModel):
     """A WordNet synset (set of cognitive synonyms).
 
-    Parameters
+    Attributes
     ----------
     offset : SynsetOffset
         8-digit identifier.
@@ -366,7 +366,7 @@ class Synset(GlazingBaseModel):
 class Sense(GlazingBaseModel):
     """A word sense (word-meaning pair).
 
-    Parameters
+    Attributes
     ----------
     sense_key : SenseKey
         Unique sense identifier.
@@ -454,7 +454,7 @@ class Sense(GlazingBaseModel):
 class IndexEntry(GlazingBaseModel):
     """An entry in a WordNet index file.
 
-    Parameters
+    Attributes
     ----------
     lemma : str
         Word form.
@@ -500,7 +500,7 @@ class IndexEntry(GlazingBaseModel):
 class ExceptionEntry(GlazingBaseModel):
     """Morphological exception mapping.
 
-    Parameters
+    Attributes
     ----------
     inflected_form : str
         Inflected/irregular form.
@@ -555,7 +555,7 @@ class ExceptionEntry(GlazingBaseModel):
 class WordNetCrossRef(GlazingBaseModel):
     """Cross-reference to WordNet from other resources.
 
-    Parameters
+    Attributes
     ----------
     sense_key : SenseKey | None, default=None
         Preferred: stable across versions.

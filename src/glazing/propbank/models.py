@@ -60,7 +60,7 @@ from glazing.utils.special_cases import SpecialCaseRegistry
 class Alias(GlazingBaseModel):
     """Alias for a predicate with part of speech.
 
-    Parameters
+    Attributes
     ----------
     text : str
         The alias text (e.g., "abandon", "abandonment").
@@ -106,7 +106,7 @@ class Alias(GlazingBaseModel):
 class ArgAlias(GlazingBaseModel):
     """Argument-specific alias.
 
-    Parameters
+    Attributes
     ----------
     text : str
         The alias text (e.g., "actress" for arg0 of "act").
@@ -160,7 +160,7 @@ class ArgAlias(GlazingBaseModel):
 class Aliases(GlazingBaseModel):
     """Container for all alias types.
 
-    Parameters
+    Attributes
     ----------
     alias : list[Alias], default=[]
         Regular aliases for the predicate.
@@ -182,7 +182,7 @@ class Aliases(GlazingBaseModel):
 class Usage(GlazingBaseModel):
     """Usage information for a resource.
 
-    Parameters
+    Attributes
     ----------
     resource : ResourceType
         The resource type (e.g., "VerbNet", "FrameNet").
@@ -204,7 +204,7 @@ class Usage(GlazingBaseModel):
 class UsageNotes(GlazingBaseModel):
     """Container for usage information.
 
-    Parameters
+    Attributes
     ----------
     usage : list[Usage]
         List of usage information.
@@ -222,7 +222,7 @@ class UsageNotes(GlazingBaseModel):
 class RoleLink(GlazingBaseModel):
     """Link from a role to VerbNet/FrameNet.
 
-    Parameters
+    Attributes
     ----------
     class_name : str
         VerbNet class or FrameNet frame.
@@ -275,7 +275,7 @@ class RoleLink(GlazingBaseModel):
 class Role(GlazingBaseModel):
     """Semantic role definition.
 
-    Parameters
+    Attributes
     ----------
     n : ArgumentNumber
         Argument number (0-7, m, or M).
@@ -304,7 +304,7 @@ class Role(GlazingBaseModel):
 class LexLink(GlazingBaseModel):
     """Confidence-scored link to external resource.
 
-    Parameters
+    Attributes
     ----------
     class_name : str
         Name of the external class/frame.
@@ -363,7 +363,7 @@ class LexLink(GlazingBaseModel):
 class Roleset(GlazingBaseModel):
     """A single sense of a predicate with its semantic roles.
 
-    Parameters
+    Attributes
     ----------
     id : RolesetID
         Roleset identifier (e.g., "give.01").
@@ -439,7 +439,7 @@ class Roleset(GlazingBaseModel):
 class Frameset(GlazingBaseModel):
     """Container for all senses of a predicate.
 
-    Parameters
+    Attributes
     ----------
     predicate_lemma : PredicateLemma
         The predicate lemma (e.g., "give", "abandon").
@@ -494,7 +494,7 @@ class Frameset(GlazingBaseModel):
 class Arg(GlazingBaseModel):
     """Argument annotation in an example.
 
-    Parameters
+    Attributes
     ----------
     type : ArgumentTypePB
         Argument type (e.g., "ARG0", "ARGM-TMP").
@@ -548,7 +548,7 @@ class Arg(GlazingBaseModel):
 class Rel(GlazingBaseModel):
     """Relation/predicate marker in example.
 
-    Parameters
+    Attributes
     ----------
     relloc : str
         Location indices (can be space-separated).
@@ -593,7 +593,7 @@ class Rel(GlazingBaseModel):
 class PropBankAnnotation(GlazingBaseModel):
     """PropBank annotation structure for examples.
 
-    Parameters
+    Attributes
     ----------
     args : list[Arg], default=[]
         Argument annotations.
@@ -621,7 +621,7 @@ class PropBankAnnotation(GlazingBaseModel):
 class AMRAnnotation(GlazingBaseModel):
     """AMR annotation for an example.
 
-    Parameters
+    Attributes
     ----------
     version : str
         AMR version.
@@ -643,7 +643,7 @@ class AMRAnnotation(GlazingBaseModel):
 class Example(GlazingBaseModel):
     """Annotated example sentence.
 
-    Parameters
+    Attributes
     ----------
     name : str | None, default=None
         Optional example name.

@@ -56,7 +56,7 @@ from glazing.verbnet.types import (
 class State(GlazingBaseModel):
     """State in opposition structure.
 
-    Parameters
+    Attributes
     ----------
     predicate : str
         The state predicate.
@@ -82,7 +82,7 @@ class State(GlazingBaseModel):
 class Opposition(GlazingBaseModel):
     """Semantic opposition structure.
 
-    Parameters
+    Attributes
     ----------
     type : OppositionType
         Type of opposition (e.g., "motion", "state_change").
@@ -108,7 +108,7 @@ class Opposition(GlazingBaseModel):
 class Event(GlazingBaseModel):
     """Single event in event structure.
 
-    Parameters
+    Attributes
     ----------
     id : str
         Event identifier (e.g., "e1", "e2").
@@ -134,7 +134,7 @@ class Event(GlazingBaseModel):
 class Subevent(GlazingBaseModel):
     """Subevent with temporal relations.
 
-    Parameters
+    Attributes
     ----------
     id : str
         Subevent identifier.
@@ -168,7 +168,7 @@ class Subevent(GlazingBaseModel):
 class EventStructure(GlazingBaseModel):
     """Temporal event decomposition.
 
-    Parameters
+    Attributes
     ----------
     events : list[Event]
         List of events.
@@ -190,7 +190,7 @@ class EventStructure(GlazingBaseModel):
 class Qualia(GlazingBaseModel):
     """Qualia structure for frame semantics.
 
-    Parameters
+    Attributes
     ----------
     formal : str | None, default=None
         What type of thing it is.
@@ -220,7 +220,7 @@ class Qualia(GlazingBaseModel):
 class SubcatMember(GlazingBaseModel):
     """Subcategorization member with variable.
 
-    Parameters
+    Attributes
     ----------
     role : ThematicRoleType
         Thematic role name.
@@ -249,7 +249,7 @@ class SubcatMember(GlazingBaseModel):
 class Subcategorization(GlazingBaseModel):
     """GL subcategorization with variable assignments.
 
-    Parameters
+    Attributes
     ----------
     members : list[SubcatMember]
         List of subcategorization members.
@@ -268,7 +268,7 @@ class Subcategorization(GlazingBaseModel):
 class GLFrame(GlazingBaseModel):
     """Frame enhanced with GL event structure and qualia.
 
-    Parameters
+    Attributes
     ----------
     vn_frame : VNFrame
         Base VerbNet frame.
@@ -302,7 +302,7 @@ class GLFrame(GlazingBaseModel):
 class GLVerbClass(GlazingBaseModel):
     """VerbNet class enhanced with Generative Lexicon features.
 
-    Parameters
+    Attributes
     ----------
     verb_class : VerbClass
         Base VerbNet class.

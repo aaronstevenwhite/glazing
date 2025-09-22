@@ -81,7 +81,7 @@ from glazing.types import MappingConfidenceScore
 class TextAnnotation(GlazingBaseModel):
     """An annotation within text (FE reference, target, example, etc.).
 
-    Parameters
+    Attributes
     ----------
     start : int
         Start position in plain text (0-based).
@@ -176,7 +176,7 @@ class AnnotatedText(GlazingBaseModel):
     This model parses FrameNet's embedded markup in definitions, extracting
     annotations like <fex>Agent</fex>, <fen>Theme</fen>, etc.
 
-    Parameters
+    Attributes
     ----------
     raw_text : str
         Original text with markup.
@@ -344,7 +344,7 @@ class AnnotatedText(GlazingBaseModel):
 class FrameElement(GlazingBaseModel):
     """A participant or prop in a frame.
 
-    Parameters
+    Attributes
     ----------
     id : int
         Unique FE identifier.
@@ -504,7 +504,7 @@ class FrameElement(GlazingBaseModel):
 class Frame(GlazingBaseModel):
     """A FrameNet frame representing a schematic situation.
 
-    Parameters
+    Attributes
     ----------
     id : FrameID
         Unique frame identifier.
@@ -674,7 +674,7 @@ class Frame(GlazingBaseModel):
 class FERelation(GlazingBaseModel):
     """FE mapping between related frames with alignment metadata.
 
-    Parameters
+    Attributes
     ----------
     sub_fe_id : int | None, default=None
         ID of the sub-frame FE.
@@ -793,7 +793,7 @@ class FERelation(GlazingBaseModel):
 class FrameRelation(GlazingBaseModel):
     """Relationship between frames.
 
-    Parameters
+    Attributes
     ----------
     id : int | None, default=None
         Relation identifier.
@@ -877,7 +877,7 @@ class FrameRelation(GlazingBaseModel):
 class SemanticType(GlazingBaseModel):
     """Semantic type in the FrameNet type system.
 
-    Parameters
+    Attributes
     ----------
     id : SemTypeID
         Semantic type identifier.
@@ -969,7 +969,7 @@ class SemanticType(GlazingBaseModel):
 class FrameIndexEntry(GlazingBaseModel):
     """Entry in the frame index file.
 
-    Parameters
+    Attributes
     ----------
     id : FrameID
         Frame identifier.
@@ -1003,7 +1003,7 @@ class FrameIndexEntry(GlazingBaseModel):
 class SemTypeRef(GlazingBaseModel):
     """Reference to a semantic type with name and ID.
 
-    Parameters
+    Attributes
     ----------
     name : str
         Semantic type name.
@@ -1049,7 +1049,7 @@ class SemTypeRef(GlazingBaseModel):
 class SentenceCount(GlazingBaseModel):
     """Frequency counts for annotated sentences.
 
-    Parameters
+    Attributes
     ----------
     annotated : int, default=0
         Number of annotated sentences.
@@ -1105,7 +1105,7 @@ class SentenceCount(GlazingBaseModel):
 class Lexeme(GlazingBaseModel):
     """A lexical form in a lexical unit.
 
-    Parameters
+    Attributes
     ----------
     name : str
         The word form (validated pattern).
@@ -1158,7 +1158,7 @@ class Lexeme(GlazingBaseModel):
 class Label(GlazingBaseModel):
     """An annotation label on a text span.
 
-    Parameters
+    Attributes
     ----------
     id : LabelID | None, default=None
         Label identifier.
@@ -1245,7 +1245,7 @@ class Label(GlazingBaseModel):
 class AnnotationLayer(GlazingBaseModel):
     """A layer of annotation (FE, GF, PT, Target, etc.).
 
-    Parameters
+    Attributes
     ----------
     name : LayerType
         Layer type name.
@@ -1317,7 +1317,7 @@ class AnnotationLayer(GlazingBaseModel):
 class AnnotationSet(GlazingBaseModel):
     """A set of annotations on a sentence.
 
-    Parameters
+    Attributes
     ----------
     id : AnnotationSetID
         Annotation set identifier.
@@ -1425,7 +1425,7 @@ class AnnotationSet(GlazingBaseModel):
 class Sentence(GlazingBaseModel):
     """A sentence with its annotations.
 
-    Parameters
+    Attributes
     ----------
     id : SentenceID
         Sentence identifier.
@@ -1516,7 +1516,7 @@ class Sentence(GlazingBaseModel):
 class ValenceUnit(GlazingBaseModel):
     """A valence unit in a realization pattern.
 
-    Parameters
+    Attributes
     ----------
     gf : GrammaticalFunction | str
         Grammatical function (can be empty string or special values).
@@ -1587,7 +1587,7 @@ class ValenceUnit(GlazingBaseModel):
 class ValenceRealizationPattern(GlazingBaseModel):
     """A specific realization pattern for an FE.
 
-    Parameters
+    Attributes
     ----------
     valence_units : list[ValenceUnit]
         Valence units in this pattern.
@@ -1651,7 +1651,7 @@ class ValenceRealizationPattern(GlazingBaseModel):
 class FERealization(GlazingBaseModel):
     """How a frame element is realized syntactically.
 
-    Parameters
+    Attributes
     ----------
     fe_name : str
         Frame element name.
@@ -1726,7 +1726,7 @@ class FERealization(GlazingBaseModel):
 class FEGroupRealization(GlazingBaseModel):
     """Realization of grouped FEs in a pattern.
 
-    Parameters
+    Attributes
     ----------
     fe_names : list[str]
         Frame element names in this group.
@@ -1794,7 +1794,7 @@ class FEGroupRealization(GlazingBaseModel):
 class ValenceAnnotationPattern(GlazingBaseModel):
     """A specific valence pattern with annotated examples.
 
-    Parameters
+    Attributes
     ----------
     anno_sets : list[AnnotationSetID]
         References to annotation sets.
@@ -1843,7 +1843,7 @@ class ValenceAnnotationPattern(GlazingBaseModel):
 class ValencePattern(GlazingBaseModel):
     """Syntactic valence pattern for a lexical unit.
 
-    Parameters
+    Attributes
     ----------
     total_annotated : int
         Total number of annotated instances.
@@ -1920,7 +1920,7 @@ class ValencePattern(GlazingBaseModel):
 class LexicalUnit(GlazingBaseModel):
     """A word or phrase that evokes a frame.
 
-    Parameters
+    Attributes
     ----------
     id : LexicalUnitID
         Unique lexical unit identifier.

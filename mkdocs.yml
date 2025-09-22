@@ -1,0 +1,220 @@
+site_name: Glazing Documentation
+site_description: A unified interface for FrameNet, PropBank, VerbNet, and WordNet
+site_author: Aaron Steven White
+site_url: https://glazing.readthedocs.io
+repo_name: aaronstevenwhite/glazing
+repo_url: https://github.com/aaronstevenwhite/glazing
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            extensions:
+              - griffe_pydantic
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_object_full_path: false
+            show_category_heading: true
+            show_if_no_docstring: false
+            show_signature: true
+            show_signature_annotations: true
+            show_bases: true
+            show_submodules: false
+            heading_level: 2
+            group_by_category: true
+            docstring_style: numpy
+            docstring_section_style: spacy
+            line_length: 100
+            merge_init_into_class: true
+            separate_signature: false
+            show_docstring_attributes: true
+            show_docstring_description: true
+            show_docstring_examples: true
+            show_docstring_other_parameters: true
+            show_docstring_parameters: true
+            show_docstring_raises: true
+            show_docstring_receives: true
+            show_docstring_returns: true
+            show_docstring_warns: true
+            show_docstring_yields: true
+            signature_crossrefs: true
+            summary: true
+            inherited_members: false
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - def_list
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: twemoji
+      emoji_generator: to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/aaronstevenwhite
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/glazing/
+  version:
+    provider: mike
+    default: latest
+
+extra_css:
+  - css/custom.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quick-start.md
+  - User Guide:
+      - CLI Usage: user-guide/cli.md
+      - Python API: user-guide/python-api.md
+      - Data Formats: user-guide/data-formats.md
+      - Cross-References: user-guide/cross-references.md
+  - API Reference:
+      - Overview: api/index.md
+      - Core:
+          - glazing: api/glazing.md
+          - glazing.base: api/base.md
+          - glazing.types: api/types.md
+      - Datasets:
+          - FrameNet:
+              - glazing.framenet: api/framenet/index.md
+              - Models: api/framenet/models.md
+              - Loader: api/framenet/loader.md
+              - Converter: api/framenet/converter.md
+              - Search: api/framenet/search.md
+          - PropBank:
+              - glazing.propbank: api/propbank/index.md
+              - Models: api/propbank/models.md
+              - Loader: api/propbank/loader.md
+              - Converter: api/propbank/converter.md
+              - Search: api/propbank/search.md
+          - VerbNet:
+              - glazing.verbnet: api/verbnet/index.md
+              - Models: api/verbnet/models.md
+              - GL Models: api/verbnet/gl_models.md
+              - Loader: api/verbnet/loader.md
+              - Converter: api/verbnet/converter.md
+              - Search: api/verbnet/search.md
+              - Inheritance: api/verbnet/inheritance.md
+          - WordNet:
+              - glazing.wordnet: api/wordnet/index.md
+              - Models: api/wordnet/models.md
+              - Loader: api/wordnet/loader.md
+              - Converter: api/wordnet/converter.md
+              - Search: api/wordnet/search.md
+              - Relations: api/wordnet/relations.md
+              - Morphy: api/wordnet/morphy.md
+      - Cross-References:
+          - glazing.references: api/references/index.md
+          - Models: api/references/models.md
+          - Extractor: api/references/extractor.md
+          - Resolver: api/references/resolver.md
+          - Mapper: api/references/mapper.md
+      - Utilities:
+          - glazing.utils: api/utils/index.md
+          - Cache: api/utils/cache.md
+          - Validators: api/utils/validators.md
+          - XML Parser: api/utils/xml_parser.md
+      - CLI:
+          - glazing.cli: api/cli/index.md
+          - Download: api/cli/download.md
+          - Convert: api/cli/convert.md
+          - Search: api/cli/search.md
+      - Search: api/search.md
+      - Downloader: api/downloader.md
+      - Initialize: api/initialize.md
+  - Development:
+      - Contributing: contributing.md
+      - Citation: citation.md
+
+copyright: Copyright &copy; 2025 Aaron Steven White
+
+watch:
+  - src/glazing
+  - docs

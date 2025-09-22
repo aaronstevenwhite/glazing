@@ -1,0 +1,44 @@
+/* Custom CSS for Glazing documentation */
+
+/* Improve code block appearance */
+.highlight pre {
+    padding: 1em;
+    border-radius: 0.25em;
+}
+
+/* Better spacing for API docs */
+.doc-object {
+    margin-bottom: 2em;
+}
+
+/* Highlight important notes */
+.admonition.note {
+    border-left: 4px solid #448aff;
+}
+
+/* Improve table appearance */
+table {
+    width: 100%;
+    margin: 1em 0;
+}
+
+table th {
+    background-color: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+}
+
+/* Better navigation */
+.md-nav--primary .md-nav__title {
+    font-weight: bold;
+}
+
+/* Code annotation styling */
+.annotate {
+    position: relative;
+}
+
+/* Search results highlighting */
+.md-search-result mark {
+    background-color: #ffeb3b;
+    color: #000;
+}
