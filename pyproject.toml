@@ -53,6 +53,7 @@ docs = [
     "mkdocs-material>=9.5.3",
     "mkdocstrings[python]>=0.24.0",
     "griffe-pydantic>=1.0.0",
+    "pymdown-extensions>=10.7",
 ]
 
 [project.scripts]
