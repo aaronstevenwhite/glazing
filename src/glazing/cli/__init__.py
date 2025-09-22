@@ -31,6 +31,7 @@ from pathlib import Path
 
 import click
 
+from glazing.__version__ import __version__
 from glazing.cli.convert import convert
 from glazing.cli.download import download
 from glazing.cli.search import search
@@ -38,7 +39,7 @@ from glazing.initialize import initialize_datasets
 
 
 @click.group()
-@click.version_option()
+@click.version_option(version=__version__)
 @click.option(
     "--verbose",
     "-v",
