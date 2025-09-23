@@ -40,7 +40,7 @@ Lexical database of synonyms, hypernyms, and other semantic relations.
 # Install the package
 pip install glazing
 
-# Initialize all datasets (downloads ~120MB)
+# Initialize all datasets (downloads ~54MB)
 glazing init
 ```
 

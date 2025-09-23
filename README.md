@@ -25,7 +25,7 @@ pip install glazing
 
 ## Quick Start
 
-Initialize all datasets (one-time setup, ~120MB download):
+Initialize all datasets (one-time setup, ~54MB download):
 
 ```bash
 glazing init

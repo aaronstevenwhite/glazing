@@ -10,7 +10,7 @@ Start by downloading and converting all datasets:
 glazing init
 ```
 
-This one-time setup downloads ~120MB of data and prepares it for use.
+This one-time setup downloads ~54MB of data and prepares it for use (~130MB total after conversion).
 
 ## CLI Usage
 

@@ -6,7 +6,7 @@ This guide covers the installation of Glazing and its dependencies.
 
 - **Python 3.13 or higher**
 - pip package manager
-- ~500MB disk space for all datasets
+- ~130MB disk space for all datasets after conversion
 - Internet connection for dataset downloads
 
 ## Install from PyPI
@@ -42,7 +42,7 @@ glazing init
 ```
 
 This command will:
-1. Download all datasets (~120MB compressed)
+1. Download all datasets (~54MB compressed)
 2. Extract and convert them to JSON Lines format
 3. Store them in `~/.local/share/glazing/` (or `%LOCALAPPDATA%\glazing\` on Windows)
 

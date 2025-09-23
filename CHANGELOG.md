@@ -62,7 +62,7 @@ Initial release of `glazing`, a package containing unified data models and inter
 
 ### Technical Details
 - **Package size**: ~5MB (code only)
-- **Dataset size**: ~120MB compressed, ~500MB extracted
+- **Dataset size**: ~54MB raw downloads, ~130MB total after conversion
 - **Performance**: Streaming support for datasets up to several GB
 - **Compatibility**: Python 3.13+, all major operating systems
 
