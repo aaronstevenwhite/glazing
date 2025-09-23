@@ -98,11 +98,11 @@ Common Options:
 # 1. Initialize everything
 glazing init
 
-# 2. Search for a concept
-glazing search query "give" --data-dir ~/.local/share/glazing/converted
+# 2. Search for a concept (uses default data directory)
+glazing search query "give"
 
 # 3. Find cross-references
-glazing search cross-ref --source propbank --id "give.01"     --target verbnet --data-dir ~/.local/share/glazing/converted
+glazing search cross-ref --source propbank --id "give.01" --target verbnet
 ```
 
 ### Custom Data Directory
@@ -122,13 +122,13 @@ glazing search query "run"
 
 ```bash
 # Download only VerbNet
-glazing download dataset --dataset verbnet --output-dir raw/
+glazing download dataset --dataset verbnet
 
 # Convert it
-glazing convert dataset --dataset verbnet     --input-dir raw/verbnet-3.4 --output-dir converted/
+glazing convert dataset --dataset verbnet
 
-# Search it
-glazing search query "run" --dataset verbnet --data-dir converted/
+# Search it (uses default converted directory)
+glazing search query "run" --dataset verbnet
 ```
 
 ## Output Formats

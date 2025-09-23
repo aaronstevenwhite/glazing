@@ -19,14 +19,14 @@ This one-time setup downloads ~120MB of data and prepares it for use.
 Find entries across all datasets:
 
 ```bash
-# Search for "give" in all datasets
-glazing search query "give" --data-dir ~/.local/share/glazing/converted
+# Search for "give" in all datasets (uses default data directory)
+glazing search query "give"
 
 # Search only in VerbNet
-glazing search query "give" --dataset verbnet --data-dir ~/.local/share/glazing/converted
+glazing search query "give" --dataset verbnet
 
 # Get JSON output
-glazing search query "give" --json --data-dir ~/.local/share/glazing/converted
+glazing search query "give" --json
 ```
 
 ### Find Cross-References
@@ -35,8 +35,7 @@ Discover connections between datasets:
 
 ```bash
 # Find VerbNet classes for a PropBank roleset
-glazing search cross-ref --source propbank --target verbnet --id "give.01" \
-    --data-dir ~/.local/share/glazing/converted
+glazing search cross-ref --source propbank --target verbnet --id "give.01"
 ```
 
 ### Get Dataset Information
@@ -57,13 +56,12 @@ glazing download info verbnet
 
 ```python
 from glazing.search import UnifiedSearch
-from pathlib import Path
 
-# Initialize search with default data directory
+# Initialize search (automatically uses default paths)
 search = UnifiedSearch()
 
 # Search across all datasets
-results = search.search_by_query("abandon")
+results = search.search("abandon")
 
 for result in results[:5]:
     print(f"{result.dataset}: {result.name}")
@@ -77,18 +75,14 @@ for result in results[:5]:
 ```python
 from glazing.framenet.loader import FrameNetLoader
 from glazing.verbnet.loader import VerbNetLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
-
-# Load FrameNet
-fn_loader = FrameNetLoader()
-frames = fn_loader.load_frames(data_dir / "framenet.jsonl")
+# Loaders automatically use default paths and load data after 'glazing init'
+fn_loader = FrameNetLoader()  # Data is already loaded
+frames = fn_loader.frames
 print(f"Loaded {len(frames)} frames")
 
-# Load VerbNet
-vn_loader = VerbNetLoader()
-verb_classes = vn_loader.load_verb_classes(data_dir / "verbnet.jsonl")
+vn_loader = VerbNetLoader()  # Data is already loaded
+verb_classes = list(vn_loader.classes.values())
 print(f"Loaded {len(verb_classes)} verb classes")
 ```
 
@@ -96,13 +90,12 @@ print(f"Loaded {len(verb_classes)} verb classes")
 
 ```python
 from glazing.verbnet.loader import VerbNetLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Loader automatically uses default path and loads data
 loader = VerbNetLoader()
 
-# Load all verb classes
-classes = loader.load_verb_classes(data_dir / "verbnet.jsonl")
+# Access already loaded verb classes
+classes = list(loader.classes.values())
 
 # Find a specific class
 give_class = next(
@@ -125,13 +118,12 @@ if give_class:
 
 ```python
 from glazing.propbank.loader import PropBankLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Loader automatically uses default path and loads data
 loader = PropBankLoader()
 
-# Load framesets
-framesets = loader.load_framesets(data_dir / "propbank.jsonl")
+# Access already loaded framesets
+framesets = list(loader.framesets.values())
 
 # Find rolesets for "give"
 give_framesets = [fs for fs in framesets if fs.lemma == "give"]
@@ -149,16 +141,20 @@ for frameset in give_framesets:
 ```python
 from glazing.references.extractor import ReferenceExtractor
 from glazing.references.resolver import ReferenceResolver
-from pathlib import Path
+from glazing.verbnet.loader import VerbNetLoader
+from glazing.propbank.loader import PropBankLoader
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Load datasets
+vn_loader = VerbNetLoader()  # Automatically loads data
+pb_loader = PropBankLoader()  # Automatically loads data
 
-# Extract all references
+# Extract references
 extractor = ReferenceExtractor()
-references = extractor.extract_from_datasets(data_dir)
+extractor.extract_verbnet_references(list(vn_loader.classes.values()))
+extractor.extract_propbank_references(list(pb_loader.framesets.values()))
 
 # Resolve references for a PropBank roleset
-resolver = ReferenceResolver(references)
+resolver = ReferenceResolver(extractor.mapping_index)
 related = resolver.resolve("give.01", source="propbank")
 
 print(f"PropBank roleset: give.01")
@@ -171,13 +167,10 @@ print(f"WordNet senses: {related.wordnet_senses}")
 
 ```python
 from glazing.wordnet.loader import WordNetLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Loader automatically uses default path and loads data
 loader = WordNetLoader()
-
-# Load synsets
-synsets = loader.load_synsets(data_dir / "wordnet.jsonl")
+synsets = list(loader.synsets.values())  # Already loaded
 
 # Find synsets for "dog"
 dog_synsets = [s for s in synsets if any(
@@ -203,13 +196,12 @@ For memory-efficient processing:
 
 ```python
 from glazing.verbnet.loader import VerbNetLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
-loader = VerbNetLoader()
+# For memory-efficient streaming, use lazy loading
+loader = VerbNetLoader(lazy=True, autoload=False)
 
 # Stream verb classes one at a time
-for verb_class in loader.stream_verb_classes(data_dir / "verbnet.jsonl"):
+for verb_class in loader.iter_verb_classes():
     # Process each class without loading all into memory
     if "run" in [m.name for m in verb_class.members]:
         print(f"Found 'run' in class: {verb_class.id}")
@@ -222,10 +214,11 @@ for verb_class in loader.stream_verb_classes(data_dir / "verbnet.jsonl"):
 
 ```python
 from glazing.verbnet.search import VerbNetSearch
-from pathlib import Path
+from glazing.verbnet.loader import VerbNetLoader
 
-data_dir = Path.home() / ".local/share/glazing/converted"
-search = VerbNetSearch(data_dir / "verbnet.jsonl")
+# Loader automatically loads data
+loader = VerbNetLoader()
+search = VerbNetSearch(list(loader.classes.values()))
 
 # Find all classes with an Agent role
 agent_classes = []
@@ -241,13 +234,10 @@ print(f"Classes with Agent role: {len(agent_classes)}")
 ```python
 import json
 from glazing.framenet.loader import FrameNetLoader
-from pathlib import Path
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Loader automatically uses default path and loads data
 loader = FrameNetLoader()
-
-# Load frames
-frames = loader.load_frames(data_dir / "framenet.jsonl")
+frames = loader.frames  # Already loaded
 
 # Export as simple JSON
 simple_frames = []

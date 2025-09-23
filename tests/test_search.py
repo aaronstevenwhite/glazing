@@ -249,7 +249,7 @@ class TestUnifiedSearch:
 
     def test_init_empty(self):
         """Test initialization with no datasets."""
-        search = UnifiedSearch()
+        search = UnifiedSearch(auto_load=False)
         assert search.framenet is None
         assert search.verbnet is None
         assert search.wordnet is None

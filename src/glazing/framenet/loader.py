@@ -6,7 +6,7 @@ with validation, lazy loading for large datasets, and frame index building.
 Classes
 -------
 FrameNetLoader
-    Load FrameNet data from JSON Lines format.
+    Load FrameNet data from JSON Lines format with automatic loading.
 FrameIndex
     In-memory index for fast frame lookups.
 
@@ -22,10 +22,13 @@ build_frame_index
 Examples
 --------
 >>> from glazing.framenet.loader import FrameNetLoader
+>>> # Data loads automatically on initialization
 >>> loader = FrameNetLoader()
->>> frames = list(loader.load_frames("frames.jsonl"))
->>> index = loader.build_frame_index(frames)
->>> giving_frame = index.get_frame_by_name("Giving")
+>>> frames = loader.frames  # Access loaded frames via property
+>>>
+>>> # Or disable autoload for manual control
+>>> loader = FrameNetLoader(autoload=False)
+>>> frames = loader.load()  # Load manually when needed
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ from pathlib import Path
 
 from glazing.framenet.models import Frame, LexicalUnit, SemanticType
 from glazing.framenet.types import FrameID
+from glazing.initialize import get_default_data_path
 
 
 class FrameIndex:
@@ -266,13 +270,33 @@ class FrameIndex:
 
 
 class FrameNetLoader:
-    """Load FrameNet data from JSON Lines format.
+    """Load FrameNet data from JSON Lines format with automatic loading.
 
     Handles loading of Frame and LexicalUnit models from JSON Lines files
     with validation, lazy loading, and index building capabilities.
+    By default, data is loaded automatically on initialization.
+
+    Parameters
+    ----------
+    data_path : Path | str | None, optional
+        Path to FrameNet JSON Lines file. If None, uses default path.
+    lazy : bool, default=False
+        Whether to use lazy loading.
+    autoload : bool, default=True
+        Whether to automatically load data on initialization.
+        Only applies when lazy=False.
+    cache_size : int, default=1000
+        Number of items to cache when using lazy loading.
+
+    Attributes
+    ----------
+    frames : list[Frame]
+        Property that returns loaded frames, loading them if needed.
 
     Methods
     -------
+    load()
+        Load all frames from the data file.
     load_frames(filepath, skip_errors)
         Load Frame models from JSON Lines file.
     load_lexical_units(filepath, skip_errors)
@@ -285,15 +309,87 @@ class FrameNetLoader:
         Load frames and build index in one step.
     validate_frame_data(filepath)
         Validate frame data file without loading into memory.
+
+    Examples
+    --------
+    >>> # Automatic loading (default)
+    >>> loader = FrameNetLoader()
+    >>> frames = loader.frames  # Already loaded
+    >>>
+    >>> # Manual loading
+    >>> loader = FrameNetLoader(autoload=False)
+    >>> frames = loader.load()
     """
 
-    def load_frames(self, filepath: Path | str, skip_errors: bool = False) -> list[Frame]:
+    def __init__(
+        self,
+        data_path: Path | str | None = None,
+        lazy: bool = False,
+        autoload: bool = True,
+        cache_size: int = 1000,
+    ) -> None:
+        """Initialize FrameNet loader.
+
+        Parameters
+        ----------
+        data_path : Path | str | None, optional
+            Path to FrameNet JSON Lines file.
+            If None, uses default path from environment.
+        lazy : bool, default=False
+            Whether to use lazy loading.
+        autoload : bool, default=True
+            Whether to automatically load data on initialization.
+            Only applies when lazy=False.
+        cache_size : int, default=1000
+            Number of items to cache when using lazy loading.
+        """
+        if data_path is None:
+            data_path = get_default_data_path("framenet.jsonl")
+        self.data_path = Path(data_path)
+        self.lazy = lazy
+        self.cache_size = cache_size
+        self._frames: list[Frame] | None = None
+        self._index: FrameIndex | None = None
+
+        # Autoload data if requested and not lazy loading
+        if autoload and not lazy:
+            self.load()
+
+    def load(self) -> list[Frame]:
+        """Load all frames from the data file.
+
+        Returns
+        -------
+        list[Frame]
+            List of loaded Frame models.
+        """
+        if self._frames is None:
+            self._frames = self.load_frames(self.data_path)
+        return self._frames
+
+    @property
+    def frames(self) -> list[Frame]:
+        """Get loaded frames.
+
+        Returns
+        -------
+        list[Frame]
+            List of loaded Frame models. Loads automatically if not yet loaded.
+        """
+        if self._frames is None:
+            self.load()
+        return self._frames if self._frames is not None else []
+
+    def load_frames(
+        self, filepath: Path | str | None = None, skip_errors: bool = False
+    ) -> list[Frame]:
         """Load Frame models from JSON Lines file.
 
         Parameters
         ----------
-        filepath : Path | str
+        filepath : Path | str | None, optional
             Path to JSON Lines file containing Frame data.
+            If None, uses the default data path from initialization.
         skip_errors : bool, default=False
             If True, skip invalid lines rather than raising errors.
 
@@ -309,7 +405,7 @@ class FrameNetLoader:
         ValueError
             If skip_errors=False and a line fails validation.
         """
-        filepath = Path(filepath)
+        filepath = self.data_path if filepath is None else Path(filepath)
         if not filepath.exists():
             msg = f"FrameNet data file not found: {filepath}"
             raise FileNotFoundError(msg)

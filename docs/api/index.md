@@ -74,8 +74,8 @@ from glazing.references.resolver import ReferenceResolver
 from pathlib import Path
 from glazing.verbnet.loader import VerbNetLoader
 
-loader = VerbNetLoader()
-verb_classes = loader.load_verb_classes(Path("data/verbnet.jsonl"))
+loader = VerbNetLoader(Path("data/verbnet.jsonl"))
+verb_classes = loader.load_verb_classes()
 ```
 
 ### Searching
@@ -84,7 +84,7 @@ verb_classes = loader.load_verb_classes(Path("data/verbnet.jsonl"))
 from glazing.search import UnifiedSearch
 
 search = UnifiedSearch()
-results = search.search_by_query("abandon")
+results = search.search("abandon")
 ```
 
 ## Type Safety

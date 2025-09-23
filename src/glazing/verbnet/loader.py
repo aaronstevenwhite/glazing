@@ -7,7 +7,7 @@ inheritance handling, and lazy loading.
 Classes
 -------
 VerbNetLoader
-    Load and manage VerbNet verb classes.
+    Load and manage VerbNet verb classes with automatic loading.
 
 Functions
 ---------
@@ -19,10 +19,15 @@ load_verb_class
 Examples
 --------
 >>> from glazing.verbnet.loader import VerbNetLoader
->>> loader = VerbNetLoader("data/verbnet.jsonl")
+>>> # Data loads automatically on initialization
+>>> loader = VerbNetLoader()
+>>> classes = loader.classes  # Access loaded verb classes via property
 >>> verb_class = loader.get_verb_class("give-13.1")
 >>> member = loader.get_member("give#2")
->>> all_classes = loader.load_all()
+>>>
+>>> # Or disable autoload for manual control
+>>> loader = VerbNetLoader(autoload=False)
+>>> classes = loader.load()  # Load manually when needed
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ from pathlib import Path
 from pydantic import ConfigDict, Field
 
 from glazing.base import GlazingBaseModel
+from glazing.initialize import get_default_data_path
 from glazing.utils.cache import QueryCache
 from glazing.verbnet.inheritance import RoleInheritanceResolver
 from glazing.verbnet.models import Member, ThematicRole, VerbClass
@@ -42,14 +48,19 @@ from glazing.verbnet.types import VerbClassID, VerbNetKey
 
 
 class VerbNetLoader(GlazingBaseModel):
-    """Load and manage VerbNet verb classes.
+    """Load and manage VerbNet verb classes with automatic loading.
+
+    By default, data is loaded automatically on initialization.
 
     Parameters
     ----------
-    data_path : Path | str
-        Path to VerbNet JSON Lines file.
-    lazy_load : bool, default=True
+    data_path : Path | str | None, optional
+        Path to VerbNet JSON Lines file. If None, uses default path.
+    lazy : bool, default=False
         Whether to use lazy loading for verb classes.
+    autoload : bool, default=True
+        Whether to automatically load data on initialization.
+        Only applies when lazy=False.
     cache_size : int, default=1000
         Maximum number of verb classes to cache in memory.
 
@@ -57,10 +68,12 @@ class VerbNetLoader(GlazingBaseModel):
     ----------
     data_path : Path
         Path to the data file.
-    lazy_load : bool
+    lazy : bool
         Whether lazy loading is enabled.
+    classes : dict[VerbClassID, VerbClass]
+        Property that returns loaded verb classes, loading them if needed.
     cache : QueryCache | None
-        Cache for loaded verb classes.
+        Cache for loaded verb classes (only when lazy=True).
     class_index : dict[VerbClassID, int]
         Index mapping class IDs to file positions.
     member_index : dict[VerbNetKey, VerbClassID]
@@ -70,7 +83,7 @@ class VerbNetLoader(GlazingBaseModel):
 
     Methods
     -------
-    load_all()
+    load()
         Load all verb classes into memory.
     get_verb_class(class_id)
         Get a specific verb class by ID.
@@ -83,16 +96,22 @@ class VerbNetLoader(GlazingBaseModel):
 
     Examples
     --------
-    >>> loader = VerbNetLoader("verbnet.jsonl")
+    >>> # Automatic loading (default)
+    >>> loader = VerbNetLoader()
+    >>> classes = loader.classes  # Already loaded
     >>> verb_class = loader.get_verb_class("give-13.1")
     >>> print(f"Found {len(verb_class.members)} members")
     Found 15 members
+
+    >>> # Manual loading
+    >>> loader = VerbNetLoader(autoload=False)
+    >>> classes = loader.load()
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     data_path: Path
-    lazy_load: bool = True
+    lazy: bool = False
     cache: QueryCache | None = Field(default=None, exclude=True)
     class_index: dict[VerbClassID, int] = Field(default_factory=dict)
     member_index: dict[VerbNetKey, VerbClassID] = Field(default_factory=dict)
@@ -103,8 +122,9 @@ class VerbNetLoader(GlazingBaseModel):
 
     def __init__(  # type: ignore[no-untyped-def]
         self,
-        data_path: Path | str,
-        lazy_load: bool = True,
+        data_path: Path | str | None = None,
+        lazy: bool = False,
+        autoload: bool = True,
         cache_size: int = 1000,
         **kwargs,  # noqa: ANN003
     ) -> None:
@@ -112,22 +132,30 @@ class VerbNetLoader(GlazingBaseModel):
 
         Parameters
         ----------
-        data_path : Path | str
+        data_path : Path | str | None, optional
             Path to VerbNet JSON Lines file.
-        lazy_load : bool, default=True
+            If None, uses default path from environment.
+        lazy : bool, default=False
             Whether to use lazy loading.
+        autoload : bool, default=True
+            Whether to automatically load data on initialization.
+            Only applies when lazy=False.
         cache_size : int, default=1000
             Maximum cache size.
         **kwargs
             Additional keyword arguments.
         """
+        # Use default path if not provided
+        if data_path is None:
+            data_path = get_default_data_path("verbnet.jsonl")
+
         # Initialize fields before calling super()
-        data = {"data_path": Path(data_path), "lazy_load": lazy_load, **kwargs}
+        data = {"data_path": Path(data_path), "lazy": lazy, **kwargs}
         super().__init__(**data)
 
         # Set cache after initialization
-        self.cache = QueryCache(max_size=cache_size) if lazy_load else None
-        self.classes_cache = None if lazy_load else {}
+        self.cache = QueryCache(max_size=cache_size) if lazy else None
+        self.classes_cache = None if lazy else {}
 
         if not self.data_path.exists():
             msg = f"Data file not found: {self.data_path}"
@@ -136,11 +164,11 @@ class VerbNetLoader(GlazingBaseModel):
         # Build indices on initialization
         self.build_indices()
 
-        # Load all data if not lazy loading
-        if not lazy_load:
-            self.load_all()
+        # Autoload data if requested and not lazy loading
+        if autoload and not lazy:
+            self.load()
 
-    def load_all(self) -> dict[VerbClassID, VerbClass]:
+    def load(self) -> dict[VerbClassID, VerbClass]:
         """Load all verb classes into memory.
 
         Returns
@@ -170,10 +198,24 @@ class VerbNetLoader(GlazingBaseModel):
                     msg = f"Error parsing line {line_num}: {e}"
                     raise ValueError(msg) from e
 
-        if not self.lazy_load:
+        if not self.lazy:
             self.classes_cache = classes
 
         return classes
+
+    @property
+    def classes(self) -> dict[VerbClassID, VerbClass]:
+        """Get loaded verb classes.
+
+        Returns
+        -------
+        dict[VerbClassID, VerbClass]
+            Dictionary of verb classes mapped by class ID.
+            Loads automatically if not yet loaded.
+        """
+        if self.classes_cache is None:
+            self.load()
+        return self.classes_cache if self.classes_cache else {}
 
     def get_verb_class(self, class_id: VerbClassID) -> VerbClass | None:
         """Get a specific verb class by ID.
@@ -189,7 +231,7 @@ class VerbNetLoader(GlazingBaseModel):
             The verb class if found, None otherwise.
         """
         # Check cache first if lazy loading
-        if self.lazy_load and self.cache:
+        if self.lazy and self.cache:
             cached = self.cache.get_query_result("verb_class", {"id": class_id})
             if cached is not None and isinstance(cached, VerbClass):
                 return cached
@@ -206,7 +248,7 @@ class VerbNetLoader(GlazingBaseModel):
         verb_class = self._load_class_at_offset(line_offset)
 
         # Cache the result
-        if self.lazy_load and self.cache and verb_class:
+        if self.lazy and self.cache and verb_class:
             self.cache.cache_query_result("verb_class", {"id": class_id}, verb_class)  # type: ignore[arg-type]
 
         return verb_class
@@ -225,7 +267,7 @@ class VerbNetLoader(GlazingBaseModel):
             The member if found, None otherwise.
         """
         # Check cache first
-        if self.lazy_load and self.cache:
+        if self.lazy and self.cache:
             cached = self.cache.get_query_result("member", {"key": verbnet_key})
             if cached is not None and isinstance(cached, Member):
                 return cached
@@ -244,7 +286,7 @@ class VerbNetLoader(GlazingBaseModel):
         member = self._find_member_in_class(verb_class, verbnet_key)
 
         # Cache the result if found
-        if member and self.lazy_load and self.cache:
+        if member and self.lazy and self.cache:
             self.cache.cache_query_result("member", {"key": verbnet_key}, member)  # type: ignore[arg-type]
 
         return member
@@ -450,10 +492,10 @@ class VerbNetLoader(GlazingBaseModel):
             "total_classes": len(self.class_index),
             "total_members": len(self.member_index),
             "cached_classes": self.cache.size() if self.cache else 0,
-            "lazy_loading": self.lazy_load,
+            "lazying": self.lazy,
         }
 
-        if not self.lazy_load and self.classes_cache:
+        if not self.lazy and self.classes_cache:
             # Calculate additional statistics from loaded data
             total_roles = 0
             total_frames = 0
@@ -498,7 +540,7 @@ class VerbNetLoader(GlazingBaseModel):
                     hierarchy[class_id] = subclass_ids
         else:
             # Load all classes to build hierarchy
-            all_classes = self.load_all()
+            all_classes = self.load()
             for class_id, verb_class in all_classes.items():
                 subclass_ids = [sub.id for sub in verb_class.subclasses]
                 if subclass_ids:
@@ -552,8 +594,8 @@ def load_verb_classes(path: Path | str) -> dict[VerbClassID, VerbClass]:
     >>> verb_classes = load_verb_classes("verbnet.jsonl")
     >>> print(f"Loaded {len(verb_classes)} verb classes")
     """
-    loader = VerbNetLoader(path, lazy_load=False)
-    return loader.load_all()
+    loader = VerbNetLoader(path, lazy=False)
+    return loader.load()
 
 
 def load_verb_class(path: Path | str, class_id: VerbClassID) -> VerbClass | None:
@@ -577,5 +619,5 @@ def load_verb_class(path: Path | str, class_id: VerbClassID) -> VerbClass | None
     >>> if verb_class:
     ...     print(f"Found {len(verb_class.members)} members")
     """
-    loader = VerbNetLoader(path, lazy_load=True)
+    loader = VerbNetLoader(path, lazy=True)
     return loader.get_verb_class(class_id)

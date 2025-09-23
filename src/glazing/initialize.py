@@ -40,6 +40,24 @@ def get_default_data_dir() -> Path:
     return base_dir / "glazing"
 
 
+def get_default_data_path(filename: str | None = None) -> Path:
+    """Get the default path for a converted data file.
+
+    Parameters
+    ----------
+    filename : str | None, optional
+        Filename to append to the converted data directory.
+        If None, returns the converted directory path.
+
+    Returns
+    -------
+    Path
+        Path to the data file or directory.
+    """
+    base = get_default_data_dir() / "converted"
+    return base / filename if filename else base
+
+
 def _get_dataset_config(name: str) -> tuple[BaseDownloader | None, object | None, str]:
     """Get downloader, converter, and output file for a dataset.
 

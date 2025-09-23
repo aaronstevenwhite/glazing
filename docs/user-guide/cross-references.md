@@ -51,16 +51,20 @@ glazing search cross-ref --source propbank --id "give.01" \
 ```python
 from glazing.references.extractor import ReferenceExtractor
 from glazing.references.resolver import ReferenceResolver
-from pathlib import Path
+from glazing.verbnet.loader import VerbNetLoader
+from glazing.propbank.loader import PropBankLoader
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Load datasets
+vn_loader = VerbNetLoader()  # Automatically loads data
+pb_loader = PropBankLoader()  # Automatically loads data
 
-# Extract all references
+# Extract references
 extractor = ReferenceExtractor()
-references = extractor.extract_from_datasets(data_dir)
+extractor.extract_verbnet_references(list(vn_loader.classes.values()))
+extractor.extract_propbank_references(list(pb_loader.framesets.values()))
 
 # Resolve for specific item
-resolver = ReferenceResolver(references)
+resolver = ReferenceResolver(extractor.mapping_index)
 related = resolver.resolve("give.01", source="propbank")
 
 print(f"VerbNet: {related.verbnet_classes}")
@@ -74,14 +78,19 @@ print(f"FrameNet: {related.framenet_frames}")
 
 ```python
 from glazing.references.extractor import ReferenceExtractor
+from glazing.verbnet.loader import VerbNetLoader
 
+# Load dataset
+vn_loader = VerbNetLoader()
+
+# Extract references
 extractor = ReferenceExtractor()
 
-# Extract from all datasets
-all_refs = extractor.extract_from_datasets(data_dir)
-
 # Extract from specific dataset
-vn_refs = extractor.extract_from_verbnet(verb_classes)
+extractor.extract_verbnet_references(list(vn_loader.classes.values()))
+
+# Access extracted references
+vn_refs = extractor.verbnet_refs
 ```
 
 ### Manual Mapping

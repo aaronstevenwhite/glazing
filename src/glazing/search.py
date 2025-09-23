@@ -2,6 +2,7 @@
 
 This module provides a unified interface for searching across
 FrameNet, VerbNet, WordNet, and PropBank data simultaneously.
+All datasets are loaded automatically when UnifiedSearch is initialized.
 """
 
 from __future__ import annotations
@@ -9,14 +10,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from glazing.framenet.loader import FrameNetLoader
 from glazing.framenet.models import Frame
 from glazing.framenet.search import FrameNetSearch
+from glazing.initialize import get_default_data_path
+from glazing.propbank.loader import PropBankLoader
 from glazing.propbank.models import Frameset, Roleset
 from glazing.propbank.search import PropBankSearch
 from glazing.types import ResourceType
+from glazing.verbnet.loader import VerbNetLoader
 from glazing.verbnet.models import VerbClass
 from glazing.verbnet.search import VerbNetSearch
 from glazing.verbnet.types import PredicateType
+from glazing.wordnet.loader import WordNetLoader
 from glazing.wordnet.models import Synset
 from glazing.wordnet.search import WordNetSearch
 
@@ -170,14 +176,54 @@ class UnifiedSearch:
     >>> results = search.by_lemma("give")
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
+        data_dir: Path | str | None = None,
         framenet: FrameNetSearch | None = None,
         verbnet: VerbNetSearch | None = None,
         wordnet: WordNetSearch | None = None,
         propbank: PropBankSearch | None = None,
+        auto_load: bool = True,
     ) -> None:
-        """Initialize unified search with optional dataset indices."""
+        """Initialize unified search.
+
+        Parameters
+        ----------
+        data_dir : Path | str | None, optional
+            Directory containing converted data files.
+            If None, uses default path from environment.
+        framenet : FrameNetSearch | None, optional
+            Pre-initialized FrameNet search object.
+        verbnet : VerbNetSearch | None, optional
+            Pre-initialized VerbNet search object.
+        wordnet : WordNetSearch | None, optional
+            Pre-initialized WordNet search object.
+        propbank : PropBankSearch | None, optional
+            Pre-initialized PropBank search object.
+        auto_load : bool, default=True
+            If True and no search objects provided, automatically
+            loads from data_dir.
+        """
+        # If auto_load and no search objects provided, load from default paths
+        if auto_load and not any([framenet, verbnet, wordnet, propbank]):
+            if data_dir is None:
+                data_dir = get_default_data_path()
+            data_dir = Path(data_dir)
+
+            # Try to load each dataset if file exists
+            if (data_dir / "framenet.jsonl").exists():
+                fn_loader = FrameNetLoader()  # autoload=True by default
+                framenet = FrameNetSearch(fn_loader.frames)
+            if (data_dir / "verbnet.jsonl").exists():
+                vn_loader = VerbNetLoader()  # autoload=True by default
+                verbnet = VerbNetSearch(list(vn_loader.classes.values()))
+            if (data_dir / "wordnet.jsonl").exists():
+                wn_loader = WordNetLoader()  # autoload=True by default
+                wordnet = WordNetSearch(list(wn_loader.synsets.values()))
+            if (data_dir / "propbank.jsonl").exists():
+                pb_loader = PropBankLoader()  # autoload=True by default
+                propbank = PropBankSearch(list(pb_loader.framesets.values()))
+
         self.framenet = framenet
         self.verbnet = verbnet
         self.wordnet = wordnet

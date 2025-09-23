@@ -159,8 +159,8 @@ class TestWordNetLoader:
             yield data_path
 
     def test_loader_initialization(self, temp_data_dir):
-        """Test loader initialization."""
-        loader = WordNetLoader(temp_data_dir)
+        """Test loader initialization without autoload."""
+        loader = WordNetLoader(temp_data_dir, autoload=False)
 
         assert loader.data_path == temp_data_dir
         assert loader.lazy is False

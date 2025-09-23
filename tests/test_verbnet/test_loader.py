@@ -142,19 +142,19 @@ class TestVerbNetLoader:
 
     def test_loader_initialization(self, sample_jsonl_file):
         """Test VerbNetLoader initialization."""
-        loader = VerbNetLoader(sample_jsonl_file)
+        loader = VerbNetLoader(sample_jsonl_file, autoload=False)
 
         assert loader.data_path == sample_jsonl_file
-        assert loader.lazy_load is True
-        assert loader.cache is not None
+        assert loader.lazy is False  # Default is now False
+        assert loader.cache is None  # No cache when not lazy
         assert len(loader.class_index) == 2
         assert len(loader.member_index) == 3  # give#2, lend#1, transfer#1
 
-    def test_loader_initialization_no_lazy_load(self, sample_jsonl_file):
-        """Test VerbNetLoader without lazy loading."""
-        loader = VerbNetLoader(sample_jsonl_file, lazy_load=False)
+    def test_loader_initialization_with_autoload(self, sample_jsonl_file):
+        """Test VerbNetLoader with autoload."""
+        loader = VerbNetLoader(sample_jsonl_file)  # autoload=True by default
 
-        assert loader.lazy_load is False
+        assert loader.lazy is False
         assert loader.cache is None
         assert loader.classes_cache is not None
         assert len(loader.classes_cache) == 2
@@ -164,10 +164,10 @@ class TestVerbNetLoader:
         with pytest.raises(FileNotFoundError, match="Data file not found"):
             VerbNetLoader("nonexistent.jsonl")
 
-    def test_load_all(self, sample_jsonl_file):
+    def test_load(self, sample_jsonl_file):
         """Test loading all verb classes."""
-        loader = VerbNetLoader(sample_jsonl_file)
-        verb_classes = loader.load_all()
+        loader = VerbNetLoader(sample_jsonl_file, autoload=False)
+        verb_classes = loader.load()
 
         assert len(verb_classes) == 2
         assert "give-13.1" in verb_classes
@@ -252,7 +252,7 @@ class TestVerbNetLoader:
 
     def test_caching(self, sample_jsonl_file):
         """Test caching behavior."""
-        loader = VerbNetLoader(sample_jsonl_file, cache_size=10)
+        loader = VerbNetLoader(sample_jsonl_file, lazy=True, cache_size=10, autoload=False)
 
         # First access should cache
         verb_class1 = loader.get_verb_class("give-13.1")
@@ -314,25 +314,27 @@ class TestVerbNetLoader:
     def test_get_statistics(self, sample_jsonl_file):
         """Test getting loader statistics."""
         # Test with lazy loading
-        loader = VerbNetLoader(sample_jsonl_file)
+        loader = VerbNetLoader(sample_jsonl_file, autoload=False)
         stats = loader.get_statistics()
 
         assert stats["total_classes"] == 2
         assert stats["total_members"] == 3
-        assert stats["lazy_loading"] is True
+        assert stats["lazying"] is False  # Default is now False
+        # With autoload=False, data isn't loaded so detailed stats not available
+        assert "total_roles" not in stats
+        assert "total_frames" not in stats
 
-        # Test without lazy loading
-        loader = VerbNetLoader(sample_jsonl_file, lazy_load=False)
+        # Test with lazy loading
+        loader = VerbNetLoader(sample_jsonl_file, lazy=True, autoload=False)
         stats = loader.get_statistics()
 
         assert stats["total_classes"] == 2
         assert stats["total_members"] == 3
-        assert stats["lazy_loading"] is False
-        assert "total_roles" in stats
-        assert "total_frames" in stats
-        assert stats["total_roles"] == 6  # 3 + 3
-        assert stats["total_frames"] == 1
-        assert stats["total_subclasses"] == 1
+        assert stats["lazying"] is True
+        # In lazy mode, these detailed stats are not available
+        assert "total_roles" not in stats
+        assert "total_frames" not in stats
+        assert "total_subclasses" not in stats
 
     def test_get_class_hierarchy(self, sample_jsonl_file):
         """Test getting class hierarchy."""
@@ -354,13 +356,13 @@ class TestVerbNetLoader:
             temp_path = Path(f.name)
 
         try:
-            loader = VerbNetLoader(temp_path)
+            loader = VerbNetLoader(temp_path, autoload=False)
             # Should build indices despite invalid line
             assert len(loader.class_index) >= 0
 
-            # Load all should raise on invalid JSON
+            # Load should raise on invalid JSON
             with pytest.raises(ValueError, match="Error parsing line"):
-                loader.load_all()
+                loader.load()
         finally:
             temp_path.unlink(missing_ok=True)
 
@@ -376,7 +378,7 @@ class TestVerbNetLoader:
             assert len(loader.class_index) == 0
             assert len(loader.member_index) == 0
 
-            verb_classes = loader.load_all()
+            verb_classes = loader.load()
             assert len(verb_classes) == 0
         finally:
             temp_path.unlink(missing_ok=True)

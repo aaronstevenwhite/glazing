@@ -99,7 +99,7 @@ Examples
 >>> from glazing.framenet.types import is_valid_frame_name
 >>> is_valid_frame_name("Abandonment")
 True
->>> is_valid_frame_name("abandonment")
+>>> is_valid_frame_name("123-invalid!")
 False
 """
 

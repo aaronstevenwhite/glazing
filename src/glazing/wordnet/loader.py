@@ -7,7 +7,7 @@ traversal operations.
 Classes
 -------
 WordNetLoader
-    Loads and indexes WordNet database from JSON Lines format.
+    Loads and indexes WordNet database from JSON Lines format with automatic loading.
 
 Functions
 ---------
@@ -16,10 +16,15 @@ load_wordnet
 
 Examples
 --------
->>> from glazing.wordnet import WordNetLoader
->>> loader = WordNetLoader("data/wordnet")
+>>> from glazing.wordnet.loader import WordNetLoader
+>>> # Data loads automatically on initialization
+>>> loader = WordNetLoader()
 >>> synset = loader.get_synset("00001740")
 >>> senses = loader.get_senses_by_lemma("dog", pos="n")
+>>>
+>>> # Or disable autoload for manual control
+>>> loader = WordNetLoader(autoload=False)
+>>> loader.load()  # Load manually when needed
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from glazing.initialize import get_default_data_path
 from glazing.utils.cache import LRUCache
 from glazing.wordnet.models import (
     ExceptionEntry,
@@ -46,19 +52,23 @@ from glazing.wordnet.types import (
 
 
 class WordNetLoader:
-    """Load and index WordNet database from JSON Lines format.
+    """Load and index WordNet database from JSON Lines format with automatic loading.
 
     This class provides efficient loading and indexing of WordNet data,
     including synsets, senses, and morphological exceptions. It builds
     multiple indices for fast lookups and supports lazy loading of
-    large datasets.
+    large datasets. By default, data is loaded automatically on initialization.
 
     Parameters
     ----------
-    data_path : Path | str
+    data_path : Path | str | None, optional
         Path to directory containing WordNet JSON Lines files.
+        If None, uses default path from environment.
     lazy : bool, default=False
         If True, load synsets on demand rather than all at once.
+    autoload : bool, default=True
+        Whether to automatically load data on initialization.
+        Only applies when lazy=False.
     cache_size : int, default=1000
         Number of synsets to cache when using lazy loading.
 
@@ -86,25 +96,42 @@ class WordNetLoader:
 
     Examples
     --------
-    >>> loader = WordNetLoader("data/wordnet")
-    >>> loader.load()
+    >>> # Automatic loading (default)
+    >>> loader = WordNetLoader()
     >>> dog_synsets = loader.get_synsets_by_lemma("dog", "n")
     >>> for synset in dog_synsets:
     ...     print(f"{synset.offset}: {synset.gloss}")
+
+    >>> # Manual loading
+    >>> loader = WordNetLoader(autoload=False)
+    >>> loader.load()
+    >>> synsets = loader.synsets  # Now accessible
     """
 
-    def __init__(self, data_path: Path | str, lazy: bool = False, cache_size: int = 1000) -> None:
+    def __init__(
+        self,
+        data_path: Path | str | None = None,
+        lazy: bool = False,
+        autoload: bool = True,
+        cache_size: int = 1000,
+    ) -> None:
         """Initialize WordNet loader.
 
         Parameters
         ----------
-        data_path : Path | str
+        data_path : Path | str | None, optional
             Path to directory containing WordNet JSON Lines files.
+            If None, uses default path from environment.
         lazy : bool, default=False
             If True, load synsets on demand.
+        autoload : bool, default=True
+            Whether to automatically load data on initialization.
+            Only applies when lazy=False.
         cache_size : int, default=1000
             Size of LRU cache for lazy loading.
         """
+        if data_path is None:
+            data_path = get_default_data_path("wordnet.jsonl")
         self.data_path = Path(data_path)
         self.lazy = lazy
         self.cache_size = cache_size
@@ -132,6 +159,10 @@ class WordNetLoader:
 
         # Track loaded state
         self._loaded = False
+
+        # Autoload data if requested and not lazy loading
+        if autoload and not lazy:
+            self.load()
 
     def load(self) -> None:
         """Load all WordNet data from JSON Lines files.

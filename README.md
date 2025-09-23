@@ -36,8 +36,9 @@ Then start using the data:
 ```python
 from glazing.search import UnifiedSearch
 
+# Automatically uses default data directory after 'glazing init'
 search = UnifiedSearch()
-results = search.search_by_query("give")
+results = search.search("give")
 
 for result in results[:5]:
     print(f"{result.dataset}: {result.name} - {result.description}")
@@ -65,31 +66,36 @@ Load and work with individual datasets:
 ```python
 from glazing.framenet.loader import FrameNetLoader
 from glazing.verbnet.loader import VerbNetLoader
-from pathlib import Path
 
-# Load datasets
-data_dir = Path.home() / ".local/share/glazing/converted"
+# Loaders automatically use default paths and load data after 'glazing init'
+fn_loader = FrameNetLoader()  # Data is already loaded
+frames = fn_loader.frames
 
-fn_loader = FrameNetLoader()
-frames = fn_loader.load_frames(data_dir / "framenet.jsonl")
-
-vn_loader = VerbNetLoader()
-verb_classes = vn_loader.load_verb_classes(data_dir / "verbnet.jsonl")
+vn_loader = VerbNetLoader()  # Data is already loaded
+verb_classes = list(vn_loader.classes.values())
 ```
 
 Cross-reference resolution:
 
 ```python
-from glazing.references.resolver import ReferenceResolver
 from glazing.references.extractor import ReferenceExtractor
+from glazing.verbnet.loader import VerbNetLoader
+from glazing.propbank.loader import PropBankLoader
 
-# Extract and resolve references
+# Load datasets
+vn_loader = VerbNetLoader()
+pb_loader = PropBankLoader()
+
+# Extract references
 extractor = ReferenceExtractor()
-references = extractor.extract_from_datasets(data_dir)
+extractor.extract_verbnet_references(list(vn_loader.classes.values()))
+extractor.extract_propbank_references(list(pb_loader.framesets.values()))
 
-resolver = ReferenceResolver(references)
-related = resolver.resolve("give.01", source="propbank")
-print(f"VerbNet classes: {related.verbnet_classes}")
+# Access PropBank cross-references
+if "give.01" in extractor.propbank_refs:
+    refs = extractor.propbank_refs["give.01"]
+    vn_classes = refs.get_verbnet_classes()
+    print(f"VerbNet classes for give.01: {vn_classes}")
 ```
 
 ## Supported Datasets
@@ -142,3 +148,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - [PyPI Package](https://pypi.org/project/glazing/)
 - [Documentation](https://glazing.readthedocs.io)
 - [Issue Tracker](https://github.com/aaronstevenwhite/glazing/issues)
+
+## Acknowledgments
+
+This project was funded by a [National Science Foundation](https://www.nsf.gov/) ([BCS-2040831](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2040831)) and builds upon the foundational work of the FrameNet, PropBank, VerbNet, and WordNet teams.

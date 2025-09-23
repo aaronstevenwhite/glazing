@@ -113,20 +113,20 @@ class TestPropBankLoader:
         temp_path.unlink(missing_ok=True)
 
     def test_loader_initialization(self, sample_jsonl_file):
-        """Test PropBankLoader initialization."""
-        loader = PropBankLoader(sample_jsonl_file)
+        """Test PropBankLoader initialization without autoload."""
+        loader = PropBankLoader(sample_jsonl_file, autoload=False)
 
         assert loader.data_path == sample_jsonl_file
-        assert loader.lazy_load is True
-        assert loader.cache is not None
+        assert loader.lazy is False  # Default is now False
+        assert loader.cache is None  # No cache when not lazy
         assert len(loader.frameset_index) == 2
         assert len(loader.roleset_index) == 2
 
-    def test_loader_initialization_no_lazy_load(self, sample_jsonl_file):
-        """Test PropBankLoader without lazy loading."""
-        loader = PropBankLoader(sample_jsonl_file, lazy_load=False)
+    def test_loader_initialization_with_autoload(self, sample_jsonl_file):
+        """Test PropBankLoader with autoload."""
+        loader = PropBankLoader(sample_jsonl_file)  # autoload=True by default
 
-        assert loader.lazy_load is False
+        assert loader.lazy is False
         assert loader.cache is None
         assert loader.framesets_cache is not None
         assert len(loader.framesets_cache) == 2
@@ -136,10 +136,10 @@ class TestPropBankLoader:
         with pytest.raises(FileNotFoundError, match="Data file not found"):
             PropBankLoader("nonexistent.jsonl")
 
-    def test_load_all(self, sample_jsonl_file):
+    def test_load(self, sample_jsonl_file):
         """Test loading all framesets."""
-        loader = PropBankLoader(sample_jsonl_file)
-        framesets = loader.load_all()
+        loader = PropBankLoader(sample_jsonl_file, autoload=False)
+        framesets = loader.load()
 
         assert len(framesets) == 2
         assert "abandon" in framesets
@@ -198,7 +198,7 @@ class TestPropBankLoader:
 
     def test_caching(self, sample_jsonl_file):
         """Test caching behavior."""
-        loader = PropBankLoader(sample_jsonl_file, cache_size=10)
+        loader = PropBankLoader(sample_jsonl_file, lazy=True, cache_size=10, autoload=False)
 
         # First access should cache
         frameset1 = loader.get_frameset("abandon")
@@ -261,19 +261,22 @@ class TestPropBankLoader:
 
         assert stats["total_framesets"] == 2
         assert stats["total_rolesets"] == 2
-        assert stats["lazy_loading"] is True
-
-        # Test without lazy loading
-        loader = PropBankLoader(sample_jsonl_file, lazy_load=False)
-        stats = loader.get_statistics()
-
-        assert stats["total_framesets"] == 2
-        assert stats["total_rolesets"] == 2
-        assert stats["lazy_loading"] is False
+        assert stats["lazy_loading"] is False  # Default is now False
         assert "total_roles" in stats
         assert "total_examples" in stats
         assert stats["total_roles"] == 5  # 2 + 3
         assert stats["total_examples"] == 1
+
+        # Test with lazy loading
+        loader = PropBankLoader(sample_jsonl_file, lazy=True, autoload=False)
+        stats = loader.get_statistics()
+
+        assert stats["total_framesets"] == 2
+        assert stats["total_rolesets"] == 2
+        assert stats["lazy_loading"] is True
+        # In lazy mode, these stats are not available
+        assert "total_roles" not in stats
+        assert "total_examples" not in stats
 
     def test_resolve_cross_references(self, sample_jsonl_file):
         """Test cross-reference resolution."""
@@ -299,13 +302,13 @@ class TestPropBankLoader:
             temp_path = Path(f.name)
 
         try:
-            loader = PropBankLoader(temp_path)
+            loader = PropBankLoader(temp_path, autoload=False)
             # Should build indices despite invalid line
             assert len(loader.frameset_index) >= 0
 
-            # Load all should raise on invalid JSON
+            # Load should raise on invalid JSON
             with pytest.raises(ValueError, match="Error parsing line"):
-                loader.load_all()
+                loader.load()
         finally:
             temp_path.unlink(missing_ok=True)
 
@@ -321,7 +324,7 @@ class TestPropBankLoader:
             assert len(loader.frameset_index) == 0
             assert len(loader.roleset_index) == 0
 
-            framesets = loader.load_all()
+            framesets = loader.load()
             assert len(framesets) == 0
         finally:
             temp_path.unlink(missing_ok=True)

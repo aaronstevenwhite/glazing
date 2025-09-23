@@ -48,11 +48,12 @@ After initialization, you can immediately start exploring the data:
 
 ```python
 from glazing.search import UnifiedSearch
-from pathlib import Path
+
+# Automatically uses default data directory after 'glazing init'
+search = UnifiedSearch()
 
 # Search across all datasets
-search = UnifiedSearch()
-results = search.search_by_query("give")
+results = search.search("give")
 
 for result in results[:5]:
     print(f"{result.dataset}: {result.name} - {result.description}")
@@ -95,7 +96,7 @@ Glazing is actively maintained and welcomes contributions. The project follows s
 
 ## License
 
-MIT License - see [LICENSE](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE) file for details.
+This package is licensed under an MIT License. See [LICENSE](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE) file for details.
 
 ## Citation
 
@@ -109,3 +110,7 @@ If you use Glazing in your research, please cite:
   url = {https://github.com/aaronstevenwhite/glazing}
 }
 ```
+
+## Acknowledgments
+
+This project was funded by a [National Science Foundation](https://www.nsf.gov/) ([BCS-2040831](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2040831)) and builds upon the foundational work of the FrameNet, PropBank, VerbNet, and WordNet teams.

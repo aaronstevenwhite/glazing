@@ -15,39 +15,39 @@ pip install glazing
 ```python
 from glazing.search import UnifiedSearch
 
-# Initialize with default data directory
+# Initialize search (automatically uses default data directory)
 search = UnifiedSearch()
 
 # Search across all datasets
-results = search.search_by_query("abandon")
+results = search.search("abandon")
 
 # Search with filters
-results = search.search_by_lemma("run", pos="verb")
+results = search.search("run")
+
+# Search by lemma with POS filter
+results = search.by_lemma("run", pos="v")
 ```
 
 ### Loading Datasets
 
 ```python
-from pathlib import Path
 from glazing.framenet.loader import FrameNetLoader
 from glazing.propbank.loader import PropBankLoader
 from glazing.verbnet.loader import VerbNetLoader
 from glazing.wordnet.loader import WordNetLoader
 
-data_dir = Path.home() / ".local/share/glazing/converted"
+# All loaders automatically use default paths and load data after 'glazing init'
+fn_loader = FrameNetLoader()  # Data is already loaded
+frames = fn_loader.frames
 
-# Load individual datasets
-fn_loader = FrameNetLoader()
-frames = fn_loader.load_frames(data_dir / "framenet.jsonl")
+pb_loader = PropBankLoader()  # Data is already loaded
+framesets = list(pb_loader.framesets.values())
 
-pb_loader = PropBankLoader()
-framesets = pb_loader.load_framesets(data_dir / "propbank.jsonl")
+vn_loader = VerbNetLoader()  # Data is already loaded
+verb_classes = list(vn_loader.classes.values())
 
-vn_loader = VerbNetLoader()
-verb_classes = vn_loader.load_verb_classes(data_dir / "verbnet.jsonl")
-
-wn_loader = WordNetLoader()
-synsets = wn_loader.load_synsets(data_dir / "wordnet.jsonl")
+wn_loader = WordNetLoader()  # Data is already loaded
+synsets = list(wn_loader.synsets.values())
 ```
 
 ## Advanced Features
@@ -57,9 +57,9 @@ synsets = wn_loader.load_synsets(data_dir / "wordnet.jsonl")
 ```python
 from glazing.verbnet.loader import VerbNetLoader
 
-loader = VerbNetLoader()
+loader = VerbNetLoader()  # Automatically uses default path
 # Process one at a time without loading all into memory
-for verb_class in loader.stream_verb_classes(path):
+for verb_class in loader.iter_verb_classes():
     if "run" in [m.name for m in verb_class.members]:
         print(f"Found in: {verb_class.id}")
         break
@@ -70,10 +70,11 @@ for verb_class in loader.stream_verb_classes(path):
 ```python
 from glazing.references.extractor import ReferenceExtractor
 from glazing.references.resolver import ReferenceResolver
+from glazing.initialize import get_default_data_path
 
-# Extract references
+# Extract references (uses default data directory)
 extractor = ReferenceExtractor()
-references = extractor.extract_from_datasets(data_dir)
+references = extractor.extract_from_datasets(get_default_data_path())
 
 # Resolve for a specific item
 resolver = ReferenceResolver(references)
@@ -84,17 +85,24 @@ related = resolver.resolve("give.01", source="propbank")
 
 ```python
 from glazing.verbnet.search import VerbNetSearch
+from glazing.verbnet.loader import VerbNetLoader
+from glazing.verbnet.types import ThematicRoleType
 
-search = VerbNetSearch(data_dir / "verbnet.jsonl")
+# Loader automatically loads data
+loader = VerbNetLoader()
+verb_classes = list(loader.classes.values())  # Already loaded
 
-# Find by member
-classes = search.find_by_member("run")
+# Initialize search with loaded data
+search = VerbNetSearch(verb_classes)
 
-# Find by thematic role
-agent_classes = search.find_by_themrole("Agent")
+# Find by members
+classes = search.by_members(["run"])
 
-# Find by frame description
-motion_frames = search.find_by_frame_description("motion")
+# Find by thematic roles
+agent_classes = search.by_themroles([ThematicRoleType.AGENT])
+
+# Find by syntax pattern
+motion_classes = search.by_syntax("NP V PP")
 ```
 
 ## Data Models
@@ -120,9 +128,11 @@ json_str = member.model_dump_json()
 
 ```python
 from pydantic import ValidationError
+from glazing.framenet.loader import FrameNetLoader
 
 try:
-    frames = loader.load_frames(path)
+    loader = FrameNetLoader()  # Automatically loads data
+    frames = loader.frames
 except FileNotFoundError:
     print("Data not found - run 'glazing init'")
 except ValidationError as e:
@@ -150,17 +160,18 @@ lemmas = ["give", "take", "run", "walk"]
 all_results = {}
 
 for lemma in lemmas:
-    all_results[lemma] = search.search_by_lemma(lemma)
+    all_results[lemma] = search.by_lemma(lemma)
 ```
 
 ### Memory Management
 
 ```python
 # Use generators for large datasets
-def process_large_dataset(path):
-    loader = VerbNetLoader()
-    for verb_class in loader.stream_verb_classes(path):
-        yield process_class(verb_class)
+def process_large_dataset():
+    loader = VerbNetLoader()  # Automatically loads data
+    for batch in loader.iter_verb_classes():
+        for verb_class in batch:
+            yield process_class(verb_class)
 ```
 
 ## Integration Examples
@@ -176,7 +187,7 @@ search = UnifiedSearch()
 
 @app.route('/api/search/<query>')
 def search_endpoint(query):
-    results = search.search_by_query(query)
+    results = search.search(query)
     return jsonify([r.__dict__ for r in results[:10]])
 ```
 
@@ -186,8 +197,8 @@ def search_endpoint(query):
 import pandas as pd
 from glazing.wordnet.loader import WordNetLoader
 
-loader = WordNetLoader()
-synsets = loader.load_synsets(path)
+loader = WordNetLoader()  # Automatically loads data
+synsets = list(loader.synsets.values())
 
 # Convert to DataFrame
 df = pd.DataFrame([
@@ -216,11 +227,11 @@ def enrich_with_frames(text):
 
     for token in doc:
         if token.pos_ == "VERB":
-            results = search.search_by_lemma(token.lemma_, pos="verb")
+            results = search.by_lemma(token.lemma_, pos="v")
             enriched.append({
                 'token': token.text,
                 'lemma': token.lemma_,
-                'frames': [r.name for r in results[:3]]
+                'frames': [r.frames[0].name if r.frames else "" for r in results[:3]]
             })
 
     return enriched
