@@ -2,9 +2,9 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/glazing)](https://pypi.org/project/glazing/)
 [![Python versions](https://img.shields.io/pypi/pyversions/glazing)](https://pypi.org/project/glazing/)
-[![License](https://img.shields.io/pypi/l/glazing)](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE)
 [![CI](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml)
 [![Documentation](https://readthedocs.org/projects/glazing/badge/?version=latest)](https://glazing.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/pypi/l/glazing)](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE)
 
 A unified Python interface for FrameNet, PropBank, VerbNet, and WordNet with automatic data management.
 
@@ -116,7 +116,7 @@ Full documentation available at [https://glazing.readthedocs.io](https://glazing
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! See [CONTRIBUTING.md](https://github.com/aaronstevenwhite/glazing/blob/main/CONTRIBUTING.md) for guidelines.
 
 ```bash
 # Development setup
@@ -140,7 +140,7 @@ If you use Glazing in your research, please cite:
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+This package is licensed under an MIT License. See [LICENSE](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE) file for details.
 
 ## Links
 
