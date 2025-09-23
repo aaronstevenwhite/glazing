@@ -100,10 +100,10 @@ if "give.01" in extractor.propbank_refs:
 
 ## Supported Datasets
 
-- **FrameNet 1.7**: Semantic frames and frame elements
-- **PropBank 3.4**: Predicate-argument structures
-- **VerbNet 3.4**: Verb classes with thematic roles
-- **WordNet 3.1**: Synsets and lexical relations
+- **[FrameNet](https://framenet.icsi.berkeley.edu/) 1.7**: Semantic frames and frame elements
+- **[PropBank](https://propbank.github.io/) 3.4**: Predicate-argument structures
+- **[VerbNet](https://verbs.colorado.edu/verbnet/) 3.4**: Verb classes with thematic roles
+- **[WordNet](https://wordnet.princeton.edu/) 3.1**: Synsets and lexical relations
 
 ## Documentation
 
