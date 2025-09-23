@@ -4,6 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/glazing)](https://pypi.org/project/glazing/)
 [![License](https://img.shields.io/pypi/l/glazing)](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE)
 [![CI](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17185626.svg)](https://doi.org/10.5281/zenodo.17185626)
 
 Unified data models and interfaces for syntactic and semantic frame ontologies.
 
@@ -108,7 +109,8 @@ If you use Glazing in your research, please cite:
   title = {Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies},
   year = {2025},
   url = {https://github.com/aaronstevenwhite/glazing},
-  version = {0.1.0}
+  version = {0.1.0},
+  doi = {10.5281/zenodo.17185626}
 }
 ```
 
