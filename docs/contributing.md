@@ -244,7 +244,8 @@ Check the issue tracker for `enhancement` labels. Feel free to discuss implement
 ## Recognition
 
 Contributors are recognized in:
-- The project's CHANGELOG.md
+
+- The project's [CHANGELOG.md](https://github.com/aaronstevenwhite/glazing/blob/main/CHANGELOG.md)
 - GitHub's contributor graph
 - Special mentions for significant contributions
 
@@ -255,6 +256,7 @@ By contributing to Glazing, you agree that your contributions will be licensed u
 ## Questions?
 
 Feel free to:
+
 - Open an issue
 - Start a discussion
 - Contact the maintainers
