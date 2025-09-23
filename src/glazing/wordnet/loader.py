@@ -628,6 +628,6 @@ def load_wordnet(
     >>> dog = wn.get_synsets_by_lemma("dog", "n")[0]
     >>> print(dog.gloss)
     """
-    loader = WordNetLoader(data_path, lazy=lazy, cache_size=cache_size)
+    loader = WordNetLoader(data_path, lazy=lazy, cache_size=cache_size, autoload=False)
     loader.load()
     return loader

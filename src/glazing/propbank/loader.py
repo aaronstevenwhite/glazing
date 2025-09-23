@@ -521,7 +521,7 @@ def load_framesets(path: Path | str) -> dict[PredicateLemma, Frameset]:
     >>> framesets = load_framesets("propbank.jsonl")
     >>> print(f"Loaded {len(framesets)} framesets")
     """
-    loader = PropBankLoader(path, lazy=False)
+    loader = PropBankLoader(path, lazy=False, autoload=False)
     return loader.load()
 
 
@@ -546,5 +546,5 @@ def load_frameset(path: Path | str, predicate: PredicateLemma) -> Frameset | Non
     >>> if frameset:
     ...     print(f"Found {len(frameset.rolesets)} rolesets")
     """
-    loader = PropBankLoader(path, lazy=True)
+    loader = PropBankLoader(path, lazy=True, autoload=False)
     return loader.get_frameset(predicate)

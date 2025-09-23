@@ -588,7 +588,7 @@ def load_frames(filepath: Path | str, skip_errors: bool = False) -> list[Frame]:
     list[Frame]
         Loaded Frame models.
     """
-    loader = FrameNetLoader()
+    loader = FrameNetLoader(autoload=False)
     return loader.load_frames(filepath, skip_errors)
 
 
@@ -607,7 +607,7 @@ def load_lexical_units(filepath: Path | str, skip_errors: bool = False) -> list[
     list[LexicalUnit]
         Loaded LexicalUnit models.
     """
-    loader = FrameNetLoader()
+    loader = FrameNetLoader(autoload=False)
     return loader.load_lexical_units(filepath, skip_errors)
 
 
@@ -642,5 +642,5 @@ def load_and_index_frames(filepath: Path | str, skip_errors: bool = False) -> Fr
     FrameIndex
         Loaded and indexed frames.
     """
-    loader = FrameNetLoader()
+    loader = FrameNetLoader(autoload=False)
     return loader.load_and_index_frames(filepath, skip_errors)

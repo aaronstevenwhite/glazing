@@ -594,7 +594,7 @@ def load_verb_classes(path: Path | str) -> dict[VerbClassID, VerbClass]:
     >>> verb_classes = load_verb_classes("verbnet.jsonl")
     >>> print(f"Loaded {len(verb_classes)} verb classes")
     """
-    loader = VerbNetLoader(path, lazy=False)
+    loader = VerbNetLoader(path, lazy=False, autoload=False)
     return loader.load()
 
 
@@ -619,5 +619,5 @@ def load_verb_class(path: Path | str, class_id: VerbClassID) -> VerbClass | None
     >>> if verb_class:
     ...     print(f"Found {len(verb_class.members)} members")
     """
-    loader = VerbNetLoader(path, lazy=True)
+    loader = VerbNetLoader(path, lazy=True, autoload=False)
     return loader.get_verb_class(class_id)

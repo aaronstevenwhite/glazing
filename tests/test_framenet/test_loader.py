@@ -287,7 +287,7 @@ class TestFrameNetLoader:
     @pytest.fixture
     def loader(self):
         """Create FrameNet loader instance."""
-        return FrameNetLoader()
+        return FrameNetLoader(autoload=False)
 
     @pytest.fixture
     def sample_frames_jsonl(self, tmp_path):
