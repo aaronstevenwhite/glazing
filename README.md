@@ -1,12 +1,10 @@
-# Glazing
-
 [![PyPI version](https://img.shields.io/pypi/v/glazing)](https://pypi.org/project/glazing/)
 [![Python versions](https://img.shields.io/pypi/pyversions/glazing)](https://pypi.org/project/glazing/)
 [![CI](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aaronstevenwhite/glazing/actions/workflows/ci.yml)
 [![Documentation](https://readthedocs.org/projects/glazing/badge/?version=latest)](https://glazing.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/pypi/l/glazing)](https://github.com/aaronstevenwhite/glazing/blob/main/LICENSE)
 
-A unified Python interface for FrameNet, PropBank, VerbNet, and WordNet with automatic data management.
+Unified data models and interfaces for syntactic and semantic frame ontologies.
 
 ## Features
 
@@ -132,7 +130,7 @@ If you use Glazing in your research, please cite:
 ```bibtex
 @software{glazing2025,
   author = {White, Aaron Steven},
-  title = {Glazing: A Unified Interface for Linguistic Resources},
+  title = {Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies},
   year = {2025},
   url = {https://github.com/aaronstevenwhite/glazing}
 }

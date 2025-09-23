@@ -1,5 +1,5 @@
 site_name: Glazing Documentation
-site_description: A unified interface for FrameNet, PropBank, VerbNet, and WordNet
+site_description: Unified data models and interfaces for syntactic and semantic frame ontologies
 site_author: Aaron Steven White
 site_url: https://glazing.readthedocs.io
 repo_name: aaronstevenwhite/glazing

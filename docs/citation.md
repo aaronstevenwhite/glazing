@@ -9,7 +9,7 @@ If you use Glazing in your research, please cite our work.
 ```bibtex
 @software{glazing2025,
   author = {White, Aaron Steven},
-  title = {Glazing: A Unified Interface for Linguistic Resources},
+  title = {Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies},
   year = {2025},
   url = {https://github.com/aaronstevenwhite/glazing},
   version = {0.1.0}
@@ -18,15 +18,15 @@ If you use Glazing in your research, please cite our work.
 
 ### APA
 
-White, A. S. (2025). *Glazing: A Unified Interface for Linguistic Resources* (Version 0.1.0) [Computer software]. https://github.com/aaronstevenwhite/glazing
+White, A. S. (2025). *Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies* (Version 0.1.0) [Computer software]. https://github.com/aaronstevenwhite/glazing
 
 ### Chicago
 
-White, Aaron Steven. 2025. *Glazing: A Unified Interface for Linguistic Resources*. Version 0.1.0. https://github.com/aaronstevenwhite/glazing.
+White, Aaron Steven. 2025. *Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies*. Version 0.1.0. https://github.com/aaronstevenwhite/glazing.
 
 ### MLA
 
-White, Aaron Steven. *Glazing: A Unified Interface for Linguistic Resources*. Version 0.1.0, 2025, https://github.com/aaronstevenwhite/glazing.
+White, Aaron Steven. *Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies*. Version 0.1.0, 2025, https://github.com/aaronstevenwhite/glazing.
 
 ## Citing Datasets
 
@@ -34,32 +34,31 @@ Please also cite the original datasets you use:
 
 ### FrameNet
 
-Baker, Collin F., Charles J. Fillmore, and John B. Lowe. "The Berkeley FrameNet Project." *COLING-ACL '98*, 1998, pp. 86-90.
+Baker, Collin F., Charles J. Fillmore, and John B. Lowe. 1998. The Berkeley FrameNet Project. In *Proceedings of the 36th Annual Meeting of the Association for Computational Linguistics and 17th International Conference on Computational Linguistics (COLING-ACL '98)*, pages 86-90, Montreal, Quebec, Canada. Association for Computational Linguistics.
 
 ### PropBank
 
-Palmer, Martha, Daniel Gildea, and Paul Kingsbury. "The Proposition Bank: An Annotated Corpus of Semantic Roles." *Computational Linguistics*, vol. 31, no. 1, 2005, pp. 71-106.
+Palmer, Martha, Daniel Gildea, and Paul Kingsbury. 2005. The Proposition Bank: An Annotated Corpus of Semantic Roles. *Computational Linguistics*, 31(1):71-106.
 
 ### VerbNet
 
-Schuler, Karin Kipper. *VerbNet: A Broad-Coverage, Comprehensive Verb Lexicon*. PhD dissertation, University of Pennsylvania, 2005.
+Schuler, Karin Kipper. 2005. *VerbNet: A Broad-Coverage, Comprehensive Verb Lexicon*. Ph.D. thesis, University of Pennsylvania, Philadelphia, PA, USA.
 
 ### WordNet
 
-Fellbaum, Christiane, editor. *WordNet: An Electronic Lexical Database*. MIT Press, 1998.
+Fellbaum, Christiane, editor. 1998. *WordNet: An Electronic Lexical Database*. Language, Speech, and Communication. MIT Press, Cambridge, MA, USA.
 
 ## Related Publications
 
 If you're interested in cross-resource integration, see:
 
-- Bonial, Claire, et al. "PropBank: Semantics of New Predicate Types." *LREC*, 2014.
-- Shi, Lei, and Rada Mihalcea. "Putting Pieces Together: Combining FrameNet, VerbNet and WordNet for Robust Semantic Parsing." *CICLing*, 2005.
+Bonial, Claire, Julia Bonn, Kathryn Conger, Jena D. Hwang, and Martha Palmer. 2014. PropBank: Semantics of New Predicate Types. In *Proceedings of the Ninth International Conference on Language Resources and Evaluation (LREC '14)*, pages 3013-3019, Reykjavik, Iceland. European Language Resources Association (ELRA).
+
+Shi, Lei, and Rada Mihalcea. 2005. Putting Pieces Together: Combining FrameNet, VerbNet and WordNet for Robust Semantic Parsing. In Alexander Gelbukh, editor, *Computational Linguistics and Intelligent Text Processing: 6th International Conference, CICLing 2005*, pages 100-111, Mexico City, Mexico. Springer Berlin Heidelberg.
 
 ## Acknowledgments
 
-This work was supported in part by [funding sources if applicable].
-
-Special thanks to the maintainers of FrameNet, PropBank, VerbNet, and WordNet for making their resources available.
+This project was funded by a [National Science Foundation](https://www.nsf.gov/) ([BCS-2040831](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2040831)) and builds upon the foundational work of the FrameNet, PropBank, VerbNet, and WordNet teams.
 
 ## Contact
 

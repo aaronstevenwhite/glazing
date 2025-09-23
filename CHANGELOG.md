@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2025-09-23
 
-Initial release of Glazing - A unified interface for FrameNet, PropBank, VerbNet, and WordNet linguistic resources.
+Initial release of `glazing`, a package containing unified data models and interfaces for syntactic and semantic frame ontologies.
 
 ### Added
 

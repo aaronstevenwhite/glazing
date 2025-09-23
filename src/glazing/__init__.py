@@ -1,4 +1,4 @@
-"""Unified interface for FrameNet, PropBank, VerbNet, and WordNet linguistic resources.
+"""Unified data models and interfaces for syntactic and semantic frame ontologies.
 
 This package provides type-safe data models and utilities for working with
 four major linguistic resources. All models use Pydantic v2 for validation
