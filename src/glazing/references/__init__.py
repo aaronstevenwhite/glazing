@@ -14,17 +14,31 @@ UnifiedLemma
     A lemma with representations across all datasets.
 MappingIndex
     Bidirectional index for fast mapping lookups.
+CrossReferenceIndex
+    Automatic cross-reference extraction and resolution.
+ReferenceExtractor
+    Extract references from datasets.
+ReferenceResolver
+    Resolve cross-references between datasets.
 
 Functions
 ---------
-resolve_references
-    Resolve cross-references between datasets.
+get_default_index
+    Get or create the default global index.
 
 Examples
 --------
->>> from frames.references import CrossRef
->>> xref = CrossRef(fn, pb, vn, wn)
->>> mappings = xref.get_mappings("give", source="verbnet")
+>>> from glazing.references.index import CrossReferenceIndex
+>>> xref = CrossReferenceIndex()
+>>> refs = xref.resolve("give.01", source="propbank")
+>>> print(refs["verbnet_classes"])
+['give-13.1']
 """
 
-__all__: list[str] = []
+from glazing.references.models import CrossReference, MappingConfidence, MappingIndex
+
+__all__ = [
+    "CrossReference",
+    "MappingConfidence",
+    "MappingIndex",
+]

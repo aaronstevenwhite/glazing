@@ -13,11 +13,13 @@ from pathlib import Path
 from glazing.framenet.loader import FrameNetLoader
 from glazing.framenet.models import Frame
 from glazing.framenet.search import FrameNetSearch
+from glazing.framenet.symbol_parser import normalize_frame_name
 from glazing.initialize import get_default_data_path
 from glazing.propbank.loader import PropBankLoader
 from glazing.propbank.models import Frameset, Roleset
 from glazing.propbank.search import PropBankSearch
 from glazing.types import ResourceType
+from glazing.utils.fuzzy_match import levenshtein_ratio
 from glazing.verbnet.loader import VerbNetLoader
 from glazing.verbnet.models import VerbClass
 from glazing.verbnet.search import VerbNetSearch
@@ -859,7 +861,7 @@ class UnifiedSearch:
                         )
         return references
 
-    def _verbnet_to_framenet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+    def _verbnet_to_framenet_refs(self, entity_id: str) -> list[dict[str, str | float]]:  # noqa: C901, PLR0912
         """Find VerbNet to FrameNet references.
 
         Parameters
@@ -872,15 +874,68 @@ class UnifiedSearch:
         list[dict[str, str | float]]
             Reference mappings.
         """
-        if self.verbnet:
-            verb_class = self.verbnet.get_by_id(entity_id)
-            if verb_class and verb_class.frames:
-                raise NotImplementedError(
-                    "VerbNet to FrameNet cross-references not yet implemented"
-                )
-        return []
+        references: list[dict[str, str | float]] = []
+        if not self.verbnet:
+            return references
 
-    def _framenet_to_verbnet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
+        verb_class = self.verbnet.get_by_id(entity_id)
+        if not verb_class:
+            return references
+
+        # Extract FrameNet mappings from VerbNet members
+        for member in verb_class.members:
+            for fn_mapping in member.framenet_mappings:
+                # Calculate confidence based on mapping metadata
+                confidence = 1.0
+                if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
+                    if hasattr(fn_mapping.confidence, "score"):
+                        confidence = fn_mapping.confidence.score
+                    elif isinstance(fn_mapping.confidence, (int, float)):
+                        confidence = float(fn_mapping.confidence)
+
+                references.append(
+                    {
+                        "target_id": fn_mapping.frame_name,
+                        "mapping_type": "framenet_mapping",
+                        "confidence": confidence,
+                    }
+                )
+
+        # Also check subclasses
+        for subclass in verb_class.subclasses:
+            for member in subclass.members:
+                for fn_mapping in member.framenet_mappings:
+                    confidence = 1.0
+                    if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
+                        if hasattr(fn_mapping.confidence, "score"):
+                            confidence = fn_mapping.confidence.score
+                        elif isinstance(fn_mapping.confidence, (int, float)):
+                            confidence = float(fn_mapping.confidence)
+
+                    references.append(
+                        {
+                            "target_id": fn_mapping.frame_name,
+                            "mapping_type": "framenet_mapping",
+                            "confidence": confidence,
+                        }
+                    )
+
+        # Remove duplicates by target_id, keeping highest confidence
+        unique_refs: dict[str, dict[str, str | float]] = {}
+        for ref in references:
+            target = str(ref["target_id"])  # Ensure it's a string
+            ref_confidence = float(ref["confidence"]) if "confidence" in ref else 0.0
+            existing_confidence = (
+                float(unique_refs[target]["confidence"])
+                if target in unique_refs and "confidence" in unique_refs[target]
+                else 0.0
+            )
+            if target not in unique_refs or ref_confidence > existing_confidence:
+                unique_refs[target] = ref
+
+        return list(unique_refs.values())
+
+    def _framenet_to_verbnet_refs(self, entity_id: str) -> list[dict[str, str | float]]:  # noqa: C901
         """Find FrameNet to VerbNet references.
 
         Parameters
@@ -893,13 +948,59 @@ class UnifiedSearch:
         list[dict[str, str | float]]
             Reference mappings.
         """
-        if self.framenet:
-            frame = self.framenet.get_frame_by_name(entity_id)
-            if frame and self.verbnet:
-                raise NotImplementedError(
-                    "FrameNet to VerbNet cross-references not yet implemented"
-                )
-        return []
+        references: list[dict[str, str | float]] = []
+        if not (self.framenet and self.verbnet):
+            return references
+
+        frame = self.framenet.get_frame_by_name(entity_id)
+        if not frame:
+            return references
+
+        # Search VerbNet classes for references to this frame
+        # Use fuzzy matching on frame names
+        normalized_frame = normalize_frame_name(entity_id)
+
+        for verb_class in self.verbnet.get_all_classes():
+            for member in verb_class.members:
+                for fn_mapping in member.framenet_mappings:
+                    normalized_mapping = normalize_frame_name(fn_mapping.frame_name)
+
+                    # Use fuzzy matching to find potential matches
+                    similarity = levenshtein_ratio(normalized_frame, normalized_mapping)
+
+                    if similarity >= 0.8:  # Threshold for fuzzy matching
+                        # Calculate confidence based on similarity and mapping confidence
+                        base_confidence = 1.0
+                        if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
+                            if hasattr(fn_mapping.confidence, "score"):
+                                base_confidence = fn_mapping.confidence.score
+                            elif isinstance(fn_mapping.confidence, (int, float)):
+                                base_confidence = float(fn_mapping.confidence)
+
+                        final_confidence = similarity * base_confidence
+
+                        references.append(
+                            {
+                                "target_id": verb_class.id,
+                                "mapping_type": "reverse_framenet",
+                                "confidence": final_confidence,
+                            }
+                        )
+
+        # Remove duplicates by target_id, keeping highest confidence
+        unique_refs: dict[str, dict[str, str | float]] = {}
+        for ref in references:
+            target = str(ref["target_id"])  # Ensure it's a string
+            ref_confidence = float(ref["confidence"]) if "confidence" in ref else 0.0
+            existing_confidence = (
+                float(unique_refs[target]["confidence"])
+                if target in unique_refs and "confidence" in unique_refs[target]
+                else 0.0
+            )
+            if target not in unique_refs or ref_confidence > existing_confidence:
+                unique_refs[target] = ref
+
+        return list(unique_refs.values())
 
     def _propbank_to_framenet_refs(self, entity_id: str) -> list[dict[str, str | float]]:
         """Find PropBank to FrameNet references.

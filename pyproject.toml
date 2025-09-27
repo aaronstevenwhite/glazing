@@ -33,6 +33,7 @@ dependencies = [
     "requests>=2.25.0",
     "tqdm>=4.60.0",
     "rich>=13.0.0",
+    "python-Levenshtein>=0.20.0",
 ]
 
 [project.optional-dependencies]

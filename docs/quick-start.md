@@ -71,21 +71,19 @@ for synset in dog_synsets[:3]:
 Extract cross-references:
 
 ```python
-from glazing.references.extractor import ReferenceExtractor
-from glazing.references.resolver import ReferenceResolver
-from glazing.verbnet.loader import VerbNetLoader
-from glazing.propbank.loader import PropBankLoader
+from glazing.references.index import CrossReferenceIndex
 
-vn_loader = VerbNetLoader()
-pb_loader = PropBankLoader()
+# Automatic extraction and caching
+xref = CrossReferenceIndex()
 
-extractor = ReferenceExtractor()
-extractor.extract_verbnet_references(list(vn_loader.classes.values()))
-extractor.extract_propbank_references(list(pb_loader.framesets.values()))
+# Resolve references
+refs = xref.resolve("give.01", source="propbank")
+print(f"VerbNet classes: {refs['verbnet_classes']}")
+print(f"Confidence scores: {refs['confidence_scores']}")
 
-resolver = ReferenceResolver(extractor.mapping_index)
-related = resolver.resolve("give.01", source="propbank")
-print(f"VerbNet classes: {related.verbnet_classes}")
+# Use fuzzy matching for typos
+refs = xref.resolve("giv.01", source="propbank", fuzzy=True)
+print(f"VerbNet classes: {refs['verbnet_classes']}")
 ```
 
 ## Next Steps
