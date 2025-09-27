@@ -1,6 +1,6 @@
 """Command-line interface for the glazing package.
 
-This module provides a comprehensive CLI for managing linguistic datasets
+This module provides a CLI for managing linguistic datasets
 including downloading, converting, searching, and information commands.
 
 Commands
@@ -85,7 +85,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
 @click.option("--force", is_flag=True, help="Force re-download even if data exists")
 @click.pass_context
 def init(ctx: click.Context, data_dir: str | Path | None, force: bool) -> None:
-    """Initialize all datasets by downloading and converting them."""
+    """Download and convert all linguistic datasets for first-time setup."""
     quiet = ctx.obj.get("quiet", False)
 
     # Convert to Path if provided

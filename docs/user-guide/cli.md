@@ -1,180 +1,98 @@
 # CLI Usage
 
-Detailed command-line interface documentation for Glazing.
+The `glazing` command provides access to all functionality from the terminal.
 
-## Overview
-
-The glazing CLI provides commands for downloading, converting, and searching linguistic datasets.
-
-## Global Options
+## Quick Reference
 
 ```bash
-glazing [OPTIONS] COMMAND [ARGS]...
-
-Options:
-  --version  Show version
-  --verbose  Enable verbose output
-  --quiet    Suppress non-essential output
-  --help     Show help message
+glazing init                    # Download and set up all datasets
+glazing search query "give"     # Search across datasets
+glazing search entity give.01   # Look up specific entity
+glazing download list           # Show available datasets
 ```
 
-## Commands
+## Initialization
 
-### init
-
-Initialize all datasets with one command:
+The first step is always `glazing init`, which downloads and prepares all datasets. You can specify a custom location:
 
 ```bash
-glazing init [OPTIONS]
-
-Options:
-  --data-dir PATH  Directory to store datasets
-  --force          Force re-download even if data exists
+glazing init --data-dir /my/data/path
 ```
 
-### download
-
-Download datasets from official sources:
+Or use an environment variable:
 
 ```bash
-glazing download dataset [OPTIONS]
-
-Options:
-  --dataset TEXT       Dataset to download (framenet|propbank|verbnet|wordnet|all)
-  --output-dir PATH    Output directory for raw data
+export GLAZING_DATA_DIR=/my/data/path
+glazing init
 ```
 
-List available datasets:
+## Searching
+
+The search command is the main way to explore the data. Search by text query:
+
+```bash
+glazing search query "abandon"
+glazing search query "run" --dataset verbnet
+glazing search query "give" --limit 10 --json
+```
+
+Look up specific entities by their IDs:
+
+```bash
+glazing search entity give-13.1 --dataset verbnet
+glazing search entity 01772306 --dataset wordnet
+```
+
+Find cross-references between datasets:
+
+```bash
+glazing search cross-ref --source propbank --id "give.01" --target verbnet
+glazing search cross-ref --source verbnet --id "give-13.1" --target all
+```
+
+## Downloading and Converting
+
+If you need to work with individual datasets or update them:
+
+```bash
+glazing download dataset --dataset verbnet
+glazing convert dataset --dataset verbnet --input-dir raw --output-dir converted
+```
+
+To see what's available:
 
 ```bash
 glazing download list
-```
-
-Get dataset information:
-
-```bash
-glazing download info DATASET
-```
-
-### convert
-
-Convert raw datasets to JSON Lines format:
-
-```bash
-glazing convert dataset [OPTIONS]
-
-Options:
-  --dataset TEXT       Dataset to convert
-  --input-dir PATH     Directory containing raw data
-  --output-dir PATH    Directory for converted data
-```
-
-### search
-
-Search across datasets:
-
-```bash
-# Search by query
-glazing search query QUERY [OPTIONS]
-
-# Search for specific entity
-glazing search entity ID [OPTIONS]
-
-# Find cross-references
-glazing search cross-ref [OPTIONS]
-
-Common Options:
-  --dataset TEXT       Limit to specific dataset
-  --data-dir PATH      Directory containing converted data
-  --json               Output as JSON
-  --limit INTEGER      Limit number of results
-```
-
-## Examples
-
-### Full Workflow
-
-```bash
-# 1. Initialize everything
-glazing init
-
-# 2. Search for a concept (uses default data directory)
-glazing search query "give"
-
-# 3. Find cross-references
-glazing search cross-ref --source propbank --id "give.01" --target verbnet
-```
-
-### Custom Data Directory
-
-```bash
-# Set custom directory
-export GLAZING_DATA_DIR=/my/data/path
-
-# Initialize there
-glazing init
-
-# All commands will use this directory
-glazing search query "run"
-```
-
-### Processing Individual Datasets
-
-```bash
-# Download only VerbNet
-glazing download dataset --dataset verbnet
-
-# Convert it
-glazing convert dataset --dataset verbnet
-
-# Search it (uses default converted directory)
-glazing search query "run" --dataset verbnet
+glazing download info verbnet
 ```
 
 ## Output Formats
 
-### Default (Human-Readable)
-
-```
-Dataset: verbnet
-Entity: give-13.1
-Type: VerbClass
-Description: Transfer of possession
-```
-
-### JSON Output
+By default, output is formatted for human reading. Add `--json` for programmatic use:
 
 ```bash
-glazing search query "give" --json
+glazing search query "give" --json | jq '.results[0]'
 ```
-
-Returns structured JSON for programmatic use.
-
-## Environment Variables
-
-- `GLAZING_DATA_DIR`: Default data directory
-- `GLAZING_SKIP_INIT_CHECK`: Skip initialization check
-- `XDG_DATA_HOME`: Base data directory (Linux/macOS)
 
 ## Troubleshooting
 
-### Data Not Found
+If searches return no results, check that initialization completed:
 
 ```bash
-# Check if initialized
-glazing init
-
-# Verify data location
 ls ~/.local/share/glazing/converted/
 ```
 
-### Permission Issues
+For permission issues, use a different directory:
 
 ```bash
-# Use different directory
 glazing init --data-dir ~/my-data
+export GLAZING_DATA_DIR=~/my-data
 ```
 
-### Memory Issues
+Memory issues with large datasets can be avoided by processing them individually rather than using `--dataset all`.
 
-Process datasets individually instead of using `--dataset all`.
+## Environment Variables
+
+- `GLAZING_DATA_DIR`: Where to store/find data (default: `~/.local/share/glazing`)
+- `GLAZING_SKIP_INIT_CHECK`: Skip the initialization warning when importing the package
+- `XDG_DATA_HOME`: Alternative base directory on Linux/macOS

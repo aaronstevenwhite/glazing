@@ -1,6 +1,6 @@
 """WordNet relation traversal functionality.
 
-This module provides comprehensive relation traversal capabilities for WordNet,
+This module provides relation traversal capabilities for WordNet,
 including hypernym/hyponym chains, meronym/holonym navigation, entailment and
 causation relations, and similarity measure calculations.
 """

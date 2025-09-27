@@ -263,7 +263,7 @@ def check_initialization(data_dir: Path | None = None) -> bool:
 @click.option("--force", is_flag=True, help="Force re-download even if data exists")
 @click.option("--quiet", is_flag=True, help="Suppress output messages")
 def main(data_dir: str | Path | None, force: bool, quiet: bool) -> None:
-    """Initialize glazing datasets by downloading and converting them."""
+    """Set up all datasets. Downloads raw data and converts to JSON Lines format."""
     # Convert to Path if provided
     if data_dir is not None:
         data_dir = Path(data_dir)

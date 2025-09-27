@@ -39,7 +39,7 @@ DatasetName = Literal["all", "verbnet", "propbank", "wordnet", "framenet"]
 
 
 def _display_verbnet_details(entity: VerbClass) -> None:
-    """Display VerbNet-specific entity details."""
+    """Show VerbNet class members, roles, and frames."""
     if hasattr(entity, "members"):
         console.print(f"[white]Members:[/white] {len(entity.members)}")
     if hasattr(entity, "themroles"):
@@ -51,7 +51,7 @@ def _display_verbnet_details(entity: VerbClass) -> None:
 
 
 def _display_propbank_details(entity: Frameset) -> None:
-    """Display PropBank-specific entity details."""
+    """Show PropBank frameset rolesets."""
     if hasattr(entity, "rolesets"):
         console.print(f"[white]Rolesets:[/white] {len(entity.rolesets)}")
         for rs in entity.rolesets[:3]:  # Show first 3
@@ -59,7 +59,7 @@ def _display_propbank_details(entity: Frameset) -> None:
 
 
 def _display_wordnet_details(entity: Synset) -> None:
-    """Display WordNet-specific entity details."""
+    """Show WordNet synset words and definition."""
     if hasattr(entity, "words"):
         entity_words = getattr(entity, "words", [])
         words = ", ".join(getattr(w, "lemma", str(w)) for w in entity_words[:5])
@@ -69,7 +69,7 @@ def _display_wordnet_details(entity: Synset) -> None:
 
 
 def _display_framenet_details(entity: Frame) -> None:
-    """Display FrameNet-specific entity details."""
+    """Show FrameNet frame elements."""
     if hasattr(entity, "frame_elements"):
         console.print(f"[white]Frame Elements:[/white] {len(entity.frame_elements)}")
         for fe in entity.frame_elements[:5]:  # Show first 5
@@ -166,7 +166,7 @@ def load_search_index(data_dir: str | Path, datasets: list[str] | None = None) -
 
 @click.group()
 def search() -> None:
-    """Search across converted linguistic datasets."""
+    """Query linguistic datasets from the command line."""
 
 
 @search.command(name="query")

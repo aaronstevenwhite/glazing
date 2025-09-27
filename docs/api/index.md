@@ -89,7 +89,7 @@ results = search.search("abandon")
 
 ## Type Safety
 
-All models use Pydantic v2 for validation and provide comprehensive type hints. This ensures:
+All models use Pydantic v2 for validation and provide complete type hints. This ensures:
 
 - Runtime validation of data
 - IDE autocomplete support

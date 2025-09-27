@@ -21,7 +21,7 @@ VerbNetFrameNetMapping
 VerbNetFrameNetRoleMapping
     Role-level mapping between VerbNet and FrameNet.
 VerbNetCrossRefs
-    Enhanced VerbNet member cross-references.
+    VerbNet member cross-references.
 PropBankCrossRefs
     PropBank roleset cross-references with confidence.
 PropBankRoleMapping
@@ -150,7 +150,7 @@ class MappingConfidence(BaseModel):
 
 
 class CrossReference(BaseModel):
-    """Enhanced cross-dataset reference with full metadata.
+    """Cross-dataset reference with full metadata.
 
     Attributes
     ----------
@@ -319,7 +319,7 @@ class VerbNetFrameNetRoleMapping(BaseModel):
 
 
 class VerbNetCrossRefs(BaseModel):
-    """Enhanced VerbNet member cross-references.
+    """VerbNet member cross-references.
 
     Attributes
     ----------
@@ -713,7 +713,7 @@ class FEAlignment(BaseModel):
 
 
 class FERelation(BaseModel):
-    """Enhanced FE mapping between related frames with alignment metadata.
+    """FE mapping between related frames with alignment metadata.
 
     Attributes
     ----------

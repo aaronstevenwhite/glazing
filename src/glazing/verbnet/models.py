@@ -21,7 +21,7 @@ VerbNetFrameNetMapping
 MappingMetadata
     Metadata for cross-dataset mappings.
 Member
-    VerbNet member with comprehensive cross-references.
+    VerbNet member with cross-references.
 VerbClass
     A VerbNet verb class with members and frames.
 VNFrame
@@ -347,7 +347,7 @@ class WordNetCrossRef(GlazingBaseModel):
 
 
 class Member(GlazingBaseModel):
-    """VerbNet member with comprehensive cross-references.
+    """VerbNet member with cross-references.
 
     Attributes
     ----------
