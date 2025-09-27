@@ -7,9 +7,9 @@ opposition structures for deeper semantic representations.
 Classes
 -------
 GLVerbClass
-    VerbNet class enhanced with Generative Lexicon features.
+    VerbNet class with Generative Lexicon features.
 GLFrame
-    Frame enhanced with GL event structure and qualia.
+    Frame with GL event structure and qualia.
 Subcategorization
     GL subcategorization with variable assignments.
 SubcatMember
@@ -266,7 +266,7 @@ class Subcategorization(GlazingBaseModel):
 
 
 class GLFrame(GlazingBaseModel):
-    """Frame enhanced with GL event structure and qualia.
+    """Frame with GL event structure and qualia.
 
     Attributes
     ----------
@@ -300,14 +300,14 @@ class GLFrame(GlazingBaseModel):
 
 
 class GLVerbClass(GlazingBaseModel):
-    """VerbNet class enhanced with Generative Lexicon features.
+    """VerbNet class with Generative Lexicon features.
 
     Attributes
     ----------
     verb_class : VerbClass
         Base VerbNet class.
     gl_frames : list[GLFrame]
-        List of GL-enhanced frames.
+        List of GL frames.
 
     Methods
     -------

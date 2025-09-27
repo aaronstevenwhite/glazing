@@ -16,9 +16,9 @@ Glazing provides a unified, type-safe interface for working with FrameNet, PropB
 
 - 🚀 **One-command initialization:** Download and convert all datasets with `glazing init`
 - 📦 **Type-safe data models:** Using Pydantic v2 for validation and serialization
-- 🔍 **Comprehensive CLI:** Download, convert, and search datasets from the command line
+- 🔍 **Command-line interface:** Download, convert, and search datasets from the command line
 - 🔗 **Cross-dataset references:** Find connections between different linguistic resources
-- 🐍 **Python 3.13+:** Modern Python with comprehensive type hints
+- 🐍 **Python 3.13+:** Modern Python with full type hints
 - 📊 **Efficient storage:** JSON Lines format for fast loading and streaming
 
 ## Supported Datasets
@@ -60,33 +60,17 @@ for result in results[:5]:
     print(f"{result.dataset}: {result.name} - {result.description}")
 ```
 
-## Documentation Structure
+## Documentation
 
-- **[Installation](installation.md):** System requirements and installation options
-- **[Quick Start](quick-start.md):** Get up and running in minutes
-- **[User Guide](user-guide/cli.md):** Detailed usage instructions
-- **[API Reference](api/index.md):** Complete API documentation
-- **[Contributing](contributing.md):** How to contribute to the project
+Start with [Installation](installation.md) for system requirements, then follow the [Quick Start](quick-start.md) to get running in minutes. The [User Guide](user-guide/cli.md) covers detailed usage, while the [API Reference](api/index.md) documents all classes and methods. See [Contributing](contributing.md) if you'd like to help improve the project.
 
 ## Why Glazing?
 
-Working with linguistic resources traditionally requires:
-
-- Understanding different data formats (XML, custom databases, etc.)
-- Writing custom parsers for each resource
-- Managing cross-references manually
-- Dealing with inconsistent APIs
-
-Glazing solves these problems by providing:
-
-- Unified data models across all resources
-- Automatic data conversion to efficient formats
-- Built-in cross-reference resolution
-- Consistent search and access patterns
+Working with linguistic resources traditionally requires understanding different data formats (XML, custom databases), writing custom parsers for each resource, managing cross-references manually, and dealing with inconsistent APIs. Glazing solves these problems by providing unified data models across all resources, automatic data conversion to efficient formats, built-in cross-reference resolution, and consistent search and access patterns.
 
 ## Project Status
 
-Glazing is actively maintained and welcomes contributions. The project follows semantic versioning and maintains comprehensive test coverage.
+Glazing is actively maintained and welcomes contributions. The project follows semantic versioning and includes extensive test coverage.
 
 ## Links
 

@@ -1,52 +1,23 @@
 # Cross-References
 
-Guide to working with cross-references between datasets.
+Glazing connects FrameNet, PropBank, VerbNet, and WordNet through their internal cross-references. While these connections exist in the original datasets, extracting and using them typically requires understanding each dataset's format. Glazing provides a unified interface to work with these references.
 
-## Overview
+## How References Work
 
-Glazing provides tools to find connections between FrameNet, PropBank, VerbNet, and WordNet.
+The four datasets reference each other in different ways. PropBank rolesets often specify their corresponding VerbNet classes. VerbNet members include WordNet sense keys. FrameNet lexical units sometimes reference WordNet synsets. These connections allow you to trace a concept across different linguistic representations.
 
-## Reference Types
+For example, the PropBank roleset `give.01` maps to VerbNet class `give-13.1`, which contains members linked to WordNet senses like `give%2:40:00::`. This lets you connect PropBank's argument structure to VerbNet's thematic roles and WordNet's semantic hierarchy.
 
-### PropBank → VerbNet
+## Basic Usage
 
-PropBank rolesets map to VerbNet classes:
-
-```python
-# PropBank: give.01 → VerbNet: give-13.1
-```
-
-### VerbNet → WordNet
-
-VerbNet members link to WordNet senses:
-
-```python
-# VerbNet: give (member) → WordNet: give%2:40:00::
-```
-
-### FrameNet → WordNet
-
-FrameNet lexical units reference WordNet:
-
-```python
-# FrameNet: give.v → WordNet: give%2:40:00::
-```
-
-## Using References
-
-### CLI
+The simplest way to find cross-references is through the CLI:
 
 ```bash
-# Find all references for a PropBank roleset
-glazing search cross-ref --source propbank --id "give.01" \
-    --target all --data-dir ~/.local/share/glazing/converted
-
-# Find VerbNet classes for PropBank
-glazing search cross-ref --source propbank --id "give.01" \
-    --target verbnet --data-dir ~/.local/share/glazing/converted
+# Find what VerbNet classes correspond to a PropBank roleset
+glazing search cross-ref --source propbank --id "give.01" --target verbnet
 ```
 
-### Python API
+In Python, the process requires extracting references from the loaded datasets:
 
 ```python
 from glazing.references.extractor import ReferenceExtractor
@@ -54,189 +25,59 @@ from glazing.references.resolver import ReferenceResolver
 from glazing.verbnet.loader import VerbNetLoader
 from glazing.propbank.loader import PropBankLoader
 
-# Load datasets
-vn_loader = VerbNetLoader()  # Automatically loads data
-pb_loader = PropBankLoader()  # Automatically loads data
+# Load and extract references
+vn_loader = VerbNetLoader()
+pb_loader = PropBankLoader()
 
-# Extract references
 extractor = ReferenceExtractor()
 extractor.extract_verbnet_references(list(vn_loader.classes.values()))
 extractor.extract_propbank_references(list(pb_loader.framesets.values()))
 
-# Resolve for specific item
+# Resolve references
 resolver = ReferenceResolver(extractor.mapping_index)
 related = resolver.resolve("give.01", source="propbank")
-
-print(f"VerbNet: {related.verbnet_classes}")
-print(f"WordNet: {related.wordnet_senses}")
-print(f"FrameNet: {related.framenet_frames}")
+print(f"VerbNet classes: {related.verbnet_classes}")
 ```
 
-## Reference Extraction
+## Working with References
 
-### Automatic Extraction
+The extraction step scans the datasets for embedded cross-references and builds an index. This is computationally expensive, so you'll want to do it once and reuse the results. The resolver then uses this index to find connections between datasets.
+
+When you resolve references for an item, you get back all the related items across datasets. Not every item has cross-references to all other datasets. Some connections are direct (explicitly stated in the data) while others are transitive (following chains of references).
+
+## Practical Examples
+
+To find semantic equivalents across datasets, search each one and collect the results:
 
 ```python
-from glazing.references.extractor import ReferenceExtractor
-from glazing.verbnet.loader import VerbNetLoader
+from glazing.search import UnifiedSearch
 
-# Load dataset
-vn_loader = VerbNetLoader()
+search = UnifiedSearch()
+results = search.search_by_lemma("give")
 
-# Extract references
-extractor = ReferenceExtractor()
-
-# Extract from specific dataset
-extractor.extract_verbnet_references(list(vn_loader.classes.values()))
-
-# Access extracted references
-vn_refs = extractor.verbnet_refs
+# Group results by dataset
+by_dataset = {}
+for result in results:
+    by_dataset.setdefault(result.dataset, []).append(result)
 ```
 
-### Manual Mapping
+For analyzing coverage of a concept across datasets:
 
 ```python
-from glazing.references.mapper import ReferenceMapper
-
-mapper = ReferenceMapper()
-
-# Map PropBank to VerbNet
-vn_classes = mapper.propbank_to_verbnet("give.01")
-
-# Map VerbNet to WordNet
-wn_senses = mapper.verbnet_to_wordnet("give-13.1")
-```
-
-## Reference Resolution
-
-### Simple Resolution
-
-```python
-resolver = ReferenceResolver(references)
-
-# Get all related items
-related = resolver.resolve("give.01", source="propbank")
-```
-
-### Transitive Resolution
-
-```python
-# Follow chains of references
-# PropBank → VerbNet → WordNet
-chain = resolver.resolve_transitive("give.01", source="propbank")
-```
-
-### Batch Resolution
-
-```python
-rolesets = ["give.01", "take.01", "run.02"]
-
-results = {}
-for roleset in rolesets:
-    results[roleset] = resolver.resolve(roleset, source="propbank")
-```
-
-## Examples
-
-### Finding Semantic Equivalents
-
-```python
-def find_semantic_equivalents(word):
-    # Search all datasets
+def check_coverage(lemma):
     search = UnifiedSearch()
-    results = search.search_by_lemma(word)
-
-    # Group by dataset
-    by_dataset = {}
-    for result in results:
-        if result.dataset not in by_dataset:
-            by_dataset[result.dataset] = []
-        by_dataset[result.dataset].append(result)
-
-    return by_dataset
-
-equivalents = find_semantic_equivalents("give")
-```
-
-### Building Reference Graph
-
-```python
-import networkx as nx
-
-def build_reference_graph(references):
-    G = nx.Graph()
-
-    for ref in references:
-        # Add nodes
-        G.add_node(ref.source_id, dataset=ref.source)
-        G.add_node(ref.target_id, dataset=ref.target)
-
-        # Add edge
-        G.add_edge(ref.source_id, ref.target_id)
-
-    return G
-```
-
-### Cross-Dataset Analysis
-
-```python
-def analyze_coverage(lemma):
-    search = UnifiedSearch()
-    resolver = ReferenceResolver(references)
-
-    # Find in each dataset
-    coverage = {
-        'propbank': False,
-        'verbnet': False,
-        'wordnet': False,
-        'framenet': False
-    }
-
     results = search.search_by_lemma(lemma)
 
-    for result in results:
-        coverage[result.dataset] = True
+    coverage = set(r.dataset for r in results)
+    missing = {'propbank', 'verbnet', 'wordnet', 'framenet'} - coverage
 
-        # Check cross-references
-        related = resolver.resolve(result.id, source=result.dataset)
-        for dataset in coverage:
-            if getattr(related, f"{dataset}_ids"):
-                coverage[dataset] = True
-
+    if missing:
+        print(f"{lemma} not found in: {', '.join(missing)}")
     return coverage
 ```
 
-## Reference Data Model
-
-```python
-@dataclass
-class Reference:
-    source: str          # Source dataset
-    source_id: str       # ID in source
-    target: str          # Target dataset
-    target_id: str       # ID in target
-    confidence: float    # Match confidence
-
-@dataclass
-class ResolvedReferences:
-    source_id: str
-    propbank_ids: list[str]
-    verbnet_classes: list[str]
-    wordnet_senses: list[str]
-    framenet_frames: list[str]
-```
-
-## Best Practices
-
-1. **Cache references**: Extract once and reuse
-2. **Validate IDs**: Check IDs exist before resolving
-3. **Handle missing**: Not all items have cross-references
-4. **Consider confidence**: Some matches are approximate
-5. **Use batch operations**: Resolve multiple items together
-
 ## Limitations
 
-- Not all entries have cross-references
-- Some references may be approximate matches
-- Reference quality varies by dataset pair
-- Transitive references may introduce noise
+Cross-references in these datasets are incomplete and sometimes approximate. VerbNet members don't always have WordNet mappings. PropBank rolesets may lack VerbNet mappings. The quality and coverage of references varies between dataset pairs. Transitive references (A→B→C) can introduce errors if the intermediate mapping is incorrect.
+
+The current API requires manual extraction before resolution, which we plan to improve in future versions to match the ergonomics of the data loaders.

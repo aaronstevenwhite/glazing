@@ -247,7 +247,7 @@ class CrossReferenceBase(GlazingBaseModel):
     @field_validator("source_id", "target_id")
     @classmethod
     def validate_ids(cls, v: str | list[str]) -> str | list[str]:
-        """Validate that IDs are non-empty strings."""
+        """IDs must be non-empty strings."""
         if isinstance(v, str):
             if not v.strip():
                 raise ValueError("ID cannot be empty")
@@ -261,7 +261,7 @@ class CrossReferenceBase(GlazingBaseModel):
 
     @model_validator(mode="after")
     def validate_datasets(self) -> Self:
-        """Validate that source and target datasets are different."""
+        """Source and target must be different datasets."""
         if self.source_dataset == self.target_dataset and self.mapping_type not in (
             "inherited",
             "transitive",
@@ -330,7 +330,7 @@ class MappingBase(GlazingBaseModel):
 
     @model_validator(mode="after")
     def validate_modification(self) -> Self:
-        """Ensure modification fields are consistent."""
+        """If modified_by is set, modified_at must also be set."""
         if self.modified_date and not self.modified_by:
             raise ValueError("modified_by required when modified_date is set")
         if self.modified_by and not self.modified_date:
@@ -393,58 +393,58 @@ def validate_pattern(value: str, pattern: str, field_name: str) -> str:
 
 
 def validate_frame_id(value: int | str) -> str:
-    """Validate a FrameNet frame ID."""
+    """Check FrameNet frame ID format (positive integer)."""
     str_value = str(value)
     return validate_pattern(str_value, FRAME_ID_PATTERN, "frame ID")
 
 
 def validate_frame_name(value: str) -> str:
-    """Validate a FrameNet frame name."""
+    """Check FrameNet frame name format."""
     return validate_pattern(value, FRAME_NAME_PATTERN, "frame name")
 
 
 def validate_fe_name(value: str) -> str:
-    """Validate a FrameNet frame element name."""
+    """Check FrameNet FE name format."""
     return validate_pattern(value, FE_NAME_PATTERN, "frame element name")
 
 
 def validate_verbnet_class(value: str) -> str:
-    """Validate a VerbNet class ID."""
+    """Check VerbNet class ID format (e.g., give-13.1)."""
     return validate_pattern(value, VERBNET_CLASS_PATTERN, "VerbNet class ID")
 
 
 def validate_verbnet_key(value: str) -> str:
-    """Validate a VerbNet member key."""
+    """Check VerbNet member key format."""
     return validate_pattern(value, VERBNET_KEY_PATTERN, "VerbNet key")
 
 
 def validate_propbank_roleset(value: str) -> str:
-    """Validate a PropBank roleset ID."""
+    """Check PropBank roleset ID format (lemma.##)."""
     return validate_pattern(value, PROPBANK_ROLESET_PATTERN, "PropBank roleset ID")
 
 
 def validate_wordnet_offset(value: str) -> str:
-    """Validate a WordNet synset offset."""
+    """Check WordNet synset offset format."""
     return validate_pattern(value, WORDNET_OFFSET_PATTERN, "WordNet offset")
 
 
 def validate_wordnet_sense_key(value: str) -> str:
-    """Validate a WordNet sense key."""
+    """Check WordNet sense key format."""
     return validate_pattern(value, WORDNET_SENSE_KEY_PATTERN, "WordNet sense key")
 
 
 def validate_percentage_notation(value: str) -> str:
-    """Validate VerbNet's WordNet percentage notation."""
+    """Check VerbNet's WordNet notation (lemma%#:#:#::)."""
     return validate_pattern(value, PERCENTAGE_NOTATION_PATTERN, "percentage notation")
 
 
 def validate_lemma(value: str) -> str:
-    """Validate a word lemma."""
+    """Check that lemma contains valid characters."""
     return validate_pattern(value, LEMMA_PATTERN, "lemma")
 
 
 def validate_hex_color(value: str) -> str:
-    """Validate a 6-digit hex color code."""
+    """Check hex color format (#RRGGBB)."""
     return validate_pattern(value, HEX_COLOR_PATTERN, "hex color")
 
 
@@ -497,7 +497,7 @@ class ConflictResolution(GlazingBaseModel):
 
     @model_validator(mode="after")
     def validate_resolution(self) -> Self:
-        """Ensure resolution is consistent."""
+        """Resolution status must match presence of resolved_by/resolved_at."""
         if not self.selected_mapping and not self.rejected_mappings:
             raise ValueError("Resolution must have either selected or rejected mappings")
         return self
