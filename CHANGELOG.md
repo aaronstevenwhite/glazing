@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-09-27
+
+### Fixed
+
+- CLI search commands now work without requiring `--data-dir` argument
+- Commands use the same default path as `glazing init` (`~/.local/share/glazing/converted/`)
+- Updated help text to show default directory path
+
 ### Changed
 
 - Improved documentation clarity and conciseness
