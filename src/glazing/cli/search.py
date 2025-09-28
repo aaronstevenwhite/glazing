@@ -192,16 +192,29 @@ def search() -> None:
     help="Maximum number of results to show.",
 )
 @click.option(
+    "--fuzzy",
+    is_flag=True,
+    help="Enable fuzzy matching for typo correction.",
+)
+@click.option(
+    "--threshold",
+    type=float,
+    default=0.8,
+    help="Minimum similarity threshold for fuzzy matching (0.0-1.0).",
+)
+@click.option(
     "--json",
     "output_json",
     is_flag=True,
     help="Output results as JSON.",
 )
-def search_query(
+def search_query(  # noqa: PLR0913
     query_text: str,
     data_dir: str | Path,
     dataset: DatasetName,
     limit: int,
+    fuzzy: bool,
+    threshold: float,
     output_json: bool,
 ) -> None:
     """Search across datasets with a text query.
@@ -221,8 +234,11 @@ def search_query(
         # Load search index
         search_engine = load_search_index(data_dir, datasets_to_load)
 
-        # Perform search
-        results = search_engine.search(query_text)
+        # Perform search with or without fuzzy matching
+        if fuzzy:
+            results = search_engine.search_with_fuzzy(query_text, threshold)
+        else:
+            results = search_engine.search(query_text)
 
         if output_json:
             # Output as JSON
@@ -245,7 +261,8 @@ def search_query(
                 console.print("[yellow]No results found.[/yellow]")
                 return
 
-            table = Table(title=f"Search Results for '{query_text}'")
+            title = f"{'Fuzzy ' if fuzzy else ''}Search Results for '{query_text}'"
+            table = Table(title=title)
             table.add_column("Dataset", style="cyan", no_wrap=True)
             table.add_column("Type", style="magenta")
             table.add_column("ID/Name", style="green")
