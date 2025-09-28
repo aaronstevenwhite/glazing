@@ -28,6 +28,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 from glazing.framenet.models import Frame
+from glazing.initialize import get_default_data_path
 from glazing.propbank.models import Frameset
 from glazing.search import SearchResult, UnifiedSearch
 from glazing.verbnet.models import VerbClass
@@ -174,8 +175,9 @@ def search() -> None:
 @click.option(
     "--data-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
-    help="Directory containing converted JSON Lines files.",
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files "
+    "(default: ~/.local/share/glazing/converted).",
 )
 @click.option(
     "--dataset",
@@ -291,8 +293,9 @@ def search_query(
 @click.option(
     "--data-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
-    help="Directory containing converted JSON Lines files.",
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files "
+    "(default: ~/.local/share/glazing/converted).",
 )
 @click.option(
     "--json",
@@ -343,8 +346,9 @@ def get_entity(
 @click.option(
     "--data-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
-    help="Directory containing converted JSON Lines files.",
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files "
+    "(default: ~/.local/share/glazing/converted).",
 )
 @click.option(
     "--dataset",
@@ -427,8 +431,9 @@ def search_role(
 @click.option(
     "--data-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
-    help="Directory containing converted JSON Lines files.",
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files "
+    "(default: ~/.local/share/glazing/converted).",
 )
 def find_cross_ref(
     source: str,
