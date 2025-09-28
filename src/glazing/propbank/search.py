@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from glazing.propbank.models import Frameset, Roleset
+from glazing.propbank.symbol_parser import filter_args_by_properties
 from glazing.propbank.types import (
     ArgumentNumber,
     FunctionTag,
@@ -330,6 +331,46 @@ class PropBankSearch:
             All framesets sorted by predicate lemma.
         """
         return sorted(self._framesets.values(), key=lambda f: f.predicate_lemma)
+
+    def by_arg_properties(
+        self,
+        is_core: bool | None = None,
+        modifier_type: str | None = None,
+        prefix: str | None = None,
+        arg_number: int | None = None,
+    ) -> list[Roleset]:
+        """Find rolesets by argument properties.
+
+        Parameters
+        ----------
+        is_core : bool | None, optional
+            Filter for core arguments (ARG0-7, ARGA).
+        modifier_type : str | None, optional
+            Filter for specific modifier type (e.g., "LOC", "TMP").
+        prefix : str | None, optional
+            Filter for continuation or reference prefix ("C" or "R").
+        arg_number : int | None, optional
+            Filter for specific argument number (0-7, -1 for ARGA).
+
+        Returns
+        -------
+        list[Roleset]
+            Rolesets with matching argument properties.
+        """
+        matching_rolesets = []
+        for frameset in self._framesets.values():
+            for roleset in frameset.rolesets:
+                filtered_args = filter_args_by_properties(
+                    roleset.roles,
+                    is_core=is_core,
+                    modifier_type=modifier_type,
+                    prefix=prefix if prefix in ["C", "R"] else None,  # type: ignore[arg-type]
+                    arg_number=arg_number,
+                )
+                if filtered_args:
+                    matching_rolesets.append(roleset)
+
+        return sorted(matching_rolesets, key=lambda r: r.id)
 
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.

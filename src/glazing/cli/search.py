@@ -486,3 +486,333 @@ def find_cross_ref(
     except (ValueError, TypeError, RuntimeError) as e:
         console.print(f"[red]✗ Cross-reference search failed: {e}[/red]")
         sys.exit(1)
+
+
+@search.command(name="fuzzy")
+@click.argument("query_text")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option(
+    "--threshold",
+    type=float,
+    default=0.8,
+    help="Minimum similarity threshold (0.0-1.0).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=10,
+    help="Maximum number of results to show.",
+)
+def search_fuzzy(
+    query_text: str,
+    data_dir: str | Path,
+    threshold: float,
+    limit: int,
+) -> None:
+    """Search with fuzzy matching and typo correction.
+
+    Examples
+    --------
+    Search with typo correction:
+        $ glazing search fuzzy "instsrument" --threshold 0.7
+    """
+    try:
+        search_engine = load_search_index(data_dir)
+        results = search_engine.search_with_fuzzy(query_text, threshold)
+
+        if not results:
+            console.print("[yellow]No results found.[/yellow]")
+            return
+
+        table = Table(title=f"Fuzzy Search Results for '{query_text}'")
+        table.add_column("Dataset", style="cyan", no_wrap=True)
+        table.add_column("ID", style="green")
+        table.add_column("Name", style="white")
+        table.add_column("Score", style="yellow")
+
+        for result in results[:limit]:
+            table.add_row(
+                result.dataset.upper(),
+                result.id,
+                result.name,
+                f"{result.score:.3f}",
+            )
+
+        console.print(table)
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Fuzzy search failed: {e}[/red]")
+        sys.exit(1)
+
+
+@search.command(name="roles")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option("--optional", is_flag=True, help="Find optional roles.")
+@click.option("--indexed", is_flag=True, help="Find indexed roles (_I, _J).")
+@click.option("--verb-specific", is_flag=True, help="Find verb-specific roles.")
+@click.option("--dataset", default="verbnet", help="Dataset to search (default: verbnet).")
+def search_roles(
+    data_dir: str | Path,
+    optional: bool,
+    indexed: bool,
+    verb_specific: bool,
+    dataset: str,
+) -> None:
+    """Search for semantic roles with specific properties.
+
+    Examples
+    --------
+    Find optional roles:
+        $ glazing search roles --optional
+
+    Find indexed roles:
+        $ glazing search roles --indexed
+    """
+    try:
+        search_engine = load_search_index(data_dir, [dataset])
+
+        if dataset == "verbnet":
+            classes = search_engine.search_verbnet_roles(
+                optional=optional if optional else None,
+                indexed=indexed if indexed else None,
+                verb_specific=verb_specific if verb_specific else None,
+            )
+
+            if not classes:
+                console.print("[yellow]No matching classes found.[/yellow]")
+                return
+
+            table = Table(title="VerbNet Classes with Matching Roles")
+            table.add_column("Class ID", style="cyan")
+            table.add_column("Members", style="green")
+            table.add_column("Roles", style="white")
+
+            for cls in classes[:20]:
+                role_str = ", ".join(r.type for r in cls.themroles[:5])
+                if len(cls.themroles) > 5:
+                    role_str += f" (+{len(cls.themroles) - 5} more)"
+                table.add_row(
+                    cls.id,
+                    str(len(cls.members)),
+                    role_str,
+                )
+
+            console.print(table)
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Role search failed: {e}[/red]")
+        sys.exit(1)
+
+
+@search.command(name="args")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option(
+    "--type",
+    "arg_type",
+    type=click.Choice(["core", "modifier"]),
+    help="Argument type.",
+)
+@click.option(
+    "--prefix",
+    type=click.Choice(["C", "R"]),
+    help="Continuation or reference prefix.",
+)
+@click.option("--modifier", help="Modifier type (e.g., LOC, TMP).")
+@click.option("--number", type=int, help="Argument number (0-7).")
+@click.option("--dataset", default="propbank", help="Dataset to search (default: propbank).")
+def search_args(  # noqa: PLR0913
+    data_dir: str | Path,
+    arg_type: str | None,
+    prefix: str | None,
+    modifier: str | None,
+    number: int | None,
+    dataset: str,
+) -> None:
+    """Search for arguments with specific properties.
+
+    Examples
+    --------
+    Find core arguments:
+        $ glazing search args --type core
+
+    Find location modifiers:
+        $ glazing search args --modifier LOC
+
+    Find continuation arguments:
+        $ glazing search args --prefix C
+    """
+    try:
+        search_engine = load_search_index(data_dir, [dataset])
+
+        if dataset == "propbank":
+            rolesets = search_engine.search_propbank_args(
+                arg_type=arg_type,
+                prefix=prefix,
+                modifier=modifier,
+                arg_number=number,
+            )
+
+            if not rolesets:
+                console.print("[yellow]No matching rolesets found.[/yellow]")
+                return
+
+            table = Table(title="PropBank Rolesets with Matching Arguments")
+            table.add_column("Roleset ID", style="cyan")
+            table.add_column("Name", style="green")
+            table.add_column("Arguments", style="white")
+
+            for roleset in rolesets[:20]:
+                arg_str = ", ".join(a.n for a in roleset.roles[:5])
+                if len(roleset.roles) > 5:
+                    arg_str += f" (+{len(roleset.roles) - 5} more)"
+                table.add_row(
+                    roleset.id,
+                    roleset.name,
+                    arg_str,
+                )
+
+            console.print(table)
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Argument search failed: {e}[/red]")
+        sys.exit(1)
+
+
+@search.command(name="relations")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option(
+    "--type",
+    "relation_type",
+    help="Relation type (e.g., hypernym, hyponym, antonym).",
+    required=True,
+)
+@click.option("--dataset", default="wordnet", help="Dataset to search (default: wordnet).")
+def search_relations(
+    data_dir: str | Path,
+    relation_type: str,
+    dataset: str,
+) -> None:
+    """Search for synsets with specific relations.
+
+    Examples
+    --------
+    Find hypernyms:
+        $ glazing search relations --type hypernym
+
+    Find antonyms:
+        $ glazing search relations --type antonym
+    """
+    try:
+        search_engine = load_search_index(data_dir, [dataset])
+
+        if dataset == "wordnet":
+            synsets = search_engine.search_wordnet_relations(relation_type)
+
+            if not synsets:
+                console.print("[yellow]No matching synsets found.[/yellow]")
+                return
+
+            table = Table(title=f"WordNet Synsets with {relation_type} Relations")
+            table.add_column("Synset ID", style="cyan")
+            table.add_column("Words", style="green")
+            table.add_column("Definition", style="white", no_wrap=False)
+
+            for synset in synsets[:20]:
+                synset_id = f"{synset.offset:08d}{synset.ss_type}"
+                words = ", ".join(w.lemma for w in synset.words[:3])
+                if len(synset.words) > 3:
+                    words += f" (+{len(synset.words) - 3})"
+                definition = (
+                    synset.gloss[:80] + "..."
+                    if synset.gloss and len(synset.gloss) > 80
+                    else synset.gloss or ""
+                )
+                table.add_row(synset_id, words, definition)
+
+            console.print(table)
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Relation search failed: {e}[/red]")
+        sys.exit(1)
+
+
+@search.command(name="elements")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option(
+    "--core-type",
+    type=click.Choice(["Core", "Non-Core", "Extra-Thematic"]),
+    help="Core type of frame elements.",
+)
+@click.option("--dataset", default="framenet", help="Dataset to search (default: framenet).")
+def search_elements(
+    data_dir: str | Path,
+    core_type: str | None,
+    dataset: str,
+) -> None:
+    """Search for frame elements with specific properties.
+
+    Examples
+    --------
+    Find core elements:
+        $ glazing search elements --core-type Core
+
+    Find non-core elements:
+        $ glazing search elements --core-type Non-Core
+    """
+    try:
+        search_engine = load_search_index(data_dir, [dataset])
+
+        if dataset == "framenet":
+            frames = search_engine.search_framenet_elements(core_type=core_type)
+
+            if not frames:
+                console.print("[yellow]No matching frames found.[/yellow]")
+                return
+
+            table = Table(title=f"FrameNet Frames with {core_type or 'Matching'} Elements")
+            table.add_column("Frame", style="cyan")
+            table.add_column("Elements", style="green")
+            table.add_column("Definition", style="white", no_wrap=False)
+
+            for frame in frames[:20]:
+                elem_str = ", ".join(fe.name for fe in frame.frame_elements[:5])
+                if len(frame.frame_elements) > 5:
+                    elem_str += f" (+{len(frame.frame_elements) - 5} more)"
+                if frame.definition and len(frame.definition.plain_text) > 60:
+                    definition = frame.definition.plain_text[:60] + "..."
+                elif frame.definition:
+                    definition = frame.definition.plain_text
+                else:
+                    definition = ""
+                table.add_row(frame.name, elem_str, definition)
+
+            console.print(table)
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Element search failed: {e}[/red]")
+        sys.exit(1)

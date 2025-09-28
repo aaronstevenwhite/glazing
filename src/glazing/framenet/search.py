@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from glazing.framenet.models import Frame, FrameElement, LexicalUnit
+from glazing.framenet.symbol_parser import filter_elements_by_properties
 from glazing.framenet.types import CoreType, FrameID, FrameNetPOS
 
 
@@ -352,6 +353,35 @@ class FrameNetSearch:
             Sorted list of unique lemmas.
         """
         return sorted(self._frames_by_lemma.keys())
+
+    def by_element_properties(
+        self, core_type: str | None = None, semantic_type: str | None = None
+    ) -> list[Frame]:
+        """Find frames by element properties.
+
+        Parameters
+        ----------
+        core_type : str | None, optional
+            Filter by core type ("Core", "Non-Core", "Extra-Thematic").
+        semantic_type : str | None, optional
+            Filter by semantic type.
+
+        Returns
+        -------
+        list[Frame]
+            Frames with matching element properties.
+        """
+        matching_frames = []
+        for frame in self._frames_by_id.values():
+            filtered_elements = filter_elements_by_properties(
+                frame.frame_elements,
+                core_type=core_type,  # type: ignore[arg-type]
+                semantic_type=semantic_type,
+            )
+            if filtered_elements:
+                matching_frames.append(frame)
+
+        return sorted(matching_frames, key=lambda f: f.name)
 
     def get_statistics(self) -> dict[str, int]:
         """Get index statistics.

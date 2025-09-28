@@ -20,14 +20,19 @@ normalize_frame_name
     Normalize a frame name for matching.
 normalize_element_name
     Normalize an element name for matching.
+filter_elements_by_properties
+    Filter frame elements by their properties.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from glazing.framenet.types import CoreType, FEAbbrev, FEName, FrameName, LexicalUnitName
+
+if TYPE_CHECKING:
+    from glazing.framenet.models import FrameElement
 
 
 class ParsedFrameNetSymbol(TypedDict):
@@ -322,3 +327,45 @@ def find_frame_variations(frame_name: FrameName) -> list[str]:
 
     # Return the original if no variations found
     return [frame_name]
+
+
+def filter_elements_by_properties(
+    elements: list[FrameElement],
+    core_type: CoreType | None = None,
+    semantic_type: str | None = None,
+) -> list[FrameElement]:
+    """Filter frame elements by their properties.
+
+    Parameters
+    ----------
+    elements : list[FrameElement]
+        List of frame elements to filter.
+    core_type : CoreType | None, optional
+        Filter by core type ("Core", "Non-Core", "Extra-Thematic").
+    semantic_type : str | None, optional
+        Filter by semantic type.
+
+    Returns
+    -------
+    list[FrameElement]
+        Filtered list of frame elements.
+
+    Examples
+    --------
+    >>> elements = [elem1, elem2, elem3]  # Where elem1.core_type = "Core"
+    >>> filtered = filter_elements_by_properties(elements, core_type="Core")
+    >>> len(filtered)
+    1
+    """
+    filtered = []
+
+    for element in elements:
+        # Apply filters
+        if core_type is not None and element.core_type != core_type:
+            continue
+        if semantic_type is not None and getattr(element, "semantic_type", None) != semantic_type:
+            continue
+
+        filtered.append(element)
+
+    return filtered

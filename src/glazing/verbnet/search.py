@@ -15,6 +15,7 @@ from glazing.verbnet.models import (
     SelectionalRestrictions,
     VerbClass,
 )
+from glazing.verbnet.symbol_parser import filter_roles_by_properties
 from glazing.verbnet.types import (
     PredicateType,
     RestrictionValue,
@@ -589,6 +590,45 @@ class VerbNetSearch:
             All verb classes sorted by ID.
         """
         return sorted(self._classes.values(), key=lambda c: c.id)
+
+    def by_role_properties(
+        self,
+        optional: bool | None = None,
+        indexed: bool | None = None,
+        verb_specific: bool | None = None,
+        pp_type: str | None = None,
+    ) -> list[VerbClass]:
+        """Find classes by role properties.
+
+        Parameters
+        ----------
+        optional : bool | None, optional
+            Filter for optional roles (? prefix).
+        indexed : bool | None, optional
+            Filter for indexed roles (_I, _J suffix).
+        verb_specific : bool | None, optional
+            Filter for verb-specific roles (V_ prefix).
+        pp_type : str | None, optional
+            Filter for specific PP type.
+
+        Returns
+        -------
+        list[VerbClass]
+            Classes with matching role properties.
+        """
+        matching_classes = []
+        for verb_class in self._classes.values():
+            filtered_roles = filter_roles_by_properties(
+                verb_class.themroles,
+                optional=optional,
+                indexed=indexed,
+                verb_specific=verb_specific,
+                pp_type=pp_type,
+            )
+            if filtered_roles:
+                matching_classes.append(verb_class)
+
+        return sorted(matching_classes, key=lambda c: c.id)
 
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.

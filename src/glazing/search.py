@@ -13,20 +13,26 @@ from pathlib import Path
 from glazing.framenet.loader import FrameNetLoader
 from glazing.framenet.models import Frame
 from glazing.framenet.search import FrameNetSearch
-from glazing.framenet.symbol_parser import normalize_frame_name
+from glazing.framenet.symbol_parser import (
+    filter_elements_by_properties,
+    normalize_frame_name,
+)
 from glazing.initialize import get_default_data_path
 from glazing.propbank.loader import PropBankLoader
 from glazing.propbank.models import Frameset, Roleset
 from glazing.propbank.search import PropBankSearch
+from glazing.propbank.symbol_parser import filter_args_by_properties
 from glazing.types import ResourceType
 from glazing.utils.fuzzy_match import levenshtein_ratio
 from glazing.verbnet.loader import VerbNetLoader
 from glazing.verbnet.models import VerbClass
 from glazing.verbnet.search import VerbNetSearch
+from glazing.verbnet.symbol_parser import filter_roles_by_properties
 from glazing.verbnet.types import PredicateType
 from glazing.wordnet.loader import WordNetLoader
 from glazing.wordnet.models import Synset
 from glazing.wordnet.search import WordNetSearch
+from glazing.wordnet.symbol_parser import filter_by_relation_type
 
 
 @dataclass
@@ -1139,6 +1145,233 @@ class UnifiedSearch:
                 synset_dict[synset_id] = synset
             # Recreate WordNetSearch with merged synsets
             self.wordnet = WordNetSearch(list(synset_dict.values()))
+
+    def search_with_fuzzy(  # noqa: C901, PLR0912
+        self, query: str, fuzzy_threshold: float = 0.8
+    ) -> list[SearchResult]:
+        """Search across all datasets with fuzzy matching.
+
+        Parameters
+        ----------
+        query : str
+            Search query text.
+        fuzzy_threshold : float, default=0.8
+            Minimum similarity score for fuzzy matches.
+
+        Returns
+        -------
+        list[SearchResult]
+            Search results with confidence scores.
+        """
+        results = []
+        query_normalized = query.lower()
+
+        # Search each dataset with fuzzy matching
+        if self.framenet:
+            for frame in self.framenet._frames_by_id.values():
+                similarity = levenshtein_ratio(query_normalized, frame.name.lower())
+                if similarity >= fuzzy_threshold:
+                    results.append(
+                        SearchResult(
+                            dataset="framenet",
+                            id=frame.name,
+                            type="frame",
+                            name=frame.name,
+                            description=frame.definition.plain_text if frame.definition else "",
+                            score=similarity,
+                        )
+                    )
+
+        if self.verbnet:
+            for cls in self.verbnet.get_all_classes():
+                for member in cls.members:
+                    similarity = levenshtein_ratio(query_normalized, member.name.lower())
+                    if similarity >= fuzzy_threshold:
+                        results.append(
+                            SearchResult(
+                                dataset="verbnet",
+                                id=cls.id,
+                                type="class",
+                                name=cls.id,
+                                description=f"VerbNet class with member {member.name}",
+                                score=similarity,
+                            )
+                        )
+                        break  # Only add class once
+
+        if self.wordnet:
+            for synset in self.wordnet.get_all_synsets():
+                for word in synset.words:
+                    similarity = levenshtein_ratio(query_normalized, word.lemma.lower())
+                    if similarity >= fuzzy_threshold:
+                        synset_id = f"{synset.offset:08d}{synset.ss_type}"
+                        results.append(
+                            SearchResult(
+                                dataset="wordnet",
+                                id=synset_id,
+                                type="synset",
+                                name=synset_id,
+                                description=synset.gloss or "",
+                                score=similarity,
+                            )
+                        )
+                        break  # Only add synset once
+
+        if self.propbank:
+            for frameset in self.propbank.get_all_framesets():
+                similarity = levenshtein_ratio(query_normalized, frameset.predicate_lemma.lower())
+                if similarity >= fuzzy_threshold:
+                    results.append(
+                        SearchResult(
+                            dataset="propbank",
+                            id=frameset.predicate_lemma,
+                            type="frameset",
+                            name=frameset.predicate_lemma,
+                            description=f"PropBank frameset with {len(frameset.rolesets)} rolesets",
+                            score=similarity,
+                        )
+                    )
+
+        # Sort by score
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results
+
+    def search_verbnet_roles(
+        self,
+        optional: bool | None = None,
+        indexed: bool | None = None,
+        verb_specific: bool | None = None,
+    ) -> list[VerbClass]:
+        """Search VerbNet classes by role properties.
+
+        Parameters
+        ----------
+        optional : bool | None, optional
+            Filter for optional roles.
+        indexed : bool | None, optional
+            Filter for indexed roles.
+        verb_specific : bool | None, optional
+            Filter for verb-specific roles.
+
+        Returns
+        -------
+        list[VerbClass]
+            VerbNet classes matching criteria.
+        """
+        if not self.verbnet:
+            return []
+
+        matching_classes = []
+        for cls in self.verbnet.get_all_classes():
+            filtered_roles = filter_roles_by_properties(
+                cls.themroles,
+                optional=optional,
+                indexed=indexed,
+                verb_specific=verb_specific,
+            )
+            if filtered_roles:
+                matching_classes.append(cls)
+
+        return matching_classes
+
+    def search_propbank_args(
+        self,
+        arg_type: str | None = None,
+        prefix: str | None = None,
+        modifier: str | None = None,
+        arg_number: int | None = None,
+    ) -> list[Roleset]:
+        """Search PropBank rolesets by argument properties.
+
+        Parameters
+        ----------
+        arg_type : str | None, optional
+            "core" or "modifier".
+        prefix : str | None, optional
+            "C" or "R" for continuation/reference.
+        modifier : str | None, optional
+            Modifier type (e.g., "LOC", "TMP").
+        arg_number : int | None, optional
+            Argument number (0-7).
+
+        Returns
+        -------
+        list[Roleset]
+            PropBank rolesets matching criteria.
+        """
+        if not self.propbank:
+            return []
+
+        matching_rolesets = []
+        for frameset in self.propbank.get_all_framesets():
+            for roleset in frameset.rolesets:
+                filtered_args = filter_args_by_properties(
+                    roleset.roles,
+                    is_core=(arg_type == "core") if arg_type else None,
+                    modifier_type=modifier,
+                    prefix=prefix if prefix in ["C", "R"] else None,  # type: ignore[arg-type]
+                    arg_number=arg_number,
+                )
+                if filtered_args:
+                    matching_rolesets.append(roleset)
+
+        return matching_rolesets
+
+    def search_wordnet_relations(self, relation_type: str | None = None) -> list[Synset]:
+        """Search WordNet synsets by relation type.
+
+        Parameters
+        ----------
+        relation_type : str | None, optional
+            Relation type (e.g., "hypernym", "hyponym").
+
+        Returns
+        -------
+        list[Synset]
+            WordNet synsets with specified relations.
+        """
+        if not self.wordnet:
+            return []
+
+        matching_synsets = []
+        for synset in self.wordnet.get_all_synsets():
+            filtered_ptrs = filter_by_relation_type(synset.pointers, relation_type)
+            if filtered_ptrs:
+                matching_synsets.append(synset)
+
+        return matching_synsets
+
+    def search_framenet_elements(
+        self, core_type: str | None = None, semantic_type: str | None = None
+    ) -> list[Frame]:
+        """Search FrameNet frames by element properties.
+
+        Parameters
+        ----------
+        core_type : str | None, optional
+            "Core", "Non-Core", or "Extra-Thematic".
+        semantic_type : str | None, optional
+            Semantic type of elements.
+
+        Returns
+        -------
+        list[Frame]
+            FrameNet frames matching criteria.
+        """
+        if not self.framenet:
+            return []
+
+        matching_frames = []
+        for frame in self.framenet._frames_by_id.values():
+            filtered_elements = filter_elements_by_properties(
+                frame.frame_elements,
+                core_type=core_type,  # type: ignore[arg-type]
+                semantic_type=semantic_type,
+            )
+            if filtered_elements:
+                matching_frames.append(frame)
+
+        return matching_frames
 
     def load_framenet_from_jsonl(self, filepath: str) -> None:
         """Load FrameNet data from JSONL file."""

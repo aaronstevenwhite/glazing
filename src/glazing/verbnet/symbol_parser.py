@@ -22,14 +22,19 @@ is_pp_element
     Check if an element is a PP element.
 extract_role_base
     Extract the base role name.
+filter_roles_by_properties
+    Filter roles by their properties.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
-from glazing.verbnet.types import FrameDescriptionElement, ThematicRoleValue
+from glazing.verbnet.types import FrameDescriptionElement, ThematicRoleType, ThematicRoleValue
+
+if TYPE_CHECKING:
+    from glazing.verbnet.models import ThematicRole
 
 
 class ParsedVerbNetRole(TypedDict):
@@ -69,12 +74,12 @@ PP_PATTERN = re.compile(r"^PP\.(.+)$")
 VERB_SPECIFIC_PATTERN = re.compile(r"^V_(.+)$")
 
 
-def parse_thematic_role(role: ThematicRoleValue) -> ParsedVerbNetRole:
+def parse_thematic_role(role: ThematicRoleValue | ThematicRoleType) -> ParsedVerbNetRole:
     """Parse a VerbNet thematic role value.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value (e.g., "?Agent", "Theme_I", "V_Final_State").
 
     Returns
@@ -165,12 +170,12 @@ def parse_frame_element(element: FrameDescriptionElement) -> ParsedVerbNetRole:
     return result
 
 
-def is_optional_role(role: ThematicRoleValue) -> bool:
+def is_optional_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
     """Check if a role is optional.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value.
 
     Returns
@@ -188,12 +193,12 @@ def is_optional_role(role: ThematicRoleValue) -> bool:
     return role.startswith("?")
 
 
-def is_indexed_role(role: ThematicRoleValue) -> bool:
+def is_indexed_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
     """Check if a role has an index.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value.
 
     Returns
@@ -234,12 +239,12 @@ def is_pp_element(element: FrameDescriptionElement) -> bool:
     return element.startswith("PP.")
 
 
-def is_verb_specific_role(role: ThematicRoleValue) -> bool:
+def is_verb_specific_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
     """Check if a role is verb-specific.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value.
 
     Returns
@@ -257,12 +262,12 @@ def is_verb_specific_role(role: ThematicRoleValue) -> bool:
     return role.lstrip("?").startswith("V_")
 
 
-def extract_role_base(role: ThematicRoleValue) -> str:
+def extract_role_base(role: ThematicRoleValue | ThematicRoleType) -> str:
     """Extract the base role name without modifiers.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value.
 
     Returns
@@ -281,12 +286,12 @@ def extract_role_base(role: ThematicRoleValue) -> str:
     return parsed["base_role"]
 
 
-def normalize_role_for_matching(role: ThematicRoleValue) -> str:
+def normalize_role_for_matching(role: ThematicRoleValue | ThematicRoleType) -> str:
     """Normalize a role for fuzzy matching.
 
     Parameters
     ----------
-    role : ThematicRoleValue
+    role : ThematicRoleValue | ThematicRoleType
         VerbNet thematic role value.
 
     Returns
@@ -317,3 +322,57 @@ def normalize_role_for_matching(role: ThematicRoleValue) -> str:
 
     # Keep PP roles as-is but lowercase
     return normalized_role.lower().replace("_", " ")
+
+
+def filter_roles_by_properties(
+    roles: list[ThematicRole],
+    optional: bool | None = None,
+    indexed: bool | None = None,
+    verb_specific: bool | None = None,
+    pp_type: str | None = None,
+) -> list[ThematicRole]:
+    """Filter thematic roles by their properties.
+
+    Parameters
+    ----------
+    roles : list[ThematicRole]
+        List of thematic roles to filter.
+    optional : bool | None, optional
+        Filter for optional roles (? prefix).
+    indexed : bool | None, optional
+        Filter for indexed roles (_I, _J suffix).
+    verb_specific : bool | None, optional
+        Filter for verb-specific roles (V_ prefix).
+    pp_type : str | None, optional
+        Filter for specific PP type (e.g., "location" for PP.location).
+
+    Returns
+    -------
+    list[ThematicRole]
+        Filtered list of roles.
+
+    Examples
+    --------
+    >>> roles = [role1, role2, role3]  # Where role1.type = "?Agent"
+    >>> filtered = filter_roles_by_properties(roles, optional=True)
+    >>> len(filtered)
+    1
+    """
+    filtered = []
+
+    for role in roles:
+        parsed = parse_thematic_role(role.type)
+
+        # Apply filters
+        if optional is not None and parsed["is_optional"] != optional:
+            continue
+        if indexed is not None and (parsed["index"] is not None) != indexed:
+            continue
+        if verb_specific is not None and parsed["is_verb_specific"] != verb_specific:
+            continue
+        if pp_type is not None and parsed["pp_type"] != pp_type:
+            continue
+
+        filtered.append(role)
+
+    return filtered

@@ -30,12 +30,14 @@ extract_arg_number
     Extract the argument number from ARG notation.
 extract_modifier_type
     Extract the modifier type from ARGM notation.
+filter_args_by_properties
+    Filter arguments by their properties.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from glazing.propbank.types import (
     ContinuationArgumentType,
@@ -44,6 +46,9 @@ from glazing.propbank.types import (
     PropBankArgumentType,
     ReferenceArgumentType,
 )
+
+if TYPE_CHECKING:
+    from glazing.propbank.models import Role
 
 
 class ParsedPropBankArg(TypedDict):
@@ -515,3 +520,62 @@ def normalize_arg_for_matching(
 
     # Normalize and lowercase
     return normalized_arg.lower().replace("-", " ")
+
+
+def filter_args_by_properties(
+    args: list[Role],
+    is_core: bool | None = None,
+    modifier_type: str | None = None,
+    prefix: Literal["C", "R"] | None = None,
+    arg_number: int | None = None,
+) -> list[Role]:
+    """Filter arguments by their properties.
+
+    Parameters
+    ----------
+    args : list[Role]
+        List of arguments to filter.
+    is_core : bool | None, optional
+        Filter for core arguments (ARG0-7, ARGA).
+    modifier_type : str | None, optional
+        Filter for specific modifier type (e.g., "LOC", "TMP").
+    prefix : Literal["C", "R"] | None, optional
+        Filter for continuation or reference prefix.
+    arg_number : int | None, optional
+        Filter for specific argument number (0-7, -1 for ARGA).
+
+    Returns
+    -------
+    list[Role]
+        Filtered list of arguments.
+
+    Examples
+    --------
+    >>> args = [arg1, arg2, arg3]  # Where arg1.n = "0"
+    >>> filtered = filter_args_by_properties(args, is_core=True)
+    >>> len(filtered)
+    1
+    """
+    filtered = []
+
+    for arg in args:
+        # Check if it's a core argument (numbers 0-7)
+        arg_is_core = arg.n in ["0", "1", "2", "3", "4", "5", "6", "7"]
+
+        # Apply filters based on Role's actual properties
+        if is_core is not None and arg_is_core != is_core:
+            continue
+
+        # modifier_type and prefix filters don't apply to Role structure
+        # as Role only has ArgumentNumber and FunctionTag
+        if modifier_type is not None or prefix is not None:
+            # These filters cannot be applied to Role objects
+            continue
+
+        # Convert arg_number to string for comparison
+        if arg_number is not None and arg_is_core and str(arg_number) != arg.n:
+            continue
+
+        filtered.append(arg)
+
+    return filtered

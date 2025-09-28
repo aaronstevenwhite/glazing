@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from glazing.wordnet.models import Sense, Synset
+from glazing.wordnet.symbol_parser import filter_by_relation_type
 from glazing.wordnet.types import (
     LexFileName,
     SenseKey,
@@ -375,6 +376,27 @@ class WordNetSearch:
             All synsets sorted by offset.
         """
         return sorted(self._synsets.values(), key=lambda s: s.offset)
+
+    def by_relation_type(self, relation_type: str) -> list[Synset]:
+        """Find synsets with specific relation type.
+
+        Parameters
+        ----------
+        relation_type : str
+            Relation type (e.g., "hypernym", "hyponym", "antonym").
+
+        Returns
+        -------
+        list[Synset]
+            Synsets with the specified relation type.
+        """
+        matching_synsets = []
+        for synset in self._synsets.values():
+            filtered_ptrs = filter_by_relation_type(synset.pointers, relation_type)
+            if filtered_ptrs:
+                matching_synsets.append(synset)
+
+        return sorted(matching_synsets, key=lambda s: s.offset)
 
     def get_synset_by_id(self, synset_id: str) -> Synset | None:
         """Get a synset by its ID string.

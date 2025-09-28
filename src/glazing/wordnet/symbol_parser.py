@@ -22,14 +22,19 @@ extract_sense_number
     Extract sense number from sense key.
 normalize_lemma
     Normalize a lemma for matching.
+filter_by_relation_type
+    Filter pointers by relation type.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from glazing.wordnet.types import Lemma, LemmaKey, Offset, SenseKey, SynsetID, WordNetPOS
+
+if TYPE_CHECKING:
+    from glazing.wordnet.models import Pointer
 
 
 class ParsedWordNetSymbol(TypedDict):
@@ -366,3 +371,62 @@ def build_synset_id(offset: Offset, pos: WordNetPOS) -> str:
     '00001740-n'
     """
     return f"{offset}-{pos}"
+
+
+def filter_by_relation_type(
+    pointers: list[Pointer],
+    relation_type: str | None = None,
+) -> list[Pointer]:
+    """Filter pointers by relation type.
+
+    Parameters
+    ----------
+    pointers : list[Pointer]
+        List of pointers to filter.
+    relation_type : str | None, optional
+        Filter by relation type (e.g., "hypernym", "hyponym", "antonym").
+
+    Returns
+    -------
+    list[Pointer]
+        Filtered list of pointers.
+
+    Examples
+    --------
+    >>> pointers = [ptr1, ptr2, ptr3]  # Where ptr1.symbol = "@"
+    >>> filtered = filter_by_relation_type(pointers, relation_type="hypernym")
+    >>> len(filtered)
+    1
+    """
+    if relation_type is None:
+        return pointers
+
+    # Map relation types to pointer symbols
+    relation_map = {
+        "hypernym": "@",
+        "hyponym": "~",
+        "instance_hypernym": "@i",
+        "instance_hyponym": "~i",
+        "member_holonym": "#m",
+        "part_holonym": "#p",
+        "substance_holonym": "#s",
+        "member_meronym": "%m",
+        "part_meronym": "%p",
+        "substance_meronym": "%s",
+        "antonym": "!",
+        "similar_to": "&",
+        "attribute": "=",
+        "also_see": "^",
+        "entailment": "*",
+        "cause": ">",
+        "verb_group": "$",
+        "derivation": "+",
+        "pertainym": "\\",
+        "participle": "<",
+    }
+
+    symbol = relation_map.get(relation_type.lower())
+    if symbol is None:
+        return []
+
+    return [ptr for ptr in pointers if ptr.symbol == symbol]
