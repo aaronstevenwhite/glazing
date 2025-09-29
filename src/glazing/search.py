@@ -22,10 +22,13 @@ from glazing.propbank.loader import PropBankLoader
 from glazing.propbank.models import Frameset, Roleset
 from glazing.propbank.search import PropBankSearch
 from glazing.propbank.symbol_parser import filter_args_by_properties
+from glazing.syntax.models import SyntaxElement, UnifiedSyntaxPattern
+from glazing.syntax.parser import SyntaxParser
 from glazing.types import ResourceType
 from glazing.utils.fuzzy_match import levenshtein_ratio
 from glazing.verbnet.loader import VerbNetLoader
-from glazing.verbnet.models import VerbClass
+from glazing.verbnet.models import SyntaxElement as VNSyntaxElement
+from glazing.verbnet.models import VerbClass, VNFrame
 from glazing.verbnet.search import VerbNetSearch
 from glazing.verbnet.symbol_parser import filter_roles_by_properties
 from glazing.verbnet.types import PredicateType
@@ -236,6 +239,7 @@ class UnifiedSearch:
         self.verbnet = verbnet
         self.wordnet = wordnet
         self.propbank = propbank
+        self._syntax_parser = SyntaxParser()
 
     def by_lemma(self, lemma: str, pos: str | None = None) -> UnifiedSearchResult:
         """Search all datasets by lemma.
@@ -1400,6 +1404,253 @@ class UnifiedSearch:
                 matching_frames.append(frame)
 
         return matching_frames
+
+    def search_by_syntax(
+        self,
+        pattern: str,
+        dataset: str | None = None,
+        allow_wildcards: bool = True,
+        min_confidence: float = 0.7,
+    ) -> list[SearchResult]:
+        """Search by syntactic pattern with hierarchical matching.
+
+        General patterns match specific instances with full confidence.
+
+        Parameters
+        ----------
+        pattern : str
+            Syntactic pattern with optional wildcards and roles.
+            Examples:
+            - "NP V NP" - basic transitive
+            - "NP V PP" - matches all PP subtypes
+            - "NP V PP.instrument" - specific PP role
+            - "NP V NP *" - wildcard for fourth position
+
+        dataset : str | None
+            Limit to specific dataset (verbnet, propbank, framenet).
+
+        allow_wildcards : bool
+            Whether to process wildcard elements (*).
+
+        min_confidence : float
+            Minimum confidence score for matches (0.0-1.0).
+
+        Returns
+        -------
+        list[SearchResult]
+            Matching results sorted by confidence.
+
+        Examples
+        --------
+        >>> search = UnifiedSearch()
+        >>> # Find all PP patterns
+        >>> results = search.search_by_syntax("NP V PP")
+        >>> # Find specific PP role
+        >>> results = search.search_by_syntax("NP V PP.instrument")
+        >>> # Use wildcards
+        >>> results = search.search_by_syntax("NP V NP *")
+        """
+        query_pattern = self._syntax_parser.parse(pattern)
+        results: list[SearchResult] = []
+
+        self._search_verbnet_syntax(
+            results, query_pattern, dataset, allow_wildcards, min_confidence
+        )
+        self._search_propbank_syntax(results, pattern, dataset)
+        self._search_framenet_syntax(results, pattern, dataset)
+        self._search_wordnet_syntax(results, pattern, dataset)
+
+        # Sort by confidence score
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results
+
+    def _search_verbnet_syntax(
+        self,
+        results: list[SearchResult],
+        query_pattern: UnifiedSyntaxPattern,
+        dataset: str | None,
+        allow_wildcards: bool,
+        min_confidence: float,
+    ) -> None:
+        """Search VerbNet for syntactic patterns."""
+        if not self.verbnet or (dataset and dataset != "verbnet"):
+            return
+
+        for verb_class in self.verbnet.get_all_classes():
+            for frame in verb_class.frames:
+                target_pattern = self._extract_verbnet_pattern(frame)
+                matches, confidence = query_pattern.matches_hierarchically(
+                    target_pattern, allow_wildcards=allow_wildcards
+                )
+
+                if matches and confidence >= min_confidence:
+                    desc = self._get_verbnet_frame_description(frame, target_pattern)
+                    results.append(
+                        SearchResult(
+                            dataset="verbnet",
+                            id=verb_class.id,
+                            type="syntactic_frame",
+                            name=verb_class.id,
+                            description=f"Pattern: {desc}",
+                            score=confidence,
+                        )
+                    )
+                    break  # One match per class
+
+    def _get_verbnet_frame_description(
+        self, frame: VNFrame, target_pattern: UnifiedSyntaxPattern
+    ) -> str:
+        """Get description for VerbNet frame."""
+        if frame.description and frame.description.primary:
+            return frame.description.primary
+        return target_pattern.source_pattern or target_pattern.normalized
+
+    def _search_propbank_syntax(
+        self, results: list[SearchResult], pattern: str, dataset: str | None
+    ) -> None:
+        """Search PropBank for syntactic patterns."""
+        if not self.propbank or (dataset and dataset != "propbank"):
+            return
+
+        rolesets = self.propbank.by_syntax(pattern)
+        for roleset in rolesets:
+            results.append(
+                SearchResult(
+                    dataset="propbank",
+                    id=roleset.id,
+                    type="roleset",
+                    name=roleset.id,
+                    description=f"PropBank roleset: {roleset.name}",
+                    score=1.0,
+                )
+            )
+
+    def _search_framenet_syntax(
+        self, results: list[SearchResult], pattern: str, dataset: str | None
+    ) -> None:
+        """Search FrameNet for syntactic patterns."""
+        if not self.framenet or (dataset and dataset != "framenet"):
+            return
+
+        fn_frames = self.framenet.by_syntax(pattern)
+        for fn_frame in fn_frames:
+            description = fn_frame.definition.plain_text if fn_frame.definition else fn_frame.name
+            results.append(
+                SearchResult(
+                    dataset="framenet",
+                    id=str(fn_frame.id),
+                    type="frame",
+                    name=fn_frame.name,
+                    description=f"FrameNet frame: {description}",
+                    score=1.0,
+                )
+            )
+
+    def _search_wordnet_syntax(
+        self, results: list[SearchResult], pattern: str, dataset: str | None
+    ) -> None:
+        """Search WordNet for syntactic patterns."""
+        if not self.wordnet or (dataset and dataset != "wordnet"):
+            return
+
+        synsets = self.wordnet.by_syntax(pattern)
+        for synset in synsets:
+            results.append(
+                SearchResult(
+                    dataset="wordnet",
+                    id=str(synset.offset),
+                    type="synset",
+                    name=str(synset.offset),
+                    description=f"WordNet synset: {synset.gloss}",
+                    score=1.0,
+                )
+            )
+
+    def _extract_verbnet_pattern(self, frame: VNFrame) -> UnifiedSyntaxPattern:
+        """Extract syntactic pattern from VerbNet frame."""
+        elements = []
+        skip_next = False
+
+        for i, elem in enumerate(frame.syntax.elements):
+            if skip_next:
+                skip_next = False
+                continue
+
+            element, should_skip = self._process_verbnet_element(elem, frame.syntax.elements, i)
+            if element:
+                elements.append(element)
+            skip_next = should_skip
+
+        source = self._get_verbnet_source_pattern(frame)
+        return UnifiedSyntaxPattern(
+            elements=elements, source_pattern=source, source_dataset="VerbNet"
+        )
+
+    def _process_verbnet_element(
+        self, elem: VNSyntaxElement, all_elements: list[VNSyntaxElement], index: int
+    ) -> tuple[SyntaxElement | None, bool]:
+        """Process a single VerbNet syntax element."""
+        if elem.pos == "PREP":
+            return self._create_pp_element(elem, all_elements, index)
+        if elem.pos == "NP":
+            return self._create_np_element(elem), False
+        return self._create_other_element(elem), False
+
+    def _create_pp_element(
+        self, elem: VNSyntaxElement, all_elements: list[VNSyntaxElement], index: int
+    ) -> tuple[SyntaxElement, bool]:
+        """Create PP element with preposition and optional semantic role."""
+        pp_elem = SyntaxElement(constituent="PP")
+
+        # Add preposition value if present
+        if elem.value:
+            pp_elem.preposition = elem.value.lower()
+
+        # Check next element for semantic role
+        skip_next = False
+        if index + 1 < len(all_elements):
+            next_elem = all_elements[index + 1]
+            if next_elem.pos == "NP" and next_elem.value:
+                pp_elem.semantic_role = next_elem.value
+                skip_next = True
+
+        return pp_elem, skip_next
+
+    def _create_np_element(self, elem: VNSyntaxElement) -> SyntaxElement:
+        """Create NP element with optional argument role."""
+        np_elem = SyntaxElement(constituent="NP")
+        if elem.value:
+            np_elem.argument_role = elem.value
+        return np_elem
+
+    def _create_other_element(self, elem: VNSyntaxElement) -> SyntaxElement | None:
+        """Create element for other constituent types."""
+        const = elem.pos
+        valid_constituents = [
+            "NP",
+            "VP",
+            "V",
+            "VERB",
+            "PP",
+            "PREP",
+            "ADV",
+            "ADVP",
+            "ADJ",
+            "ADJP",
+            "S",
+            "SBAR",
+            "LEX",
+            "*",
+        ]
+        if const in valid_constituents:
+            return SyntaxElement(constituent=const)
+        return None
+
+    def _get_verbnet_source_pattern(self, frame: VNFrame) -> str:
+        """Get source pattern description for VerbNet frame."""
+        if frame.description and frame.description.primary:
+            return frame.description.primary
+        return ""
 
     def load_framenet_from_jsonl(self, filepath: str) -> None:
         """Load FrameNet data from JSONL file."""

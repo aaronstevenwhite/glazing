@@ -773,6 +773,89 @@ def search_relations(
         sys.exit(1)
 
 
+@search.command(name="syntax")
+@click.argument("pattern")
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=lambda: get_default_data_path(),
+    help="Directory containing converted JSON Lines files.",
+)
+@click.option(
+    "--dataset",
+    type=click.Choice(["all", "verbnet", "propbank", "framenet"]),
+    default="all",
+    help="Dataset to search in.",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=20,
+    help="Maximum number of results to show.",
+)
+def search_syntax(
+    pattern: str,
+    data_dir: str | Path,
+    dataset: str,
+    limit: int,
+) -> None:
+    """Search for syntactic patterns across datasets.
+
+    Supports hierarchical matching where general patterns match specific ones.
+    For example, "NP V PP" matches "NP V PP.instrument", "NP V PP.goal", etc.
+
+    Examples
+    --------
+    Find all patterns with NP V PP:
+        $ glazing search syntax "NP V PP"
+
+    Find patterns with specific PP type:
+        $ glazing search syntax "NP V PP.instrument"
+
+    Find patterns with wildcards:
+        $ glazing search syntax "NP V NP *"
+    """
+    try:
+        # Determine which datasets to load (skip wordnet for syntax search)
+        datasets_to_load = ["verbnet", "propbank", "framenet"] if dataset == "all" else [dataset]
+
+        # Load search index
+        search_engine = load_search_index(data_dir, datasets_to_load)
+
+        # Search by syntax
+        results = search_engine.search_by_syntax(pattern)
+
+        if not results:
+            console.print(f"[yellow]No syntactic patterns matching '{pattern}' found.[/yellow]")
+            return
+
+        # Display results
+        table = Table(title=f"Syntactic Patterns matching '{pattern}'")
+        table.add_column("Dataset", style="cyan")
+        table.add_column("Entity", style="green")
+        table.add_column("Pattern", style="white")
+        table.add_column("Confidence", style="yellow")
+
+        for result in results[:limit]:
+            table.add_row(
+                result.dataset.upper(),
+                result.id,
+                result.description[:60] + "..."
+                if len(result.description) > 60
+                else result.description,
+                f"{result.score:.2f}",
+            )
+
+        console.print(table)
+
+        if len(results) > limit:
+            console.print(f"\n[dim]Showing {limit} of {len(results)} results.[/dim]")
+
+    except (ValueError, TypeError, RuntimeError) as e:
+        console.print(f"[red]✗ Syntax search failed: {e}[/red]")
+        sys.exit(1)
+
+
 @search.command(name="elements")
 @click.option(
     "--data-dir",

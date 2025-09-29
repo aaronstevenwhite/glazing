@@ -49,6 +49,26 @@ glazing search query "instrment" --fuzzy --threshold 0.7
 glazing search query "runing" --fuzzy --threshold 0.85
 ```
 
+### Syntactic Pattern Search
+
+Search for syntactic patterns across datasets with hierarchical matching:
+
+```bash
+# Find all patterns with NP V PP structure
+glazing search syntax "NP V PP"
+
+# Find patterns with specific PP semantic roles
+glazing search syntax "NP V PP.instrument"
+
+# Use wildcards to match any following elements
+glazing search syntax "NP V NP *"
+
+# Search in specific dataset
+glazing search syntax "NP V PP" --dataset verbnet
+```
+
+The syntax search supports hierarchical matching where general patterns like "NP V PP" will match more specific patterns like "NP V PP.instrument" or "NP V PP.goal" with full confidence.
+
 ### Entity Lookup
 
 Look up specific entities by their IDs:

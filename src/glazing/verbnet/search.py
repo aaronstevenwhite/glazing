@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
+from glazing.syntax.models import UnifiedSyntaxPattern
+from glazing.syntax.parser import SyntaxParser
 from glazing.verbnet.models import (
     SelectionalRestriction,
     SelectionalRestrictions,
@@ -171,37 +173,119 @@ class VerbNetSearch:
     def by_syntax(self, pattern: str) -> list[VerbClass]:
         """Find classes with matching syntactic patterns.
 
+        Supports hierarchical matching where general patterns match specific ones:
+        - "NP V PP" matches "NP V PP.instrument", "NP V PP.goal", etc.
+        - "NP V NP *" matches any frame with NP V NP followed by anything
+
         Parameters
         ----------
         pattern : str
-            Syntactic pattern to search for (e.g., "NP V NP NP").
+            Syntactic pattern to search for (e.g., "NP V PP", "NP V PP.instrument").
 
         Returns
         -------
         list[VerbClass]
             Verb classes with frames matching the pattern.
         """
-        pattern_parts = pattern.strip().split()
+        parser = SyntaxParser()
+        query_pattern = parser.parse(pattern)
         matching_class_ids = set()
 
         for verb_class in self._classes.values():
             for frame in verb_class.frames:
-                # Build syntactic pattern from frame
-                frame_pattern = []
-                for element in frame.syntax.elements:
-                    if element.pos == "NP" and element.value:
-                        # This is a role reference as NP
-                        frame_pattern.append("NP")
-                    else:
-                        frame_pattern.append(element.pos)
+                # Extract pattern from VerbNet frame syntax elements
+                frame_pattern = parser.parse_verbnet_elements(frame.syntax.elements)
 
-                # Check if patterns match
-                if frame_pattern == pattern_parts:
+                # Check for pattern match
+                if self._patterns_match(query_pattern, frame_pattern):
                     matching_class_ids.add(verb_class.id)
                     break  # Found match in this class
 
         classes = [self._classes[cid] for cid in matching_class_ids]
         return sorted(classes, key=lambda c: c.id)
+
+    def _allows_pp_expansion(
+        self, query_pattern: UnifiedSyntaxPattern, frame_pattern: UnifiedSyntaxPattern
+    ) -> bool:
+        """Check if query pattern can match frame pattern with PP expansion.
+
+        For example, "NP VERB PREP NP" in query can match "NP VERB PP" in frame.
+        """
+        query_elements = query_pattern.elements
+        frame_elements = frame_pattern.elements
+
+        # Quick check: query should have exactly one more element than frame
+        if len(query_elements) != len(frame_elements) + 1:
+            return False
+
+        # Look for PREP followed by NP in query that could match PP in frame
+        for i in range(len(query_elements) - 1):
+            if (
+                query_elements[i].constituent == "PREP"
+                and query_elements[i + 1].constituent == "NP"
+                and i < len(frame_elements)
+                and frame_elements[i].constituent == "PP"
+            ):
+                # Verify all other elements match
+                query_before = query_elements[:i]
+                query_after = query_elements[i + 2 :]  # Skip PREP and NP
+                frame_before = frame_elements[:i]
+                frame_after = frame_elements[i + 1 :]  # Skip PP
+
+                if len(query_before) == len(frame_before) and len(query_after) == len(frame_after):
+                    return True
+
+        return False
+
+    def _patterns_match(
+        self, query_pattern: UnifiedSyntaxPattern, frame_pattern: UnifiedSyntaxPattern
+    ) -> bool:
+        """Check if query pattern matches frame pattern.
+
+        Handles both exact matches and PP expansion where "PREP NP" matches "PP".
+        """
+        query_elements = query_pattern.elements
+        frame_elements = frame_pattern.elements
+
+        # Try exact match first
+        if len(query_elements) == len(frame_elements):
+            for q_elem, f_elem in zip(query_elements, frame_elements, strict=False):
+                if q_elem.constituent != f_elem.constituent:
+                    break
+            else:
+                return True  # All elements matched exactly
+
+        # Try PP expansion: "PREP NP" in query matches "PP" in frame
+        if len(query_elements) == len(frame_elements) + 1:
+            query_idx = 0
+            frame_idx = 0
+
+            while query_idx < len(query_elements) and frame_idx < len(frame_elements):
+                q_elem = query_elements[query_idx]
+                f_elem = frame_elements[frame_idx]
+
+                # Check for PREP NP -> PP conversion
+                if (
+                    q_elem.constituent == "PREP"
+                    and query_idx + 1 < len(query_elements)
+                    and query_elements[query_idx + 1].constituent == "NP"
+                    and f_elem.constituent == "PP"
+                ):
+                    # PREP NP in query matches PP in frame
+                    query_idx += 2  # Skip both PREP and NP
+                    frame_idx += 1  # Skip PP
+                elif q_elem.constituent == f_elem.constituent:
+                    # Direct match
+                    query_idx += 1
+                    frame_idx += 1
+                else:
+                    # No match
+                    return False
+
+            # Check if we consumed all elements
+            return query_idx == len(query_elements) and frame_idx == len(frame_elements)
+
+        return False
 
     def by_predicate(self, predicate: PredicateType) -> list[VerbClass]:
         """Find classes using a specific semantic predicate.

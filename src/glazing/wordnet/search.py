@@ -11,12 +11,15 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+from glazing.syntax.models import UnifiedSyntaxPattern
+from glazing.syntax.parser import SyntaxParser
 from glazing.wordnet.models import Sense, Synset
 from glazing.wordnet.symbol_parser import filter_by_relation_type
 from glazing.wordnet.types import (
     LexFileName,
     SenseKey,
     SynsetOffset,
+    VerbFrameNumber,
     WordNetPOS,
 )
 
@@ -397,6 +400,114 @@ class WordNetSearch:
                 matching_synsets.append(synset)
 
         return sorted(matching_synsets, key=lambda s: s.offset)
+
+    def by_syntax(self, pattern: str) -> list[Synset]:
+        """Find synsets with verbs matching a syntactic pattern.
+
+        Parameters
+        ----------
+        pattern : str
+            Syntactic pattern (e.g., "NP V", "NP V NP", "NP V PP").
+
+        Returns
+        -------
+        list[Synset]
+            Synsets containing verbs with matching syntactic frames.
+        """
+        parser = SyntaxParser()
+        parsed_pattern = parser.parse(pattern)
+
+        # Get frame numbers that match this pattern
+        matching_frame_numbers = self._get_frame_numbers_for_pattern(parsed_pattern)
+
+        if not matching_frame_numbers:
+            return []
+
+        matching_synsets = []
+        for synset in self._synsets.values():
+            if synset.ss_type == "v" and synset.frames:  # Only verb synsets with frames
+                for verb_frame in synset.frames:
+                    if verb_frame.frame_number in matching_frame_numbers:
+                        matching_synsets.append(synset)
+                        break
+
+        return sorted(matching_synsets, key=lambda s: s.offset)
+
+    def _get_frame_numbers_for_pattern(
+        self, parsed_pattern: UnifiedSyntaxPattern
+    ) -> set[VerbFrameNumber]:
+        """Map syntax pattern to WordNet verb frame numbers."""
+        # Standard WordNet verb frame to syntax pattern mapping
+        verb_frame_patterns = {
+            # Basic intransitive patterns
+            1: "NP V",  # Something ----s
+            2: "NP V PP",  # Somebody ----s PP
+            # Basic transitive patterns
+            8: "NP V NP",  # Somebody ----s something
+            9: "NP V NP PP",  # Somebody ----s somebody PP
+            10: "NP V NP NP",  # Something ----s somebody something
+            11: "NP V NP NP",  # Something ----s something to somebody
+            # Reflexive patterns
+            13: "NP V NP",  # Somebody ----s himself
+            # Sentential complement patterns
+            25: "NP V S",  # Somebody ----s that CLAUSE
+            26: "NP V NP S",  # Somebody ----s somebody that CLAUSE
+            27: "NP V S",  # Somebody ----s to INFINITIVE
+            28: "NP V NP S",  # Somebody ----s somebody to INFINITIVE
+            29: "NP V NP S",  # Somebody ----s somebody into V-ing something
+            # Locative patterns
+            30: "NP V PP",  # Somebody ----s PP
+            31: "NP V NP PP",  # Somebody ----s something PP
+            32: "NP V PP PP",  # Somebody ----s PP PP
+            # Resultative patterns
+            33: "NP V NP ADJ",  # Somebody ----s something Adjective/Noun
+            34: "NP V NP ADJ",  # Somebody ----s somebody Adjective/Noun
+            # Passive-like patterns
+            35: "NP V",  # Something ----s Adjective/Noun
+        }
+
+        pattern_str = self._pattern_to_string(parsed_pattern)
+
+        matching_frames: set[VerbFrameNumber] = set()
+        for frame_num, frame_pattern in verb_frame_patterns.items():
+            if self._patterns_match(pattern_str, frame_pattern, parsed_pattern):
+                matching_frames.add(frame_num)  # type: ignore[arg-type]
+
+        return matching_frames
+
+    def _pattern_to_string(self, parsed_pattern: UnifiedSyntaxPattern) -> str:
+        """Convert parsed pattern back to string for comparison."""
+        elements: list[str] = []
+        for element in parsed_pattern.elements:
+            if hasattr(element, "constituent"):
+                elements.append(element.constituent)
+            else:
+                elements.append(str(element))
+        return " ".join(elements)
+
+    def _patterns_match(
+        self, search_pattern: str, frame_pattern: str, parsed_pattern: UnifiedSyntaxPattern
+    ) -> bool:
+        """Check if search pattern matches frame pattern with hierarchical matching."""
+        parser = SyntaxParser()
+        try:
+            parsed_frame = parser.parse(frame_pattern)
+        except (ValueError, AttributeError):
+            # If parsing fails, fall back to simple string comparison
+            return search_pattern == frame_pattern
+
+        # Use hierarchical matching from syntax module
+        if len(parsed_pattern.elements) != len(parsed_frame.elements):
+            return False
+
+        for search_elem, frame_elem in zip(
+            parsed_pattern.elements, parsed_frame.elements, strict=False
+        ):
+            matches, _ = search_elem.matches_hierarchically(frame_elem)
+            if not matches:
+                return False
+
+        return True
 
     def get_synset_by_id(self, synset_id: str) -> Synset | None:
         """Get a synset by its ID string.

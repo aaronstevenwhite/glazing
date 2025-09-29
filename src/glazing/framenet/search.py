@@ -11,9 +11,11 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from glazing.framenet.models import Frame, FrameElement, LexicalUnit
+from glazing.framenet.models import Frame, FrameElement, LexicalUnit, ValencePattern, ValenceUnit
 from glazing.framenet.symbol_parser import filter_elements_by_properties
 from glazing.framenet.types import CoreType, FrameID, FrameNetPOS
+from glazing.syntax.models import SyntaxElement, UnifiedSyntaxPattern
+from glazing.syntax.parser import SyntaxParser
 
 
 class FrameNetSearch:
@@ -444,6 +446,212 @@ class FrameNetSearch:
                     frames.append(frame)
 
         return cls(frames)
+
+    def by_syntax(self, pattern: str) -> list[Frame]:
+        """Find frames with valence patterns matching a syntactic pattern.
+
+        Parameters
+        ----------
+        pattern : str
+            Syntactic pattern (e.g., "NP V NP", "NP V PP").
+
+        Returns
+        -------
+        list[Frame]
+            Frames with matching valence patterns.
+        """
+        parser = SyntaxParser()
+        parsed_pattern = parser.parse(pattern)
+
+        matching_frames = []
+        for frame in self._frames_by_id.values():
+            for lu in frame.lexical_units:
+                if hasattr(lu, "valence_patterns") and lu.valence_patterns:
+                    for valence_pattern in lu.valence_patterns:
+                        if self._valence_matches_pattern(valence_pattern, parsed_pattern):
+                            matching_frames.append(frame)
+                            break
+                    else:
+                        continue
+                    break
+
+        # Remove duplicates while preserving order
+        seen_ids = set()
+        unique_frames = []
+        for frame in matching_frames:
+            if frame.id not in seen_ids:
+                seen_ids.add(frame.id)
+                unique_frames.append(frame)
+
+        return sorted(unique_frames, key=lambda f: f.name)
+
+    def _valence_matches_pattern(
+        self, valence_pattern: ValencePattern, parsed_pattern: UnifiedSyntaxPattern
+    ) -> bool:
+        """Check if a valence pattern matches the syntactic pattern."""
+        if not valence_pattern.fe_realizations:
+            return False
+
+        # Extract syntactic pattern from FE realizations
+        extracted_pattern = self._extract_pattern_from_valence(valence_pattern)
+        if not extracted_pattern:
+            return False
+
+        # Use hierarchical matching
+        if len(parsed_pattern.elements) != len(extracted_pattern.elements):
+            return False
+
+        for search_elem, valence_elem in zip(
+            parsed_pattern.elements, extracted_pattern.elements, strict=False
+        ):
+            matches, _ = search_elem.matches_hierarchically(valence_elem)
+            if not matches:
+                return False
+
+        return True
+
+    def _extract_pattern_from_valence(
+        self, valence_pattern: ValencePattern
+    ) -> UnifiedSyntaxPattern | None:
+        """Extract syntactic pattern from FrameNet valence pattern."""
+        valence_units = self._get_valence_units(valence_pattern)
+        if not valence_units:
+            return None
+
+        sorted_units = self._sort_valence_units(valence_units)
+        elements = self._convert_units_to_elements(sorted_units)
+
+        return UnifiedSyntaxPattern(
+            elements=elements,
+            source_pattern=" ".join(f"{unit.gf}:{unit.pt}" for unit in sorted_units),
+            source_dataset="FrameNet",
+        )
+
+    def _get_valence_units(self, valence_pattern: ValencePattern) -> list[ValenceUnit]:
+        """Extract valence units from FE realizations."""
+        if not valence_pattern.fe_realizations:
+            return []
+
+        valence_units = []
+        for fe_realization in valence_pattern.fe_realizations:
+            most_frequent = fe_realization.get_most_frequent_pattern()
+            if most_frequent and most_frequent.valence_units:
+                valence_units.extend(most_frequent.valence_units)
+
+        return valence_units
+
+    def _sort_valence_units(self, valence_units: list[ValenceUnit]) -> list[ValenceUnit]:
+        """Sort valence units by grammatical function for consistent ordering."""
+
+        def gf_order(unit: ValenceUnit) -> int:
+            gf_priority = {
+                "Ext": 1,  # External argument (usually subject)
+                "Subj": 1,  # Subject
+                "Obj": 2,  # Object
+                "Comp": 3,  # Complement
+                "Dep": 4,  # Dependent/adjunct
+            }
+            return gf_priority.get(unit.gf, 5)
+
+        return sorted(valence_units, key=gf_order)
+
+    def _convert_units_to_elements(self, sorted_units: list[ValenceUnit]) -> list[SyntaxElement]:
+        """Convert valence units to syntax elements."""
+        elements: list[SyntaxElement] = []
+        verb_inserted = False
+
+        for i, unit in enumerate(sorted_units):
+            verb_inserted = self._maybe_insert_verb_before(elements, unit.gf, verb_inserted)
+
+            element = self._map_phrase_type_to_element(unit.pt, unit.fe)
+            elements.append(element)
+
+            verb_inserted = self._maybe_insert_verb_after(elements, unit.gf, verb_inserted, i == 0)
+
+        self._ensure_verb_present(elements, verb_inserted)
+        return elements
+
+    def _maybe_insert_verb_before(
+        self, elements: list[SyntaxElement], gf: str, verb_inserted: bool
+    ) -> bool:
+        """Insert verb before objects if not already inserted."""
+        if not verb_inserted and gf in ["Obj", "Comp", "Dep"]:
+            elements.append(SyntaxElement(constituent="VERB"))
+            return True
+        return verb_inserted
+
+    def _maybe_insert_verb_after(
+        self, elements: list[SyntaxElement], gf: str, verb_inserted: bool, is_first: bool
+    ) -> bool:
+        """Insert verb after subject if it's the first element."""
+        if not verb_inserted and is_first and gf in ["Ext", "Subj"]:
+            elements.append(SyntaxElement(constituent="VERB"))
+            return True
+        return verb_inserted
+
+    def _map_phrase_type_to_element(self, pt: str, fe: str) -> SyntaxElement:
+        """Map FrameNet phrase type to syntax element."""
+        # Map phrase types to constituents
+        pt_mappings = {
+            "NP": "NP",
+            "AJP": "ADJ",
+            "AVP": "ADV",
+            "S": "S",
+        }
+
+        if pt == "PP":
+            semantic_role = self._map_fe_to_semantic_role(fe)
+            return SyntaxElement(
+                constituent="PP", semantic_role=semantic_role if semantic_role else None
+            )
+        if pt in ["VPing", "VPto", "VPbrst"]:
+            return SyntaxElement(constituent="VP")
+        # Use mapping or default to NP
+        constituent = pt_mappings.get(pt, "NP")
+        return SyntaxElement(constituent=constituent)  # type: ignore[arg-type]
+
+    def _ensure_verb_present(self, elements: list[SyntaxElement], verb_inserted: bool) -> None:
+        """Ensure a verb is present in the elements list."""
+        if not verb_inserted and elements:
+            # Insert verb after first NP (SVO order)
+            np_indices = [i for i, e in enumerate(elements) if e.constituent == "NP"]
+            if np_indices:
+                elements.insert(np_indices[0] + 1, SyntaxElement(constituent="VERB"))
+            else:
+                elements.insert(0, SyntaxElement(constituent="VERB"))
+
+    def _map_fe_to_semantic_role(self, fe_name: str) -> str | None:
+        """Map FrameNet frame element names to semantic roles."""
+        # Common FrameNet FE to semantic role mappings
+        fe_mappings = {
+            # Location and direction
+            "Source": "location",
+            "Goal": "location",
+            "Path": "location",
+            "Area": "location",
+            "Place": "location",
+            "Location": "location",
+            "Direction": "location",
+            # Time
+            "Time": "temporal",
+            "Duration": "temporal",
+            "Frequency": "temporal",
+            # Manner and means
+            "Manner": "manner",
+            "Means": "manner",
+            "Method": "manner",
+            "Instrument": "instrument",
+            # Purpose and reason
+            "Purpose": "purpose",
+            "Reason": "cause",
+            "Cause": "cause",
+            "Explanation": "cause",
+            # Benefactive
+            "Beneficiary": "beneficiary",
+            "Recipient": "beneficiary",
+        }
+
+        return fe_mappings.get(fe_name)
 
     def merge(self, other: FrameNetSearch) -> None:
         """Merge another index into this one.
