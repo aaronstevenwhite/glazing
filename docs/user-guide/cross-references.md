@@ -49,7 +49,7 @@ To find semantic equivalents across datasets, search each one and collect the re
 from glazing.search import UnifiedSearch
 
 search = UnifiedSearch()
-results = search.search_by_lemma("give")
+results = search.by_lemma("give")
 
 # Group results by dataset
 by_dataset = {}
@@ -62,7 +62,7 @@ For analyzing coverage of a concept across datasets:
 ```python
 def check_coverage(lemma):
     search = UnifiedSearch()
-    results = search.search_by_lemma(lemma)
+    results = search.by_lemma(lemma)
 
     coverage = set(r.dataset for r in results)
     missing = {'propbank', 'verbnet', 'wordnet', 'framenet'} - coverage

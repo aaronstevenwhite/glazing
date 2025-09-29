@@ -72,7 +72,7 @@ search = VerbNetSearch(list(loader.classes.values()))
 agent_classes = search.by_themroles(["Agent", "Theme"])
 
 # Find by syntactic pattern
-motion_classes = search.by_syntax("NP V PP")
+motion_classes = search.by_syntax("NP VERB PREP NP")
 ```
 
 ## Cross-References
