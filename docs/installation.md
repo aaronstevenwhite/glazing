@@ -128,6 +128,7 @@ xcode-select --install
 ### Windows
 
 On Windows, we recommend using:
+
 - Windows Terminal for better CLI experience
 - WSL2 for Unix-like environment
 
