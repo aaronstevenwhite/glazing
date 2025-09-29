@@ -14,14 +14,31 @@ Unified data models and interfaces for syntactic and semantic frame ontologies.
 - 🚀 **One-command setup**: `glazing init` downloads and prepares all datasets
 - 📦 **Type-safe models**: Pydantic v2 validation for all data structures
 - 🔍 **Unified search**: Query across all datasets with consistent API
-- 🔗 **Cross-references**: Automatic mapping between resources
+- 🔗 **Cross-references**: Automatic mapping between resources with confidence scores
+- 🎯 **Fuzzy search**: Find matches even with typos or partial queries
+- 🐳 **Docker support**: Use via Docker without local installation
 - 💾 **Efficient storage**: JSON Lines format with streaming support
 - 🐍 **Modern Python**: Full type hints, Python 3.13+ support
 
 ## Installation
 
+### Via pip
+
 ```bash
 pip install glazing
+```
+
+### Via Docker
+
+```bash
+# Build the image
+git clone https://github.com/aaronstevenwhite/glazing.git
+cd glazing
+docker build -t glazing:latest .
+
+# Run commands
+docker run --rm -v glazing-data:/data glazing:latest init
+docker run --rm -v glazing-data:/data glazing:latest search query "give"
 ```
 
 ## Quick Start
@@ -56,8 +73,23 @@ glazing search query "abandon"
 # Search specific dataset
 glazing search query "run" --dataset verbnet
 
+# Use fuzzy search for typos
+glazing search query "giv" --fuzzy
+glazing search query "instrment" --fuzzy --threshold 0.7
+```
+
+Resolve cross-references:
+
+```bash
+# Extract cross-reference index (one-time setup)
+glazing xref extract
+
 # Find cross-references
-glazing search cross-ref --source propbank --id "give.01" --target verbnet
+glazing xref resolve "give.01" --source propbank
+glazing xref resolve "give-13.1" --source verbnet
+
+# Use fuzzy matching
+glazing xref resolve "giv.01" --source propbank --fuzzy
 ```
 
 ## Python API
@@ -79,24 +111,32 @@ verb_classes = list(vn_loader.classes.values())
 Cross-reference resolution:
 
 ```python
-from glazing.references.extractor import ReferenceExtractor
-from glazing.verbnet.loader import VerbNetLoader
-from glazing.propbank.loader import PropBankLoader
+from glazing.references.index import CrossReferenceIndex
 
-# Load datasets
-vn_loader = VerbNetLoader()
-pb_loader = PropBankLoader()
+# Automatic extraction on first use (cached for future runs)
+xref = CrossReferenceIndex()
 
-# Extract references
-extractor = ReferenceExtractor()
-extractor.extract_verbnet_references(list(vn_loader.classes.values()))
-extractor.extract_propbank_references(list(pb_loader.framesets.values()))
+# Resolve references for a PropBank roleset
+refs = xref.resolve("give.01", source="propbank")
+print(f"VerbNet classes: {refs['verbnet_classes']}")
+print(f"Confidence scores: {refs['confidence_scores']}")
 
-# Access PropBank cross-references
-if "give.01" in extractor.propbank_refs:
-    refs = extractor.propbank_refs["give.01"]
-    vn_classes = refs.get_verbnet_classes()
-    print(f"VerbNet classes for give.01: {vn_classes}")
+# Use fuzzy matching for typos
+refs = xref.resolve("giv.01", source="propbank", fuzzy=True)
+print(f"Found match with fuzzy search: {refs['verbnet_classes']}")
+```
+
+Fuzzy search in Python:
+
+```python
+from glazing.search import UnifiedSearch
+
+# Use fuzzy search to handle typos
+search = UnifiedSearch()
+results = search.search_with_fuzzy("instrment", fuzzy_threshold=0.8)
+
+for result in results[:5]:
+    print(f"{result.dataset}: {result.name} (score: {result.score:.2f})")
 ```
 
 ## Supported Datasets

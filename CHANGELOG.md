@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-28
+
+### Added
+
+#### Symbol Parsing System
+- **Symbol parsers** for all four linguistic resources (FrameNet, PropBank, VerbNet, WordNet)
+- **Structured symbol extraction** for parsing and normalizing entity identifiers
+- **Type-safe parsed symbol representations** using TypedDict patterns
+- Support for parsing complex symbols like ARG1-PPT, ?Theme_i, Core[Agent]
+
+#### Fuzzy Search and Matching
+- **Fuzzy search capability** with Levenshtein distance-based matching
+- **Configurable similarity thresholds** for controlling match precision
+- **Multi-field fuzzy matching** across names, descriptions, and identifiers
+- `--fuzzy` flag in CLI commands with `--threshold` parameter
+- `search_with_fuzzy()` method in UnifiedSearch and dataset-specific search classes
+
+#### Cross-Reference Enhancements
+- **Automatic cross-reference extraction** on first use with progress indicators
+- **Fuzzy resolution** for cross-references with typo tolerance
+- **Confidence scoring** for mapping quality (0.0 to 1.0 scale)
+- **Transitive mapping support** for indirect relationships
+- **Reverse lookup capabilities** for bidirectional navigation
+- New CLI commands: `glazing xref resolve`, `glazing xref extract`, `glazing xref clear-cache`
+
+#### Structured Role/Argument Search
+- **Property-based role search** for VerbNet thematic roles (optional, required, etc.)
+- **Argument type filtering** for PropBank arguments (ARGM-LOC, ARGM-TMP, etc.)
+- **Frame element search** by core type in FrameNet
+- Support for complex queries with multiple property filters
+
+#### Docker Support
+- **Dockerfile** for containerized usage without local installation
+- Full CLI exposed through Docker container
+- Volume support for persistent data storage
+- Docker Compose configuration example
+- Interactive Python session support via container
+
+#### CLI Improvements
+- `--json` output mode for all search and xref commands
+- `--progress` flag for long-running operations
+- `--force` flag for cache clearing and re-extraction
+- Better error messages with actionable suggestions
+- Support for batch operations
+
+### Changed
+
+#### Type System Improvements
+- Expanded `ArgumentNumber` type to include all modifier patterns (M-LOC, M-TMP, etc.)
+- Added "C" and "R" prefixes to `FunctionTag` for continuation/reference support
+- Stricter validation for `ThematicRoleType` with proper indexed variants
+- More precise TypedDict definitions for parsed symbols
+
+#### API Refinements
+- `CrossReferenceIndex` now supports fuzzy matching in `resolve()` method
+- `UnifiedSearch` class (renamed from `Search` for clarity)
+- Consistent `None` returns for missing values (not empty strings or -1)
+- Better separation of concerns between extraction, mapping, and resolution
+
+### Fixed
+
+- PropBank `ArgumentNumber` type corrected to match actual data (removed invalid values like "7", "M-ADJ")
+- ARGA argument in PropBank now correctly handled with proper arg_number value
+- VerbNet member `verbnet_key` validation fixed to require proper format (e.g., "give#1")
+- ThematicRole validation properly handles indexed role types (Patient_i, Theme_j)
+- Import paths corrected for UnifiedSearch class
+- Modifier type extraction returns `None` for non-modifiers consistently
+- Frame element parsing handles abbreviations correctly
+- Test fixtures updated to use correct data models and validation rules
+
+### Technical Improvements
+
+- Full mypy strict mode compliance across all modules
+- Comprehensive test coverage for new symbol parsing features
+- Performance optimizations for fuzzy matching with large datasets
+- Better memory management for cross-reference extraction
+- Caching improvements for repeated fuzzy searches
+
 ## [0.1.1] - 2025-09-27
 
 ### Fixed

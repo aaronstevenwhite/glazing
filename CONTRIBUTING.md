@@ -31,7 +31,7 @@ glazing init
 
 ## Code Style
 
-We use `ruff` for code quality:
+We use `ruff` for code quality and `mypy` for type checking:
 
 ```bash
 # Format code
@@ -40,22 +40,33 @@ ruff format src/ tests/
 # Lint code
 ruff check src/ tests/
 
-# Type checking
+# Type checking (strict mode required)
 mypy --strict src/
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-pytest
+# Run all tests with verbose output
+pytest tests/ -v
 
 # Run with coverage
-pytest --cov=glazing
+pytest tests/ -v --cov=src/glazing --cov-report=term-missing
 
-# Run specific test
-pytest tests/test_verbnet/
+# Run specific test module
+pytest tests/test_verbnet/test_models.py -v
+
+# Run specific test with debugging output
+pytest tests/test_base.py::TestBaseModel::test_model_validation -xvs
 ```
+
+### Testing Requirements
+
+- All new features must have tests
+- Tests should cover edge cases and error conditions
+- Use descriptive test names that explain what is being tested
+- Mock external dependencies and file I/O where appropriate
+- Maintain or improve code coverage (aim for >90%)
 
 ## Documentation
 

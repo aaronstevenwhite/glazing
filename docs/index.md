@@ -93,7 +93,7 @@ If you use Glazing in your research, please cite:
   title = {Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies},
   year = {2025},
   url = {https://github.com/aaronstevenwhite/glazing},
-  version = {0.1.1},
+  version = {0.2.0},
   doi = {10.5281/zenodo.17185626}
 }
 ```

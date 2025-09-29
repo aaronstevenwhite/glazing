@@ -141,15 +141,97 @@ python3 --version
 
 ## Docker Installation
 
-A Docker image is available for containerized usage:
+Glazing provides a Docker image for containerized usage, allowing you to use the full CLI without installing dependencies on your system.
 
-```dockerfile
-FROM python:3.13-slim
+### Building the Docker Image
 
-RUN pip install glazing && \
-    glazing init
+Clone the repository and build the image:
 
-WORKDIR /app
+```bash
+git clone https://github.com/aaronstevenwhite/glazing.git
+cd glazing
+docker build -t glazing:latest .
+```
+
+### Running with Docker
+
+The Docker container exposes the entire Glazing CLI. You can run any glazing command by passing it to the container:
+
+```bash
+# Show help
+docker run --rm glazing:latest --help
+
+# Initialize datasets (mount volume to persist data)
+docker run --rm -v glazing-data:/data glazing:latest init
+
+# Search across datasets
+docker run --rm -v glazing-data:/data glazing:latest search query "give"
+
+# Search with fuzzy matching
+docker run --rm -v glazing-data:/data glazing:latest search query "giv" --fuzzy
+
+# Extract cross-references
+docker run --rm -v glazing-data:/data glazing:latest xref extract
+
+# Resolve cross-references
+docker run --rm -v glazing-data:/data glazing:latest xref resolve "give.01" --source propbank
+```
+
+### Using Local Data
+
+To use your existing local data directory:
+
+```bash
+# Mount your local data directory
+docker run --rm -v /path/to/your/data:/data glazing:latest search query "run"
+```
+
+### Interactive Shell
+
+For an interactive Python session with Glazing:
+
+```bash
+docker run --rm -it -v glazing-data:/data --entrypoint python glazing:latest
+```
+
+Then in Python:
+
+```python
+from glazing.search import UnifiedSearch
+from pathlib import Path
+
+search = UnifiedSearch(data_dir=Path("/data"))
+results = search.search("give")
+```
+
+### Docker Compose
+
+For more complex setups, use Docker Compose:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  glazing:
+    image: glazing:latest
+    volumes:
+      - glazing-data:/data
+    environment:
+      - GLAZING_DATA_DIR=/data
+
+volumes:
+  glazing-data:
+```
+
+Then run:
+
+```bash
+# Initialize datasets
+docker-compose run glazing init
+
+# Use the CLI
+docker-compose run glazing search query "transfer"
 ```
 
 ## Troubleshooting
