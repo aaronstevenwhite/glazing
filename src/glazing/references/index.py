@@ -19,9 +19,10 @@ get_default_index
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -42,6 +43,16 @@ if TYPE_CHECKING:
 
 
 console = Console()
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime objects."""
+
+    def default(self, obj: Any) -> Any:  # noqa: ANN401
+        """Serialize datetime objects to ISO format strings."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class ResolvedReferences(TypedDict):
@@ -421,7 +432,7 @@ class CrossReferenceIndex:
 
         # Write to cache file
         with self.cache_file.open("w") as f:
-            json.dump(cache_data, f, indent=2)
+            json.dump(cache_data, f, indent=2, cls=DateTimeEncoder)
 
     def _load_from_cache(self) -> None:
         """Load extracted references from cache."""
