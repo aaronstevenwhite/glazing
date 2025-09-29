@@ -33,6 +33,11 @@ def get_default_data_dir() -> Path:
     Path
         Default data directory path.
     """
+    # Check GLAZING_DATA_DIR first (used in Docker and for custom installations)
+    glazing_data = os.environ.get("GLAZING_DATA_DIR")
+    if glazing_data:
+        return Path(glazing_data)
+
     # Use XDG_DATA_HOME if available, otherwise ~/.local/share
     xdg_data = os.environ.get("XDG_DATA_HOME")
     base_dir = Path(xdg_data) if xdg_data else Path.home() / ".local" / "share"
