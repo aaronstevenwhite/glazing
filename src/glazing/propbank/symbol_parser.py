@@ -1,12 +1,66 @@
 """PropBank symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for PropBank roleset IDs and argument
-symbols, with normalization and validation.
+symbols, with normalization and validation. Supports core arguments, modifiers,
+function tags, and continuation/reference prefixes. All parsing functions
+use LRU caching for improved performance.
+
+Classes
+-------
+ParsedRolesetID
+    Parsed PropBank roleset ID with lemma and sense number.
+ParsedArgument
+    Parsed PropBank argument with type classification and modifiers.
+
+Functions
+---------
+parse_roleset_id
+    Parse a PropBank roleset ID (e.g., "give.01").
+parse_argument
+    Parse a PropBank argument string (e.g., "ARG0-PPT").
+filter_args_by_properties
+    Filter arguments by type, modifiers, and other properties.
+extract_arg_number
+    Extract argument number from argument string.
+extract_modifier_type
+    Extract modifier type from modifier argument.
+extract_function_tag
+    Extract function tag from argument.
+is_core_argument
+    Check if argument is core (ARG0-ARG5, ARGA).
+is_modifier
+    Check if argument is modifier (ARGM-*).
+
+Type Aliases
+------------
+ArgType
+    Literal type for argument types (core/modifier).
+ModifierType
+    Literal type for modifier argument types.
+PrefixType
+    Literal type for continuation/reference prefixes.
+
+Examples
+--------
+>>> from glazing.propbank.symbol_parser import parse_roleset_id
+>>> parsed = parse_roleset_id("give.01")
+>>> parsed.lemma
+'give'
+>>> parsed.sense_number
+1
+
+>>> from glazing.propbank.symbol_parser import parse_argument
+>>> arg = parse_argument("ARG0-PPT")
+>>> arg.arg_type
+'core'
+>>> arg.function_tag
+'ppt'
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field, field_validator
@@ -274,6 +328,7 @@ class ParsedArgument(BaseSymbol):
         )
 
 
+@lru_cache(maxsize=512)
 def parse_roleset_id(roleset_id: str) -> ParsedRolesetID:
     """Parse a PropBank roleset ID.
 
@@ -290,6 +345,7 @@ def parse_roleset_id(roleset_id: str) -> ParsedRolesetID:
     return ParsedRolesetID.from_string(roleset_id)
 
 
+@lru_cache(maxsize=512)
 def parse_argument(argument: str) -> ParsedArgument:
     """Parse a PropBank argument.
 
@@ -306,6 +362,7 @@ def parse_argument(argument: str) -> ParsedArgument:
     return ParsedArgument.from_string(argument)
 
 
+@lru_cache(maxsize=1024)
 def extract_arg_number(argument: str) -> str:
     """Extract argument number from argument string.
 
@@ -336,6 +393,7 @@ def extract_arg_number(argument: str) -> str:
         return parsed.arg_number
 
 
+@lru_cache(maxsize=1024)
 def extract_modifier_type(argument: str) -> str:
     """Extract modifier type from argument string.
 
@@ -366,6 +424,7 @@ def extract_modifier_type(argument: str) -> str:
         return parsed.modifier_type
 
 
+@lru_cache(maxsize=1024)
 def extract_function_tag(argument: str) -> str:
     """Extract function tag from argument string.
 
@@ -396,6 +455,7 @@ def extract_function_tag(argument: str) -> str:
         return parsed.function_tag
 
 
+@lru_cache(maxsize=1024)
 def is_core_argument(argument: str) -> bool:
     """Check if argument is a core argument.
 
@@ -417,6 +477,7 @@ def is_core_argument(argument: str) -> bool:
         return parsed.arg_type == "core"
 
 
+@lru_cache(maxsize=1024)
 def is_modifier(argument: str) -> bool:
     """Check if argument is a modifier.
 
@@ -476,11 +537,6 @@ def filter_args_by_properties(  # noqa: C901, PLR0913
     # Helper to get argnum from Role
     def get_argnum(role: Role) -> str:
         """Reconstruct argnum from Role n and f fields."""
-        # Check if argnum is already set (for compatibility)
-        if hasattr(role, "argnum"):
-            return str(role.argnum)
-
-        # Otherwise reconstruct from n and f fields
         if role.n in {"M", "m"}:
             # Modifier argument
             if role.f:
@@ -502,18 +558,11 @@ def filter_args_by_properties(  # noqa: C901, PLR0913
             filtered = [a for a in filtered if not is_modifier_func(get_argnum(a))]
 
     if has_prefix is not None:
-        # Prefix checking doesn't apply to standard Role model
-        # This would need additional fields
+        # Prefix checking - reconstruct argnum to check
         if has_prefix:
-            filtered = [
-                a for a in filtered if hasattr(a, "argnum") and a.argnum.startswith(("C-", "R-"))
-            ]
+            filtered = [a for a in filtered if get_argnum(a).startswith(("C-", "R-"))]
         else:
-            filtered = [
-                a
-                for a in filtered
-                if not (hasattr(a, "argnum") and a.argnum.startswith(("C-", "R-")))
-            ]
+            filtered = [a for a in filtered if not get_argnum(a).startswith(("C-", "R-"))]
 
     if modifier_type is not None:
         # Only check modifier type for actual modifiers

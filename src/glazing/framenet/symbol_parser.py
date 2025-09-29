@@ -1,12 +1,63 @@
 """FrameNet symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for FrameNet frame and frame element
-symbols, including normalization and fuzzy matching support.
+symbols, including normalization and fuzzy matching support. All parsing
+functions use LRU caching for improved performance on repeated operations.
+
+Classes
+-------
+ParsedFrameName
+    Parsed FrameNet frame name with normalization and metadata.
+ParsedFrameElement
+    Parsed FrameNet frame element with core type classification.
+
+Functions
+---------
+parse_frame_name
+    Parse a FrameNet frame name into structured components.
+parse_frame_element
+    Parse a frame element name with core type detection.
+filter_elements_by_properties
+    Filter frame elements by core type and other properties.
+normalize_frame_name
+    Normalize frame names for consistent matching.
+normalize_element_for_matching
+    Normalize element names for fuzzy matching.
+extract_element_base
+    Extract base element name without modifiers.
+is_core_element
+    Check if element is core type.
+is_peripheral_element
+    Check if element is peripheral type.
+is_extra_thematic_element
+    Check if element is extra-thematic type.
+
+Type Aliases
+------------
+ElementCoreType
+    Literal type for frame element core types.
+FrameNameType
+    Literal type for frame name categories.
+
+Examples
+--------
+>>> from glazing.framenet.symbol_parser import parse_frame_name
+>>> parsed = parse_frame_name("Motion_directional")
+>>> parsed.normalized
+'motion_directional'
+>>> parsed.is_abbreviation
+False
+
+>>> from glazing.framenet.symbol_parser import parse_frame_element
+>>> element = parse_frame_element("Theme")
+>>> element.core_type
+'core'
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import field_validator
@@ -145,6 +196,7 @@ class ParsedFrameElement(BaseSymbol):
         )
 
 
+@lru_cache(maxsize=512)
 def parse_frame_name(frame_name: str) -> ParsedFrameName:
     """Parse a FrameNet frame name.
 
@@ -161,6 +213,7 @@ def parse_frame_name(frame_name: str) -> ParsedFrameName:
     return ParsedFrameName.from_string(frame_name)
 
 
+@lru_cache(maxsize=512)
 def parse_frame_element(element_name: str) -> ParsedFrameElement:
     """Parse a frame element name.
 
@@ -177,6 +230,7 @@ def parse_frame_element(element_name: str) -> ParsedFrameElement:
     return ParsedFrameElement.from_string(element_name)
 
 
+@lru_cache(maxsize=1024)
 def normalize_frame_name(frame_name: str) -> str:
     """Normalize a frame name for matching.
 
@@ -193,6 +247,7 @@ def normalize_frame_name(frame_name: str) -> str:
     return BaseSymbol.normalize_string(frame_name)
 
 
+@lru_cache(maxsize=1024)
 def normalize_element_for_matching(element_name: str) -> str:
     """Normalize a frame element name for matching.
 

@@ -91,7 +91,6 @@ class TestTypeLiterals:
             "auto",
             "gold",
             "silver",
-            "legacy",
             "inherited",
         ]:
             model = TestModel(source=src)

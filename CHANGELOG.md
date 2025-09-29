@@ -15,12 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Symbol parsers** for all four linguistic resources (FrameNet, PropBank, VerbNet, WordNet)
 - **Structured symbol extraction** for parsing and normalizing entity identifiers
 - **Type-safe parsed symbol representations** using TypedDict patterns
+- **Symbol parser documentation** - Complete API documentation for all symbol parser modules
+- **Symbol parser caching** - LRU cache decorators on all parsing functions for improved performance
 - Support for parsing complex symbols like ARG1-PPT, ?Theme_i, Core[Agent]
 
 #### Fuzzy Search and Matching
 - **Fuzzy search capability** with Levenshtein distance-based matching
 - **Configurable similarity thresholds** for controlling match precision
 - **Multi-field fuzzy matching** across names, descriptions, and identifiers
+- **Search result ranking** - New ranking module for scoring search results by match type and field relevance
+- **Batch search methods** - `batch_by_lemma` method in UnifiedSearch for processing multiple queries
 - `--fuzzy` flag in CLI commands with `--threshold` parameter
 - `search_with_fuzzy()` method in UnifiedSearch and dataset-specific search classes
 
@@ -68,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CacheBase abstract methods** now have default implementations instead of NotImplementedError
+- **VerbNet class ID generation** now uses deterministic pattern-based generation instead of hash-based fallback
+- **Backward compatibility code removed** from PropBank symbol parser - no longer checks for argnum attribute
+- **Legacy MappingSource removed** - "legacy" value no longer accepted in types
+- **Documentation language** - removed promotional terms from fuzzy-match.md
+- **Test compatibility** - Fixed PropBank symbol parser tests to work without backward compatibility
 - PropBank `ArgumentNumber` type corrected to match actual data (removed invalid values like "7", "M-ADJ")
 - ARGA argument in PropBank now correctly handled with proper arg_number value
 - VerbNet member `verbnet_key` validation fixed to require proper format (e.g., "give#1")

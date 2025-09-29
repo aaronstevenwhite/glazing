@@ -1,12 +1,86 @@
 """WordNet symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for WordNet synset IDs, sense keys,
-and lemma keys using Pydantic v2 models for validation.
+and lemma keys using Pydantic v2 models for validation. Supports offset
+extraction, POS detection, and relation filtering. All parsing functions
+use LRU caching for improved performance.
+
+Classes
+-------
+ParsedSynsetID
+    Parsed WordNet synset ID with offset and POS.
+ParsedSenseKey
+    Parsed WordNet sense key with full lexical information.
+ParsedLemmaKey
+    Parsed WordNet lemma key with sense number.
+
+Functions
+---------
+parse_synset_id
+    Parse a WordNet synset ID (e.g., "00001740-n").
+parse_sense_key
+    Parse a WordNet sense key (e.g., "dog%1:05:00::").
+parse_lemma_key
+    Parse a WordNet lemma key (e.g., "dog#n#1").
+extract_pos_from_synset
+    Extract part of speech from synset ID.
+extract_pos_from_sense
+    Extract part of speech from sense key.
+extract_lemma_from_key
+    Extract lemma from lemma key.
+extract_synset_offset
+    Extract 8-digit offset from synset ID.
+extract_sense_number
+    Extract sense number from sense key.
+filter_synsets_by_pos
+    Filter synsets by part of speech.
+filter_by_relation_type
+    Filter pointers by relation type.
+normalize_lemma
+    Normalize lemma for matching.
+normalize_synset_for_matching
+    Normalize synset ID for fuzzy matching.
+synset_id_to_offset
+    Convert synset ID to offset string.
+build_synset_id
+    Build synset ID from offset and POS.
+is_satellite_adjective
+    Check if POS is satellite adjective.
+is_valid_synset_id
+    Validate synset ID format.
+is_valid_sense_key
+    Validate sense key format.
+is_valid_lemma_key
+    Validate lemma key format.
+
+Type Aliases
+------------
+POSType
+    Literal type for WordNet parts of speech.
+SynsetType
+    Literal type for WordNet identifier types.
+
+Examples
+--------
+>>> from glazing.wordnet.symbol_parser import parse_synset_id
+>>> parsed = parse_synset_id("00001740-n")
+>>> parsed.offset
+'00001740'
+>>> parsed.pos
+'n'
+
+>>> from glazing.wordnet.symbol_parser import parse_sense_key
+>>> sense = parse_sense_key("dog%1:05:00::")
+>>> sense.lemma
+'dog'
+>>> sense.ss_type
+1
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field, field_validator
@@ -281,6 +355,7 @@ class ParsedLemmaKey(BaseSymbol):
         )
 
 
+@lru_cache(maxsize=512)
 def parse_synset_id(synset_id: str) -> ParsedSynsetID:
     """Parse a WordNet synset ID.
 
@@ -297,6 +372,7 @@ def parse_synset_id(synset_id: str) -> ParsedSynsetID:
     return ParsedSynsetID.from_string(synset_id)
 
 
+@lru_cache(maxsize=512)
 def parse_sense_key(sense_key: str) -> ParsedSenseKey:
     """Parse a WordNet sense key.
 
@@ -313,6 +389,7 @@ def parse_sense_key(sense_key: str) -> ParsedSenseKey:
     return ParsedSenseKey.from_string(sense_key)
 
 
+@lru_cache(maxsize=512)
 def parse_lemma_key(lemma_key: str) -> ParsedLemmaKey:
     """Parse a WordNet lemma key.
 
@@ -473,6 +550,7 @@ def extract_sense_number(sense_key: str) -> int:
         return parsed.lex_id
 
 
+@lru_cache(maxsize=1024)
 def normalize_lemma(lemma: str) -> str:
     """Normalize a lemma for matching.
 
@@ -489,6 +567,7 @@ def normalize_lemma(lemma: str) -> str:
     return BaseSymbol.normalize_string(lemma)
 
 
+@lru_cache(maxsize=1024)
 def normalize_synset_for_matching(synset_id: str) -> str:
     """Normalize a synset ID for matching.
 

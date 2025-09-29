@@ -265,6 +265,28 @@ class UnifiedSearch:
             rolesets=rolesets,
         )
 
+    def batch_by_lemma(
+        self, lemmas: list[str], pos: str | None = None
+    ) -> dict[str, UnifiedSearchResult]:
+        """Search all datasets for multiple lemmas.
+
+        Parameters
+        ----------
+        lemmas : list[str]
+            List of lemmas to search for.
+        pos : str | None
+            Part of speech constraint.
+
+        Returns
+        -------
+        dict[str, UnifiedSearchResult]
+            Results mapped by lemma.
+        """
+        results = {}
+        for lemma in lemmas:
+            results[lemma] = self.by_lemma(lemma, pos)
+        return results
+
     def _search_framenet_by_lemma(self, lemma: str, pos: str | None) -> list[Frame]:
         """Search FrameNet by lemma.
 

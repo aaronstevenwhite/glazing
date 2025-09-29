@@ -1,12 +1,74 @@
 """VerbNet symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for VerbNet verb class IDs and thematic
-role symbols, with normalization and validation.
+role symbols, with normalization and validation. Supports hierarchical
+class IDs, optional roles, role indexing, and verb-specific roles. All parsing
+functions use LRU caching for improved performance.
+
+Classes
+-------
+ParsedVerbClass
+    Parsed VerbNet verb class ID with hierarchical structure.
+ParsedThematicRole
+    Parsed VerbNet thematic role with modifiers and indices.
+ParsedFrameElement
+    Parsed VerbNet frame syntax element.
+
+Functions
+---------
+parse_verb_class
+    Parse a VerbNet verb class ID (e.g., "give-13.1-1").
+parse_thematic_role
+    Parse a VerbNet thematic role (e.g., "?Theme_I").
+parse_frame_element
+    Parse a frame description element (e.g., "PP.location").
+filter_roles_by_properties
+    Filter thematic roles by optionality, indexing, and other properties.
+extract_role_base
+    Extract base role name without modifiers.
+normalize_role_for_matching
+    Normalize role names for fuzzy matching.
+is_optional_role
+    Check if role is optional (marked with ?).
+is_indexed_role
+    Check if role has index (e.g., _I, _J).
+is_verb_specific_role
+    Check if role is verb-specific.
+is_pp_element
+    Check if element is prepositional phrase.
+
+Type Aliases
+------------
+RoleType
+    Literal type for role types (thematic/pp/verb_specific).
+RoleOptionalityType
+    Literal type for role optionality (required/optional/implicit).
+RoleIndexType
+    Literal type for role indexing (indexed/coindexed/none).
+
+Examples
+--------
+>>> from glazing.verbnet.symbol_parser import parse_verb_class
+>>> parsed = parse_verb_class("give-13.1-1")
+>>> parsed.base_name
+'give'
+>>> parsed.class_number
+'13.1-1'
+
+>>> from glazing.verbnet.symbol_parser import parse_thematic_role
+>>> role = parse_thematic_role("?Theme_I")
+>>> role.base_role
+'Theme'
+>>> role.is_optional
+True
+>>> role.index
+'I'
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field, field_validator
@@ -260,6 +322,7 @@ class ParsedFrameElement(BaseSymbol):
         )
 
 
+@lru_cache(maxsize=512)
 def parse_verb_class(class_id: str) -> ParsedVerbClass:
     """Parse a VerbNet verb class ID.
 
@@ -276,6 +339,7 @@ def parse_verb_class(class_id: str) -> ParsedVerbClass:
     return ParsedVerbClass.from_string(class_id)
 
 
+@lru_cache(maxsize=512)
 def parse_thematic_role(role: str) -> ParsedThematicRole:
     """Parse a VerbNet thematic role.
 
@@ -292,6 +356,7 @@ def parse_thematic_role(role: str) -> ParsedThematicRole:
     return ParsedThematicRole.from_string(role)
 
 
+@lru_cache(maxsize=512)
 def parse_frame_element(element: str) -> ParsedFrameElement:
     """Parse a frame description element.
 
@@ -308,6 +373,7 @@ def parse_frame_element(element: str) -> ParsedFrameElement:
     return ParsedFrameElement.from_string(element)
 
 
+@lru_cache(maxsize=1024)
 def extract_role_base(role: str) -> str:
     """Extract base role name without modifiers.
 
@@ -336,6 +402,7 @@ def extract_role_base(role: str) -> str:
     return role
 
 
+@lru_cache(maxsize=1024)
 def normalize_role_for_matching(role: str) -> str:
     """Normalize a thematic role for fuzzy matching.
 
@@ -353,6 +420,7 @@ def normalize_role_for_matching(role: str) -> str:
     return BaseSymbol.normalize_string(base)
 
 
+@lru_cache(maxsize=1024)
 def is_optional_role(role: str) -> bool:
     """Check if role is optional.
 
@@ -369,6 +437,7 @@ def is_optional_role(role: str) -> bool:
     return role.startswith("?")
 
 
+@lru_cache(maxsize=1024)
 def is_indexed_role(role: str) -> bool:
     """Check if role is indexed.
 
@@ -386,6 +455,7 @@ def is_indexed_role(role: str) -> bool:
     return role.endswith(("_I", "_J", "_i", "_j", "_k"))
 
 
+@lru_cache(maxsize=1024)
 def is_verb_specific_role(role: str) -> bool:
     """Check if role is verb-specific (starts with V_).
 
@@ -405,6 +475,7 @@ def is_verb_specific_role(role: str) -> bool:
     return role.startswith("V_")
 
 
+@lru_cache(maxsize=1024)
 def is_pp_element(element: str) -> bool:
     """Check if element is a PP (prepositional phrase) element.
 

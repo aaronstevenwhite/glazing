@@ -79,11 +79,11 @@ class CacheBase:
 
     def clear(self) -> None:
         """Clear all entries from the cache."""
-        raise NotImplementedError
+        # Default implementation does nothing
 
     def size(self) -> int:
         """Get the number of entries in the cache."""
-        raise NotImplementedError
+        return 0  # Default implementation returns 0
 
     def is_enabled(self) -> bool:
         """Check if caching is enabled."""

@@ -1,7 +1,39 @@
 """Base symbol models for all datasets.
 
 This module provides Pydantic v2 models for parsed symbols across all datasets,
-ensuring consistent normalization and type safety.
+ensuring consistent normalization and type safety. All symbol parsers inherit
+from BaseSymbol to provide unified structure and validation.
+
+Classes
+-------
+BaseSymbol
+    Base model for all parsed symbols with validation and normalization.
+
+Functions
+---------
+validate_symbol_type
+    Validate symbol type matches expected values.
+validate_dataset_name
+    Validate dataset name matches supported datasets.
+
+Type Aliases
+------------
+DatasetName
+    Literal type for valid dataset names.
+SymbolType
+    Literal type for valid symbol types.
+
+Examples
+--------
+>>> from glazing.symbols import BaseSymbol
+>>> symbol = BaseSymbol(
+...     raw_string="Motion_Directional",
+...     normalized="motion_directional",
+...     symbol_type="frame",
+...     dataset="framenet"
+... )
+>>> symbol.confidence
+1.0
 """
 
 from __future__ import annotations

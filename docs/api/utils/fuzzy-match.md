@@ -131,7 +131,7 @@ class FuzzyMatchResult(TypedDict):
 
 ## Dependencies
 
-Requires `python-Levenshtein>=0.20.0` for efficient Levenshtein distance calculations.
+Requires `python-Levenshtein>=0.20.0` for Levenshtein distance calculations.
 
 ::: glazing.utils.fuzzy_match
     options:

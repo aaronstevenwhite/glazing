@@ -77,7 +77,6 @@ type MappingSource = Literal[
     "auto",  # Short for automatic
     "gold",  # Gold standard annotation
     "silver",  # Silver standard (less reliable)
-    "legacy",  # From previous version
     "inherited",  # Inherited from parent class/frame
 ]
 
