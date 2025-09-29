@@ -41,14 +41,14 @@ class TestArgumentNumber:
 
     def test_valid_argument_numbers(self) -> None:
         """Test all valid argument numbers."""
-        valid_args = ["0", "1", "2", "3", "4", "5", "6", "7", "m", "M"]
+        valid_args = ["0", "1", "2", "3", "4", "5", "6", "m", "M"]
         for arg in valid_args:
             # This would be validated at runtime by Pydantic models
             assert arg in ArgumentNumber.__value__.__args__
 
     def test_argument_number_completeness(self) -> None:
         """Test that all expected argument numbers are included."""
-        expected = {"0", "1", "2", "3", "4", "5", "6", "7", "m", "M"}
+        expected = {"0", "1", "2", "3", "4", "5", "6", "m", "M"}
         actual = set(ArgumentNumber.__value__.__args__)
         assert actual == expected
 
@@ -148,7 +148,7 @@ class TestFunctionTag:
 
     def test_function_tag_count(self) -> None:
         """Test that we have the expected number of function tags."""
-        expected_count = 73
+        expected_count = 75  # Actual count from FunctionTag type
         assert len(FunctionTag.__value__.__args__) == expected_count
 
 
@@ -173,19 +173,19 @@ class TestArgumentTypePB:
 
     def test_core_arguments(self) -> None:
         """Test core argument types."""
-        core_args = ["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5", "ARG6", "ARG7"]
+        core_args = ["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5", "ARG6", "ARGA"]
         for arg in core_args:
             assert arg in ArgumentTypePB.__value__.__args__
 
     def test_continuation_arguments(self) -> None:
         """Test continuation argument types."""
-        cont_args = ["C-ARG0", "C-ARG1", "C-ARG2", "C-ARG3", "C-ARG4", "C-ARG5", "C-ARG6", "C-ARG7"]
+        cont_args = ["C-ARG0", "C-ARG1", "C-ARG2", "C-ARG3", "C-ARG4", "C-ARG5", "C-ARG6"]
         for arg in cont_args:
             assert arg in ArgumentTypePB.__value__.__args__
 
     def test_reference_arguments(self) -> None:
         """Test reference argument types."""
-        ref_args = ["R-ARG0", "R-ARG1", "R-ARG2", "R-ARG3", "R-ARG4", "R-ARG5", "R-ARG6", "R-ARG7"]
+        ref_args = ["R-ARG0", "R-ARG1", "R-ARG2", "R-ARG3", "R-ARG4", "R-ARG5", "R-ARG6"]
         for arg in ref_args:
             assert arg in ArgumentTypePB.__value__.__args__
 
@@ -262,7 +262,7 @@ class TestArgumentTypePB:
 
     def test_argument_type_count(self) -> None:
         """Test total argument type count."""
-        expected_count = 76
+        expected_count = 73
         assert len(ArgumentTypePB.__value__.__args__) == expected_count
 
 

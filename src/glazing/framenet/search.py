@@ -376,8 +376,14 @@ class FrameNetSearch:
             filtered_elements = filter_elements_by_properties(
                 frame.frame_elements,
                 core_type=core_type,  # type: ignore[arg-type]
-                semantic_type=semantic_type,
             )
+            # Additional filtering for semantic_type if needed
+            if semantic_type and filtered_elements:
+                filtered_elements = [
+                    e
+                    for e in filtered_elements
+                    if hasattr(e, "semantic_type") and e.semantic_type == semantic_type
+                ]
             if filtered_elements:
                 matching_frames.append(frame)
 

@@ -623,7 +623,7 @@ class VerbNetSearch:
                 optional=optional,
                 indexed=indexed,
                 verb_specific=verb_specific,
-                pp_type=pp_type,
+                base_role=pp_type,  # pp_type maps to base_role
             )
             if filtered_roles:
                 matching_classes.append(verb_class)

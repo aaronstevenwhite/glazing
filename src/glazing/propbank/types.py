@@ -13,7 +13,7 @@ AliasPOS : type[Literal]
 ArgumentTypePB : type[Literal]
     Complete argument types including modifiers and continuations.
 CoreArgumentType : type[Literal]
-    Core argument types (ARG0-7, ARGA).
+    Core argument types (ARG0-6).
 ModifierArgumentType : type[Literal]
     Modifier argument types (ARGM-*).
 ContinuationArgumentType : type[Literal]
@@ -40,11 +40,16 @@ Examples
 
 from typing import Literal
 
-# Argument number literals
-type ArgumentNumber = Literal["0", "1", "2", "3", "4", "5", "6", "7", "m", "M"]
+# Argument number literals - these are the actual values of the 'n' field in PropBank data
+# Core arguments: "0"-"6" for ARG0-ARG6
+# Modifiers: "m", "M" for modifier arguments (function tags go in 'f' field)
+type ArgumentNumber = Literal["0", "1", "2", "3", "4", "5", "6", "m", "M"]
 
 # Complete function tag set based on PropBank documentation
 type FunctionTag = Literal[
+    # Prefix tags for continuation and reference
+    "C",  # Continuation prefix
+    "R",  # Reference prefix
     # Standard function tags
     "ADJ",  # Adjectival modifier
     "ADV",  # Adverbial modifier
@@ -149,7 +154,6 @@ type ArgumentTypePB = Literal[
     "ARG4",
     "ARG5",
     "ARG6",
-    "ARG7",
     # Continuation arguments (C-ARG)
     "C-ARG0",
     "C-ARG1",
@@ -158,7 +162,6 @@ type ArgumentTypePB = Literal[
     "C-ARG4",
     "C-ARG5",
     "C-ARG6",
-    "C-ARG7",
     # Reference arguments (R-ARG)
     "R-ARG0",
     "R-ARG1",
@@ -167,7 +170,6 @@ type ArgumentTypePB = Literal[
     "R-ARG4",
     "R-ARG5",
     "R-ARG6",
-    "R-ARG7",
     # Modifier arguments (ARGM)
     "ARGM-ADJ",  # Adjectival modifier
     "ARGM-ADV",  # Adverbial modifier
@@ -222,7 +224,7 @@ type ArgumentTypePB = Literal[
     "R-ARGM-PRP",
     "R-ARGM-TMP",
     # Additional argument types found in data
-    "ARGA",  # Special argument type
+    "ARGA",  # Special argument type (found in examples)
     "ARGM-TOP",  # Topic modifier
 ]
 
@@ -238,10 +240,8 @@ type RolesetID = str  # Validated with ROLESET_ID_PATTERN
 type PredicateLemma = str  # Validated with PREDICATE_LEMMA_PATTERN
 type IntOrQuestionMark = int | Literal["?"]  # For start/end fields that can be ? or integer
 
-# Core argument types (ARG0-7, ARGA)
-type CoreArgumentType = Literal[
-    "ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5", "ARG6", "ARG7", "ARGA"
-]
+# Core argument types (ARG0-6, ARGA) - based on actual data
+type CoreArgumentType = Literal["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5", "ARG6", "ARGA"]
 
 # Modifier argument types (ARGM-*)
 type ModifierArgumentType = Literal[
@@ -279,7 +279,6 @@ type ContinuationArgumentType = Literal[
     "C-ARG4",
     "C-ARG5",
     "C-ARG6",
-    "C-ARG7",
     "C-ARGM-ADJ",
     "C-ARGM-ADV",
     "C-ARGM-CAU",
@@ -306,7 +305,6 @@ type ReferenceArgumentType = Literal[
     "R-ARG4",
     "R-ARG5",
     "R-ARG6",
-    "R-ARG7",
     "R-ARGM-ADV",
     "R-ARGM-CAU",
     "R-ARGM-COM",

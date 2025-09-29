@@ -681,7 +681,7 @@ def search_args(  # noqa: PLR0913
                 arg_type=arg_type,
                 prefix=prefix,
                 modifier=modifier,
-                arg_number=number,
+                arg_number=str(number) if number is not None else None,
             )
 
             if not rolesets:

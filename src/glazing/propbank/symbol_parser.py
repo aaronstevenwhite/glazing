@@ -1,581 +1,535 @@
-"""PropBank symbol parser.
+"""PropBank symbol parser using Pydantic v2 models.
 
-This module provides parsing utilities for PropBank argument symbols,
-including core arguments, modifier arguments, and special prefixes.
-
-Classes
--------
-ParsedPropBankArg
-    Parsed PropBank argument information.
-
-Functions
----------
-parse_core_arg
-    Parse a PropBank core argument.
-parse_modifier_arg
-    Parse a PropBank modifier argument.
-parse_continuation_arg
-    Parse a PropBank continuation argument.
-parse_reference_arg
-    Parse a PropBank reference argument.
-is_core_arg
-    Check if an argument is a core argument.
-is_modifier_arg
-    Check if an argument is a modifier argument.
-is_continuation_arg
-    Check if an argument is a continuation.
-is_reference_arg
-    Check if an argument is a reference.
-extract_arg_number
-    Extract the argument number from ARG notation.
-extract_modifier_type
-    Extract the modifier type from ARGM notation.
-filter_args_by_properties
-    Filter arguments by their properties.
+This module provides parsing utilities for PropBank roleset IDs and argument
+symbols, with normalization and validation.
 """
 
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal
 
-from glazing.propbank.types import (
-    ContinuationArgumentType,
-    CoreArgumentType,
-    ModifierArgumentType,
-    PropBankArgumentType,
-    ReferenceArgumentType,
-)
+from pydantic import Field, field_validator
+
+from glazing.symbols import BaseSymbol
 
 if TYPE_CHECKING:
     from glazing.propbank.models import Role
 
+# Type aliases
+type ArgType = Literal["core", "modifier"]
+type ModifierType = Literal[
+    "loc",
+    "tmp",
+    "mnr",
+    "cau",
+    "prp",
+    "dir",
+    "dis",
+    "adv",
+    "mod",
+    "neg",
+    "pnc",
+    "ext",
+    "lvb",
+    "rec",
+    "gol",
+    "prd",
+    "com",
+    "adj",
+    "dsp",
+    "prr",
+    "prx",
+    "cxn",
+    "top",
+]
+type PrefixType = Literal["c", "r"]
 
-class ParsedPropBankArg(TypedDict):
+# Validation patterns
+ROLESET_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.\d{2}$")
+ARGUMENT_PATTERN = re.compile(r"^(C-|R-)?ARG(A|M|\d)(-[A-Z]+)?$", re.IGNORECASE)
+
+
+class ParsedRolesetID(BaseSymbol):
+    """Parsed PropBank roleset ID.
+
+    Attributes
+    ----------
+    raw_string : str
+        Original roleset ID string.
+    normalized : str
+        Normalized ID (lowercase lemma).
+    symbol_type : Literal["roleset"]
+        Always "roleset".
+    dataset : Literal["propbank"]
+        Always "propbank".
+    lemma : str
+        Verb lemma part.
+    sense_number : int
+        Sense number (00-99).
+    """
+
+    symbol_type: Literal["roleset"] = "roleset"
+    dataset: Literal["propbank"] = "propbank"
+    lemma: str = Field(..., min_length=1)
+    sense_number: int = Field(..., ge=0, le=99)
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_roleset_format(cls, v: str) -> str:
+        """Validate roleset ID format."""
+        if not ROLESET_PATTERN.match(v.lower()):
+            msg = f"Invalid roleset ID format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(cls, roleset_id: str) -> ParsedRolesetID:
+        """Create from roleset ID string.
+
+        Parameters
+        ----------
+        roleset_id : str
+            Roleset ID (e.g., "give.01").
+
+        Returns
+        -------
+        ParsedRolesetID
+            Parsed roleset ID.
+        """
+        # Normalize to lowercase
+        roleset_lower = roleset_id.lower()
+
+        # Split into lemma and sense
+        parts = roleset_lower.split(".")
+        if len(parts) != 2:
+            msg = f"Invalid roleset ID format: {roleset_id}"
+            raise ValueError(msg)
+
+        lemma = parts[0]
+        try:
+            sense_number = int(parts[1])
+        except ValueError as e:
+            msg = f"Invalid sense number in roleset ID: {parts[1]}"
+            raise ValueError(msg) from e
+
+        # Normalize lemma (spaces to underscores)
+        normalized_lemma = cls.normalize_string(lemma)
+        normalized = f"{normalized_lemma}.{sense_number:02d}"
+
+        return cls(
+            raw_string=roleset_id,
+            normalized=normalized,
+            lemma=normalized_lemma,
+            sense_number=sense_number,
+        )
+
+
+class ParsedArgument(BaseSymbol):
     """Parsed PropBank argument.
 
     Attributes
     ----------
     raw_string : str
-        Original unparsed argument string.
-    base_arg : str
-        Base argument name without prefixes.
-    arg_number : int | None
-        Argument number for ARG0-7, ARGA.
-    modifier_type : str | None
-        Modifier type for ARGM arguments.
-    prefix : Literal["C", "R"] | None
-        Continuation or reference prefix.
-    is_core : bool
-        Whether this is a core argument.
-    is_modifier : bool
-        Whether this is a modifier argument.
-    arg_type : Literal["core", "modifier", "special"]
-        Type of argument.
+        Original argument string.
+    normalized : str
+        Normalized argument (lowercase, no prefix).
+    symbol_type : Literal["argument"]
+        Always "argument".
+    dataset : Literal["propbank"]
+        Always "propbank".
+    arg_type : ArgType
+        Type of argument (core, modifier, special).
+    arg_number : str | None
+        Argument number (0-5, "a", "m", or None for modifiers).
+    modifier_type : ModifierType | None
+        Modifier type if arg_type is "modifier".
+    prefix : PrefixType | None
+        Continuation/reference prefix if present.
+    function_tag : str | None
+        Function tag if present (e.g., "PPT", "PAG").
     """
 
-    raw_string: str
-    base_arg: str
-    arg_number: int | None
-    modifier_type: str | None
-    prefix: Literal["C", "R"] | None
-    is_core: bool
-    is_modifier: bool
-    arg_type: Literal["core", "modifier", "special"]
+    symbol_type: Literal["argument"] = "argument"
+    dataset: Literal["propbank"] = "propbank"
+    arg_type: ArgType
+    arg_number: str | None = None
+    modifier_type: ModifierType | None = None
+    prefix: PrefixType | None = None
+    function_tag: str | None = None
 
+    @field_validator("raw_string")
+    @classmethod
+    def validate_argument_format(cls, v: str) -> str:
+        """Validate argument format."""
+        if not ARGUMENT_PATTERN.match(v):
+            msg = f"Invalid argument format: {v}"
+            raise ValueError(msg)
+        return v
 
-# Patterns for parsing PropBank arguments
-CORE_ARG_PATTERN = re.compile(r"^(C-|R-)?(ARG)([0-7]|A)$")
-MODIFIER_ARG_PATTERN = re.compile(r"^(C-|R-)?(ARGM)-(.+)$")
-SPECIAL_ARG_PATTERN = re.compile(r"^(ARGA|ARGM-TOP)$")
+    @classmethod
+    def from_string(cls, argument: str) -> ParsedArgument:  # noqa: C901, PLR0912
+        """Create from argument string.
 
+        Parameters
+        ----------
+        argument : str
+            Argument string (e.g., "ARG0-PPT", "ARGM-LOC", "C-ARG1").
 
-def parse_propbank_arg(arg: PropBankArgumentType) -> ParsedPropBankArg:
-    """Parse a PropBank argument symbol.
+        Returns
+        -------
+        ParsedArgument
+            Parsed argument.
+        """
+        # Parse with regex
+        match = ARGUMENT_PATTERN.match(argument.upper())
+        if not match:
+            msg = f"Invalid argument format: {argument}"
+            raise ValueError(msg)
 
-    Parameters
-    ----------
-    arg : PropBankArgumentType
-        PropBank argument string (e.g., "ARG0", "ARGM-LOC", "C-ARG1").
+        # Extract parts
+        prefix_part = match.group(1)
+        arg_char = match.group(2)
+        tag_part = match.group(3)
 
-    Returns
-    -------
-    ParsedPropBankArg
-        Parsed argument information.
+        # Determine prefix
+        prefix: PrefixType | None = None
+        if prefix_part:
+            prefix = prefix_part[0].lower()  # type: ignore[assignment]
 
-    Examples
-    --------
-    >>> parse_propbank_arg("ARG0")
-    {'raw_string': 'ARG0', 'arg_number': 0, 'is_core': True, ...}
-    >>> parse_propbank_arg("ARGM-LOC")
-    {'raw_string': 'ARGM-LOC', 'modifier_type': 'LOC', 'is_modifier': True, ...}
-    >>> parse_propbank_arg("C-ARG1")
-    {'raw_string': 'C-ARG1', 'prefix': 'C', 'arg_number': 1, ...}
-    """
-    result = ParsedPropBankArg(
-        raw_string=arg,
-        base_arg=arg,
-        arg_number=None,
-        modifier_type=None,
-        prefix=None,
-        is_core=False,
-        is_modifier=False,
-        arg_type="special",
-    )
+        # Initialize variables
+        modifier_type: ModifierType | None = None
+        arg_number: str | None = None
 
-    # Check for core arguments
-    if match := CORE_ARG_PATTERN.match(arg):
-        prefix = match.group(1)
-        if prefix:
-            result["prefix"] = prefix.rstrip("-")  # type: ignore[typeddict-item]
-
-        arg_char = match.group(3)
-        if arg_char == "A":
-            result["arg_number"] = -1  # Special value for ARGA
+        # Determine arg type and number
+        if arg_char == "M":
+            arg_type: ArgType = "modifier"
+            # Extract modifier type from tag if present
+            if tag_part:
+                mod_str = tag_part.lstrip("-").lower()
+                if mod_str in [
+                    "loc",
+                    "tmp",
+                    "mnr",
+                    "cau",
+                    "prp",
+                    "dir",
+                    "dis",
+                    "adv",
+                    "mod",
+                    "neg",
+                    "pnc",
+                    "ext",
+                    "lvb",
+                    "rec",
+                    "gol",
+                    "prd",
+                    "com",
+                    "adj",
+                    "dsp",
+                    "prr",
+                    "prx",
+                    "cxn",
+                    "top",
+                ]:
+                    modifier_type = mod_str  # type: ignore[assignment]
+        elif arg_char.isdigit():
+            arg_type = "core"
+            arg_number = arg_char
+        elif arg_char == "A":
+            # Special argument ARGA
+            arg_type = "core"
+            arg_number = arg_char.lower()  # Store as "a"
         else:
-            result["arg_number"] = int(arg_char)
+            msg = f"Invalid argument character: {arg_char}"
+            raise ValueError(msg)
 
-        result["base_arg"] = f"ARG{arg_char}"
-        result["is_core"] = True
-        result["arg_type"] = "core"
-        return result
+        # Extract function tag if present and not a modifier type
+        function_tag: str | None = None
+        if tag_part and arg_type != "modifier":
+            function_tag = tag_part.lstrip("-").lower()
 
-    # Check for modifier arguments
-    if match := MODIFIER_ARG_PATTERN.match(arg):
-        prefix = match.group(1)
-        if prefix:
-            result["prefix"] = prefix.rstrip("-")  # type: ignore[typeddict-item]
+        # Create normalized form
+        normalized_parts = []
+        if arg_number:
+            normalized_parts.append(arg_number)
+        elif arg_type == "modifier":
+            normalized_parts.append("m")
 
-        result["modifier_type"] = match.group(3)
-        result["base_arg"] = f"ARGM-{match.group(3)}"
-        result["is_modifier"] = True
-        result["arg_type"] = "modifier"
-        return result
+        if modifier_type:
+            normalized_parts.append(modifier_type)
+        elif function_tag:
+            normalized_parts.append(function_tag.lower())
 
-    # Check for special arguments
-    if SPECIAL_ARG_PATTERN.match(arg):
-        if arg == "ARGA":
-            result["arg_number"] = -1
-            result["is_core"] = True
-            result["arg_type"] = "core"
-        else:  # ARGM-TOP
-            result["modifier_type"] = "TOP"
-            result["is_modifier"] = True
-            result["arg_type"] = "modifier"
+        normalized = "_".join(normalized_parts) if normalized_parts else "unknown"
 
-    return result
+        return cls(
+            raw_string=argument,
+            normalized=normalized,
+            arg_type=arg_type,
+            arg_number=arg_number,
+            modifier_type=modifier_type,
+            prefix=prefix,
+            function_tag=function_tag,
+        )
 
 
-def parse_core_arg(arg: CoreArgumentType) -> ParsedPropBankArg:
-    """Parse a PropBank core argument.
+def parse_roleset_id(roleset_id: str) -> ParsedRolesetID:
+    """Parse a PropBank roleset ID.
 
     Parameters
     ----------
-    arg : CoreArgumentType
-        Core argument string (e.g., "ARG0", "ARG1", "ARGA").
+    roleset_id : str
+        Roleset ID to parse.
 
     Returns
     -------
-    ParsedPropBankArg
-        Parsed argument information.
-
-    Examples
-    --------
-    >>> parse_core_arg("ARG0")
-    {'raw_string': 'ARG0', 'arg_number': 0, 'is_core': True, ...}
-    >>> parse_core_arg("ARGA")
-    {'raw_string': 'ARGA', 'arg_number': -1, 'is_core': True, ...}
+    ParsedRolesetID
+        Parsed roleset ID.
     """
-    result = ParsedPropBankArg(
-        raw_string=arg,
-        base_arg=arg,
-        arg_number=None,
-        modifier_type=None,
-        prefix=None,
-        is_core=True,
-        is_modifier=False,
-        arg_type="core",
-    )
-
-    if arg == "ARGA":
-        result["arg_number"] = -1
-    else:
-        # Extract number from ARG0-7
-        result["arg_number"] = int(arg[3])  # Extract digit after "ARG"
-
-    return result
+    return ParsedRolesetID.from_string(roleset_id)
 
 
-def parse_modifier_arg(arg: ModifierArgumentType) -> ParsedPropBankArg:
-    """Parse a PropBank modifier argument.
+def parse_argument(argument: str) -> ParsedArgument:
+    """Parse a PropBank argument.
 
     Parameters
     ----------
-    arg : ModifierArgumentType
-        Modifier argument string (e.g., "ARGM-LOC", "ARGM-TMP").
+    argument : str
+        Argument to parse.
 
     Returns
     -------
-    ParsedPropBankArg
-        Parsed argument information.
-
-    Examples
-    --------
-    >>> parse_modifier_arg("ARGM-LOC")
-    {'raw_string': 'ARGM-LOC', 'modifier_type': 'LOC', 'is_modifier': True, ...}
-    >>> parse_modifier_arg("ARGM-TMP")
-    {'raw_string': 'ARGM-TMP', 'modifier_type': 'TMP', 'is_modifier': True, ...}
+    ParsedArgument
+        Parsed argument.
     """
-    result = ParsedPropBankArg(
-        raw_string=arg,
-        base_arg=arg,
-        arg_number=None,
-        modifier_type=None,
-        prefix=None,
-        is_core=False,
-        is_modifier=True,
-        arg_type="modifier",
-    )
-
-    # Extract modifier type after "ARGM-"
-    result["modifier_type"] = arg[5:]  # Remove "ARGM-" prefix
-
-    return result
+    return ParsedArgument.from_string(argument)
 
 
-def parse_continuation_arg(arg: ContinuationArgumentType) -> ParsedPropBankArg:
-    """Parse a PropBank continuation argument.
+def extract_arg_number(argument: str) -> str:
+    """Extract argument number from argument string.
 
     Parameters
     ----------
-    arg : ContinuationArgumentType
-        Continuation argument string (e.g., "C-ARG0", "C-ARGM-LOC").
-
-    Returns
-    -------
-    ParsedPropBankArg
-        Parsed argument information.
-
-    Examples
-    --------
-    >>> parse_continuation_arg("C-ARG0")
-    {'raw_string': 'C-ARG0', 'prefix': 'C', 'arg_number': 0, ...}
-    >>> parse_continuation_arg("C-ARGM-LOC")
-    {'raw_string': 'C-ARGM-LOC', 'prefix': 'C', 'modifier_type': 'LOC', ...}
-    """
-    result = ParsedPropBankArg(
-        raw_string=arg,
-        base_arg=arg[2:],  # Remove "C-" prefix
-        arg_number=None,
-        modifier_type=None,
-        prefix="C",
-        is_core=False,
-        is_modifier=False,
-        arg_type="special",
-    )
-
-    base_arg = arg[2:]  # Remove "C-" prefix
-    if base_arg.startswith("ARG") and base_arg[3:].isdigit():
-        # Core continuation argument
-        result["arg_number"] = int(base_arg[3])
-        result["is_core"] = True
-        result["arg_type"] = "core"
-    elif base_arg.startswith("ARGM-"):
-        # Modifier continuation argument
-        result["modifier_type"] = base_arg[5:]  # Remove "ARGM-" prefix
-        result["is_modifier"] = True
-        result["arg_type"] = "modifier"
-
-    return result
-
-
-def parse_reference_arg(arg: ReferenceArgumentType) -> ParsedPropBankArg:
-    """Parse a PropBank reference argument.
-
-    Parameters
-    ----------
-    arg : ReferenceArgumentType
-        Reference argument string (e.g., "R-ARG0", "R-ARGM-LOC").
-
-    Returns
-    -------
-    ParsedPropBankArg
-        Parsed argument information.
-
-    Examples
-    --------
-    >>> parse_reference_arg("R-ARG0")
-    {'raw_string': 'R-ARG0', 'prefix': 'R', 'arg_number': 0, ...}
-    >>> parse_reference_arg("R-ARGM-LOC")
-    {'raw_string': 'R-ARGM-LOC', 'prefix': 'R', 'modifier_type': 'LOC', ...}
-    """
-    result = ParsedPropBankArg(
-        raw_string=arg,
-        base_arg=arg[2:],  # Remove "R-" prefix
-        arg_number=None,
-        modifier_type=None,
-        prefix="R",
-        is_core=False,
-        is_modifier=False,
-        arg_type="special",
-    )
-
-    base_arg = arg[2:]  # Remove "R-" prefix
-    if base_arg.startswith("ARG") and base_arg[3:].isdigit():
-        # Core reference argument
-        result["arg_number"] = int(base_arg[3])
-        result["is_core"] = True
-        result["arg_type"] = "core"
-    elif base_arg.startswith("ARGM-"):
-        # Modifier reference argument
-        result["modifier_type"] = base_arg[5:]  # Remove "ARGM-" prefix
-        result["is_modifier"] = True
-        result["arg_type"] = "modifier"
-
-    return result
-
-
-def is_core_arg(arg: PropBankArgumentType) -> bool:
-    """Check if an argument is a core argument.
-
-    Parameters
-    ----------
-    arg : PropBankArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    bool
-        True if argument is ARG0-7 or ARGA.
-
-    Examples
-    --------
-    >>> is_core_arg("ARG0")
-    True
-    >>> is_core_arg("ARGM-LOC")
-    False
-    """
-    return bool(CORE_ARG_PATTERN.match(arg))
-
-
-def is_modifier_arg(arg: PropBankArgumentType) -> bool:
-    """Check if an argument is a modifier argument.
-
-    Parameters
-    ----------
-    arg : PropBankArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    bool
-        True if argument is ARGM-*.
-
-    Examples
-    --------
-    >>> is_modifier_arg("ARGM-LOC")
-    True
-    >>> is_modifier_arg("ARG0")
-    False
-    """
-    return bool(MODIFIER_ARG_PATTERN.match(arg))
-
-
-def is_continuation_arg(arg: PropBankArgumentType) -> bool:
-    """Check if an argument is a continuation.
-
-    Parameters
-    ----------
-    arg : PropBankArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    bool
-        True if argument has C- prefix.
-
-    Examples
-    --------
-    >>> is_continuation_arg("C-ARG1")
-    True
-    >>> is_continuation_arg("ARG1")
-    False
-    """
-    return arg.startswith("C-")
-
-
-def is_reference_arg(arg: PropBankArgumentType) -> bool:
-    """Check if an argument is a reference.
-
-    Parameters
-    ----------
-    arg : PropBankArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    bool
-        True if argument has R- prefix.
-
-    Examples
-    --------
-    >>> is_reference_arg("R-ARG0")
-    True
-    >>> is_reference_arg("ARG0")
-    False
-    """
-    return arg.startswith("R-")
-
-
-def extract_arg_number(
-    arg: CoreArgumentType | ContinuationArgumentType | ReferenceArgumentType,
-) -> int | None:
-    """Extract the argument number from ARG notation.
-
-    Parameters
-    ----------
-    arg : CoreArgumentType | ContinuationArgumentType | ReferenceArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    int | None
-        Argument number (0-7) or -1 for ARGA, None if not a numbered arg.
-
-    Examples
-    --------
-    >>> extract_arg_number("ARG0")
-    0
-    >>> extract_arg_number("C-ARG1")
-    1
-    >>> extract_arg_number("ARGA")
-    -1
-    """
-    if arg.startswith("C-"):
-        parsed = parse_continuation_arg(arg)  # type: ignore[arg-type]
-    elif arg.startswith("R-"):
-        parsed = parse_reference_arg(arg)  # type: ignore[arg-type]
-    else:
-        parsed = parse_core_arg(arg)  # type: ignore[arg-type]
-    return parsed["arg_number"]
-
-
-def extract_modifier_type(
-    arg: ModifierArgumentType | ContinuationArgumentType | ReferenceArgumentType,
-) -> str | None:
-    """Extract the modifier type from ARGM notation.
-
-    Parameters
-    ----------
-    arg : ModifierArgumentType | ContinuationArgumentType | ReferenceArgumentType
-        PropBank argument string.
-
-    Returns
-    -------
-    str | None
-        Modifier type (e.g., "LOC", "TMP") or None if not a modifier.
-
-    Examples
-    --------
-    >>> extract_modifier_type("ARGM-LOC")
-    'LOC'
-    >>> extract_modifier_type("C-ARGM-TMP")
-    'TMP'
-    """
-    if arg.startswith("C-"):
-        parsed = parse_continuation_arg(arg)  # type: ignore[arg-type]
-    elif arg.startswith("R-"):
-        parsed = parse_reference_arg(arg)  # type: ignore[arg-type]
-    else:
-        parsed = parse_modifier_arg(arg)  # type: ignore[arg-type]
-    return parsed["modifier_type"]
-
-
-def normalize_arg_for_matching(
-    arg: CoreArgumentType | ModifierArgumentType | ContinuationArgumentType | ReferenceArgumentType,
-) -> str:
-    """Normalize an argument for fuzzy matching.
-
-    Parameters
-    ----------
-    arg : CoreArgumentType | ModifierArgumentType | ContinuationArgumentType | ReferenceArgumentType
-        PropBank argument string.
+    argument : str
+        Argument string.
 
     Returns
     -------
     str
-        Normalized argument string.
+        Argument number.
 
-    Examples
-    --------
-    >>> normalize_arg_for_matching("C-ARG0")
-    'arg0'
-    >>> normalize_arg_for_matching("ARGM-LOC")
-    'argm loc'
+    Raises
+    ------
+    ValueError
+        If argument is invalid or has no number.
     """
-    # Remove prefixes
-    normalized_arg = cast(str, arg)
-    if normalized_arg.startswith(("C-", "R-")):
-        normalized_arg = normalized_arg[2:]
+    try:
+        parsed = parse_argument(argument)
+    except ValueError as e:
+        msg = f"Cannot extract arg number from invalid argument: {argument}"
+        raise ValueError(msg) from e
+    else:
+        if parsed.arg_number is None:
+            msg = f"Argument has no number: {argument}"
+            raise ValueError(msg)
+        return parsed.arg_number
 
-    # Normalize and lowercase
-    return normalized_arg.lower().replace("-", " ")
+
+def extract_modifier_type(argument: str) -> str:
+    """Extract modifier type from argument string.
+
+    Parameters
+    ----------
+    argument : str
+        Argument string.
+
+    Returns
+    -------
+    str
+        Modifier type.
+
+    Raises
+    ------
+    ValueError
+        If argument is invalid or not a modifier.
+    """
+    try:
+        parsed = parse_argument(argument)
+    except ValueError as e:
+        msg = f"Cannot extract modifier type from invalid argument: {argument}"
+        raise ValueError(msg) from e
+    else:
+        if parsed.modifier_type is None:
+            msg = f"Argument is not a modifier: {argument}"
+            raise ValueError(msg)
+        return parsed.modifier_type
 
 
-def filter_args_by_properties(
+def extract_function_tag(argument: str) -> str:
+    """Extract function tag from argument string.
+
+    Parameters
+    ----------
+    argument : str
+        Argument string.
+
+    Returns
+    -------
+    str
+        Function tag.
+
+    Raises
+    ------
+    ValueError
+        If argument is invalid or has no function tag.
+    """
+    try:
+        parsed = parse_argument(argument)
+    except ValueError as e:
+        msg = f"Cannot extract function tag from invalid argument: {argument}"
+        raise ValueError(msg) from e
+    else:
+        if parsed.function_tag is None:
+            msg = f"Argument has no function tag: {argument}"
+            raise ValueError(msg)
+        return parsed.function_tag
+
+
+def is_core_argument(argument: str) -> bool:
+    """Check if argument is a core argument.
+
+    Parameters
+    ----------
+    argument : str
+        Argument string.
+
+    Returns
+    -------
+    bool
+        True if core argument.
+    """
+    try:
+        parsed = parse_argument(argument)
+    except ValueError:
+        return False
+    else:
+        return parsed.arg_type == "core"
+
+
+def is_modifier(argument: str) -> bool:
+    """Check if argument is a modifier.
+
+    Parameters
+    ----------
+    argument : str
+        Argument string.
+
+    Returns
+    -------
+    bool
+        True if modifier.
+    """
+    try:
+        parsed = parse_argument(argument)
+    except ValueError:
+        return False
+    else:
+        return parsed.arg_type == "modifier"
+
+
+def filter_args_by_properties(  # noqa: C901, PLR0913
     args: list[Role],
     is_core: bool | None = None,
-    modifier_type: str | None = None,
-    prefix: Literal["C", "R"] | None = None,
-    arg_number: int | None = None,
+    is_modifier: bool | None = None,
+    has_prefix: bool | None = None,
+    modifier_type: ModifierType | None = None,
+    arg_number: str | None = None,
 ) -> list[Role]:
     """Filter arguments by their properties.
 
     Parameters
     ----------
     args : list[Role]
-        List of arguments to filter.
-    is_core : bool | None, optional
-        Filter for core arguments (ARG0-7, ARGA).
-    modifier_type : str | None, optional
-        Filter for specific modifier type (e.g., "LOC", "TMP").
-    prefix : Literal["C", "R"] | None, optional
-        Filter for continuation or reference prefix.
-    arg_number : int | None, optional
-        Filter for specific argument number (0-7, -1 for ARGA).
+        Arguments to filter.
+    is_core : bool | None
+        Filter for core arguments.
+    is_modifier : bool | None
+        Filter for modifiers.
+    has_prefix : bool | None
+        Filter for arguments with prefix.
+    modifier_type : ModifierType | None
+        Filter for specific modifier type.
+    arg_number : str | None
+        Filter for specific argument number (e.g., "0", "1", "2").
 
     Returns
     -------
     list[Role]
-        Filtered list of arguments.
-
-    Examples
-    --------
-    >>> args = [arg1, arg2, arg3]  # Where arg1.n = "0"
-    >>> filtered = filter_args_by_properties(args, is_core=True)
-    >>> len(filtered)
-    1
+        Filtered arguments.
     """
-    filtered = []
+    # Store function reference to avoid name collision with parameter
+    is_modifier_func = globals()["is_modifier"]
 
-    for arg in args:
-        # Check if it's a core argument (numbers 0-7)
-        arg_is_core = arg.n in ["0", "1", "2", "3", "4", "5", "6", "7"]
+    filtered = args
 
-        # Apply filters based on Role's actual properties
-        if is_core is not None and arg_is_core != is_core:
-            continue
+    # Helper to get argnum from Role
+    def get_argnum(role: Role) -> str:
+        """Reconstruct argnum from Role n and f fields."""
+        # Check if argnum is already set (for compatibility)
+        if hasattr(role, "argnum"):
+            return str(role.argnum)
 
-        # modifier_type and prefix filters don't apply to Role structure
-        # as Role only has ArgumentNumber and FunctionTag
-        if modifier_type is not None or prefix is not None:
-            # These filters cannot be applied to Role objects
-            continue
+        # Otherwise reconstruct from n and f fields
+        if role.n in {"M", "m"}:
+            # Modifier argument
+            if role.f:
+                return f"ARGM-{role.f}"
+            return "ARGM"
+        # Core or special argument
+        return f"ARG{role.n}"
 
-        # Convert arg_number to string for comparison
-        if arg_number is not None and arg_is_core and str(arg_number) != arg.n:
-            continue
+    if is_core is not None:
+        if is_core:
+            filtered = [a for a in filtered if is_core_argument(get_argnum(a))]
+        else:
+            filtered = [a for a in filtered if not is_core_argument(get_argnum(a))]
 
-        filtered.append(arg)
+    if is_modifier is not None:
+        if is_modifier:
+            filtered = [a for a in filtered if is_modifier_func(get_argnum(a))]
+        else:
+            filtered = [a for a in filtered if not is_modifier_func(get_argnum(a))]
+
+    if has_prefix is not None:
+        # Prefix checking doesn't apply to standard Role model
+        # This would need additional fields
+        if has_prefix:
+            filtered = [
+                a for a in filtered if hasattr(a, "argnum") and a.argnum.startswith(("C-", "R-"))
+            ]
+        else:
+            filtered = [
+                a
+                for a in filtered
+                if not (hasattr(a, "argnum") and a.argnum.startswith(("C-", "R-")))
+            ]
+
+    if modifier_type is not None:
+        # Only check modifier type for actual modifiers
+        filtered = [
+            a
+            for a in filtered
+            if is_modifier_func(get_argnum(a))
+            and extract_modifier_type(get_argnum(a)) == modifier_type
+        ]
+
+    if arg_number is not None:
+        # Filter by specific argument number
+        filtered = [
+            a
+            for a in filtered
+            if a.n == arg_number  # Use role.n field directly for argument number
+        ]
 
     return filtered

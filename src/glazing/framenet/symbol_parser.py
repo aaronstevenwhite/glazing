@@ -1,371 +1,320 @@
-"""FrameNet symbol parser.
+"""FrameNet symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for FrameNet frame and frame element
 symbols, including normalization and fuzzy matching support.
-
-Classes
--------
-ParsedFrameNetSymbol
-    Parsed FrameNet frame or element information.
-
-Functions
----------
-parse_frame_name
-    Parse and normalize a FrameNet frame name.
-parse_frame_element
-    Parse a frame element name.
-is_core_element
-    Check if a frame element is core.
-normalize_frame_name
-    Normalize a frame name for matching.
-normalize_element_name
-    Normalize an element name for matching.
-filter_elements_by_properties
-    Filter frame elements by their properties.
 """
 
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal, TypedDict
+from typing import TYPE_CHECKING, Literal
 
-from glazing.framenet.types import CoreType, FEAbbrev, FEName, FrameName, LexicalUnitName
+from pydantic import field_validator
+
+from glazing.symbols import BaseSymbol
 
 if TYPE_CHECKING:
     from glazing.framenet.models import FrameElement
 
+# Type aliases
+type FrameNameType = Literal["frame", "frame_relation"]
+type ElementCoreType = Literal["core", "peripheral", "extra_thematic"]
 
-class ParsedFrameNetSymbol(TypedDict):
-    """Parsed FrameNet symbol.
+
+# Validation patterns
+FRAME_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_\-\s]*$")
+ELEMENT_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_\-\s\']*$")
+
+
+class ParsedFrameName(BaseSymbol):
+    """Parsed FrameNet frame name.
 
     Attributes
     ----------
     raw_string : str
-        Original unparsed string.
-    normalized_name : str
+        Original unparsed frame name.
+    normalized : str
         Normalized name for matching.
-    symbol_type : Literal["frame", "frame_element", "lexical_unit"]
-        Type of FrameNet symbol.
-    core_type : CoreType | None
-        Core type for frame elements ("Core", "Non-Core", "Extra-Thematic").
+    symbol_type : Literal["frame"]
+        Always "frame" for frame names.
+    dataset : Literal["framenet"]
+        Always "framenet".
+    name_type : FrameNameType
+        Type of frame name.
     is_abbreviation : bool
-        Whether the symbol appears to be an abbreviation.
+        Whether the name appears to be an abbreviation.
     """
 
-    raw_string: str
-    normalized_name: str
-    symbol_type: Literal["frame", "frame_element", "lexical_unit"]
-    core_type: CoreType | None
-    is_abbreviation: bool
+    symbol_type: Literal["frame"] = "frame"
+    dataset: Literal["framenet"] = "framenet"
+    name_type: FrameNameType = "frame"
+    is_abbreviation: bool = False
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_frame_name(cls, v: str) -> str:
+        """Validate frame name format."""
+        if not FRAME_NAME_PATTERN.match(v):
+            msg = f"Invalid frame name format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(cls, frame_name: str) -> ParsedFrameName:
+        """Create from frame name string.
+
+        Parameters
+        ----------
+        frame_name : str
+            Frame name to parse.
+
+        Returns
+        -------
+        ParsedFrameName
+            Parsed frame name.
+        """
+        normalized = cls.normalize_string(frame_name)
+        is_abbrev = len(frame_name) <= 3 and frame_name.isupper()
+
+        return cls(
+            raw_string=frame_name,
+            normalized=normalized,
+            is_abbreviation=is_abbrev,
+        )
 
 
-# Common frame name variations
-FRAME_NAME_VARIATIONS = {
-    "cause_motion": ["Cause_motion", "CauseMotion", "cause motion"],
-    "commerce_buy": ["Commerce_buy", "CommerceBuy", "commerce buy"],
-    "giving": ["Giving", "giving"],
-    "transfer": ["Transfer", "transfer"],
-}
+class ParsedFrameElement(BaseSymbol):
+    """Parsed FrameNet frame element.
 
-# Common frame element abbreviations
-FE_ABBREVIATIONS = {
-    "AGT": "Agent",
-    "PAT": "Patient",
-    "THM": "Theme",
-    "SRC": "Source",
-    "GOAL": "Goal",
-    "LOC": "Location",
-    "INST": "Instrument",
-    "BEN": "Beneficiary",
-    "MANN": "Manner",
-    "PURP": "Purpose",
-    "TIME": "Time",
-    "CAUS": "Cause",
-}
+    Attributes
+    ----------
+    raw_string : str
+        Original unparsed element name.
+    normalized : str
+        Normalized name for matching.
+    symbol_type : Literal["frame_element"]
+        Always "frame_element".
+    dataset : Literal["framenet"]
+        Always "framenet".
+    core_type : ElementCoreType | None
+        Core type classification.
+    is_abbreviation : bool
+        Whether the name appears to be an abbreviation.
+    """
+
+    symbol_type: Literal["frame_element"] = "frame_element"
+    dataset: Literal["framenet"] = "framenet"
+    core_type: ElementCoreType | None = None
+    is_abbreviation: bool = False
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_element_name(cls, v: str) -> str:
+        """Validate element name format."""
+        if not ELEMENT_NAME_PATTERN.match(v):
+            msg = f"Invalid element name format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(
+        cls, element_name: str, core_type: ElementCoreType | None = None
+    ) -> ParsedFrameElement:
+        """Create from element name string.
+
+        Parameters
+        ----------
+        element_name : str
+            Element name to parse.
+        core_type : ElementCoreType | None
+            Core type if known.
+
+        Returns
+        -------
+        ParsedFrameElement
+            Parsed frame element.
+        """
+        normalized = cls.normalize_string(element_name)
+        is_abbrev = len(element_name) <= 3 and element_name.isupper()
+
+        return cls(
+            raw_string=element_name,
+            normalized=normalized,
+            core_type=core_type,
+            is_abbreviation=is_abbrev,
+        )
 
 
-def parse_frame_name(frame_name: FrameName) -> ParsedFrameNetSymbol:
-    """Parse and normalize a FrameNet frame name.
+def parse_frame_name(frame_name: str) -> ParsedFrameName:
+    """Parse a FrameNet frame name.
 
     Parameters
     ----------
-    frame_name : FrameName
-        FrameNet frame name (e.g., "Cause_motion", "Commerce_buy").
+    frame_name : str
+        Frame name to parse.
 
     Returns
     -------
-    ParsedFrameNetSymbol
-        Parsed frame information.
-
-    Examples
-    --------
-    >>> parse_frame_name("Cause_motion")
-    {'raw_string': 'Cause_motion', 'normalized_name': 'cause motion', ...}
-    >>> parse_frame_name("Commerce_buy")
-    {'raw_string': 'Commerce_buy', 'normalized_name': 'commerce buy', ...}
+    ParsedFrameName
+        Parsed frame name information.
     """
-    return ParsedFrameNetSymbol(
-        raw_string=frame_name,
-        normalized_name=normalize_frame_name(frame_name),
-        symbol_type="frame",
-        core_type=None,
-        is_abbreviation=False,
-    )
+    return ParsedFrameName.from_string(frame_name)
 
 
-def parse_frame_element(
-    element_name: FEName, core_type: CoreType | None = None
-) -> ParsedFrameNetSymbol:
+def parse_frame_element(element_name: str) -> ParsedFrameElement:
     """Parse a frame element name.
 
     Parameters
     ----------
-    element_name : FEName
-        Frame element name (e.g., "Agent", "Theme").
-    core_type : CoreType | None
-        Core type ("Core", "Non-Core", "Extra-Thematic").
+    element_name : str
+        Element name to parse.
 
     Returns
     -------
-    ParsedFrameNetSymbol
-        Parsed element information.
-
-    Examples
-    --------
-    >>> parse_frame_element("Agent", "Core")
-    {'raw_string': 'Agent', 'core_type': 'Core', ...}
-    >>> parse_frame_element("Time", "Non-Core")
-    {'raw_string': 'Time', 'core_type': 'Non-Core', ...}
+    ParsedFrameElement
+        Parsed frame element information.
     """
-    # Check if it's an abbreviation
-    is_abbrev = element_name.upper() in FE_ABBREVIATIONS
-
-    # If it's an abbreviation, get the full name
-    if is_abbrev and element_name.upper() in FE_ABBREVIATIONS:
-        normalized = FE_ABBREVIATIONS[element_name.upper()].lower()
-    else:
-        normalized = normalize_element_name(element_name)
-
-    return ParsedFrameNetSymbol(
-        raw_string=element_name,
-        normalized_name=normalized,
-        symbol_type="frame_element",
-        core_type=core_type,
-        is_abbreviation=is_abbrev,
-    )
+    return ParsedFrameElement.from_string(element_name)
 
 
-def parse_lexical_unit(lu_name: LexicalUnitName) -> ParsedFrameNetSymbol:
-    """Parse a lexical unit name.
-
-    Parameters
-    ----------
-    lu_name : LexicalUnitName
-        Lexical unit name (e.g., "give.v", "gift.n").
-
-    Returns
-    -------
-    ParsedFrameNetSymbol
-        Parsed lexical unit information.
-
-    Examples
-    --------
-    >>> parse_lexical_unit("give.v")
-    {'raw_string': 'give.v', 'normalized_name': 'give', ...}
-    """
-    # Remove POS suffix for normalization
-    normalized = lu_name.rsplit(".", 1)[0] if "." in lu_name else lu_name
-
-    return ParsedFrameNetSymbol(
-        raw_string=lu_name,
-        normalized_name=normalized.lower(),
-        symbol_type="lexical_unit",
-        core_type=None,
-        is_abbreviation=False,
-    )
-
-
-def is_core_element(element_name: FEName, core_type: CoreType | None) -> bool:
-    """Check if a frame element is core.
-
-    Parameters
-    ----------
-    element_name : FEName
-        Frame element name.
-    core_type : CoreType | None
-        Core type string.
-
-    Returns
-    -------
-    bool
-        True if element is core.
-
-    Examples
-    --------
-    >>> is_core_element("Agent", "Core")
-    True
-    >>> is_core_element("Time", "Non-Core")
-    False
-    """
-    _ = element_name  # Currently unused, kept for future use
-    return core_type == "Core"
-
-
-def normalize_frame_name(frame_name: FrameName) -> str:
+def normalize_frame_name(frame_name: str) -> str:
     """Normalize a frame name for matching.
 
-    Handles various conventions:
-    - Underscore separation (Cause_motion)
-    - CamelCase (CauseMotion)
-    - Space separation (Cause motion)
-
     Parameters
     ----------
-    frame_name : FrameName
-        FrameNet frame name.
+    frame_name : str
+        Frame name to normalize.
 
     Returns
     -------
     str
         Normalized frame name.
-
-    Examples
-    --------
-    >>> normalize_frame_name("Cause_motion")
-    'cause motion'
-    >>> normalize_frame_name("CauseMotion")
-    'cause motion'
-    >>> normalize_frame_name("cause motion")
-    'cause motion'
     """
-    # Replace underscores with spaces
-    normalized = frame_name.replace("_", " ")
-
-    # Handle CamelCase by inserting spaces
-    normalized = re.sub(r"([a-z])([A-Z])", r"\1 \2", normalized)
-    normalized = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", normalized)
-
-    # Normalize whitespace and lowercase
-    return " ".join(normalized.split()).lower()
+    return BaseSymbol.normalize_string(frame_name)
 
 
-def normalize_element_name(element_name: FEName) -> str:
-    """Normalize an element name for matching.
+def normalize_element_for_matching(element_name: str) -> str:
+    """Normalize a frame element name for matching.
 
     Parameters
     ----------
-    element_name : FEName
-        Frame element name.
+    element_name : str
+        Element name to normalize.
 
     Returns
     -------
     str
         Normalized element name.
-
-    Examples
-    --------
-    >>> normalize_element_name("Agent")
-    'agent'
-    >>> normalize_element_name("Goal_location")
-    'goal location'
     """
-    # Handle abbreviations
-    if element_name.upper() in FE_ABBREVIATIONS:
-        return FE_ABBREVIATIONS[element_name.upper()].lower()
-
-    # Replace underscores and normalize
-    return element_name.replace("_", " ").lower()
+    return BaseSymbol.normalize_string(element_name)
 
 
-def expand_abbreviation(abbrev: FEAbbrev) -> str | None:
-    """Expand a frame element abbreviation.
+def extract_element_base(element_name: str) -> str:
+    """Extract the base name from a frame element.
 
     Parameters
     ----------
-    abbrev : FEAbbrev
-        Abbreviation to expand.
+    element_name : str
+        Frame element name.
 
     Returns
     -------
-    str | None
-        Expanded form or None if not recognized.
-
-    Examples
-    --------
-    >>> expand_abbreviation("AGT")
-    'Agent'
-    >>> expand_abbreviation("THM")
-    'Theme'
+    str
+        Base element name without modifiers.
     """
-    return FE_ABBREVIATIONS.get(abbrev.upper())
+    # For FrameNet, the base name is the element name itself
+    # We don't strip underscores as they are part of the name
+    return element_name
 
 
-def find_frame_variations(frame_name: FrameName) -> list[str]:
-    """Find known variations of a frame name.
+def is_core_element(element: FrameElement) -> bool:
+    """Check if a frame element is core.
 
     Parameters
     ----------
-    frame_name : FrameName
-        Frame name to find variations for.
+    element : FrameElement
+        Frame element to check.
 
     Returns
     -------
-    list[str]
-        List of known variations.
-
-    Examples
-    --------
-    >>> find_frame_variations("cause_motion")
-    ['Cause_motion', 'CauseMotion', 'cause motion']
+    bool
+        True if element is core.
     """
-    normalized = normalize_frame_name(frame_name)
+    return element.core_type == "Core"
 
-    # Check if we have known variations
-    for key, variations in FRAME_NAME_VARIATIONS.items():
-        if normalize_frame_name(key) == normalized:
-            return variations
 
-    # Return the original if no variations found
-    return [frame_name]
+def is_peripheral_element(element: FrameElement) -> bool:
+    """Check if a frame element is peripheral.
+
+    Parameters
+    ----------
+    element : FrameElement
+        Frame element to check.
+
+    Returns
+    -------
+    bool
+        True if element is peripheral.
+    """
+    return element.core_type == "Peripheral"
+
+
+def is_extra_thematic_element(element: FrameElement) -> bool:
+    """Check if a frame element is extra-thematic.
+
+    Parameters
+    ----------
+    element : FrameElement
+        Frame element to check.
+
+    Returns
+    -------
+    bool
+        True if element is extra-thematic.
+    """
+    return element.core_type == "Extra-Thematic"
 
 
 def filter_elements_by_properties(
     elements: list[FrameElement],
-    core_type: CoreType | None = None,
-    semantic_type: str | None = None,
+    core_type: ElementCoreType | None = None,
+    required: bool | None = None,
 ) -> list[FrameElement]:
     """Filter frame elements by their properties.
 
     Parameters
     ----------
     elements : list[FrameElement]
-        List of frame elements to filter.
-    core_type : CoreType | None, optional
-        Filter by core type ("Core", "Non-Core", "Extra-Thematic").
-    semantic_type : str | None, optional
-        Filter by semantic type.
+        Elements to filter.
+    core_type : ElementCoreType | None
+        Core type to filter by.
+    required : bool | None
+        Whether element is required.
 
     Returns
     -------
     list[FrameElement]
-        Filtered list of frame elements.
-
-    Examples
-    --------
-    >>> elements = [elem1, elem2, elem3]  # Where elem1.core_type = "Core"
-    >>> filtered = filter_elements_by_properties(elements, core_type="Core")
-    >>> len(filtered)
-    1
+        Filtered elements.
     """
-    filtered = []
+    filtered = elements
 
-    for element in elements:
-        # Apply filters
-        if core_type is not None and element.core_type != core_type:
-            continue
-        if semantic_type is not None and getattr(element, "semantic_type", None) != semantic_type:
-            continue
+    # Map our normalized core types to FrameNet's original values
+    core_type_map = {
+        "core": "Core",
+        "peripheral": "Peripheral",
+        "extra_thematic": "Extra-Thematic",
+    }
 
-        filtered.append(element)
+    if core_type is not None:
+        original_type = core_type_map.get(core_type, core_type)
+        filtered = [e for e in filtered if e.core_type == original_type]
+
+    # Note: FrameNet doesn't have explicit "required" field,
+    # but Core elements are typically required
+    if required is not None:
+        if required:
+            filtered = [e for e in filtered if e.core_type == "Core"]
+        else:
+            filtered = [e for e in filtered if e.core_type != "Core"]
 
     return filtered

@@ -1279,7 +1279,7 @@ class UnifiedSearch:
         arg_type: str | None = None,
         prefix: str | None = None,
         modifier: str | None = None,
-        arg_number: int | None = None,
+        arg_number: str | None = None,
     ) -> list[Roleset]:
         """Search PropBank rolesets by argument properties.
 
@@ -1291,8 +1291,8 @@ class UnifiedSearch:
             "C" or "R" for continuation/reference.
         modifier : str | None, optional
             Modifier type (e.g., "LOC", "TMP").
-        arg_number : int | None, optional
-            Argument number (0-7).
+        arg_number : str | None, optional
+            Specific argument number (e.g., "0", "1", "2").
 
         Returns
         -------
@@ -1308,8 +1308,8 @@ class UnifiedSearch:
                 filtered_args = filter_args_by_properties(
                     roleset.roles,
                     is_core=(arg_type == "core") if arg_type else None,
-                    modifier_type=modifier,
-                    prefix=prefix if prefix in ["C", "R"] else None,  # type: ignore[arg-type]
+                    modifier_type=modifier.lower() if modifier else None,  # type: ignore[arg-type]
+                    has_prefix=True if prefix in ["C", "R"] else None,
                     arg_number=arg_number,
                 )
                 if filtered_args:
@@ -1366,8 +1366,14 @@ class UnifiedSearch:
             filtered_elements = filter_elements_by_properties(
                 frame.frame_elements,
                 core_type=core_type,  # type: ignore[arg-type]
-                semantic_type=semantic_type,
             )
+            # Additional filtering for semantic_type if needed
+            if semantic_type and filtered_elements:
+                filtered_elements = [
+                    e
+                    for e in filtered_elements
+                    if hasattr(e, "semantic_type") and e.semantic_type == semantic_type
+                ]
             if filtered_elements:
                 matching_frames.append(frame)
 

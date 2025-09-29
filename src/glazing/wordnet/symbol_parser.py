@@ -1,84 +1,32 @@
-"""WordNet symbol parser.
+"""WordNet symbol parser using Pydantic v2 models.
 
 This module provides parsing utilities for WordNet synset IDs, sense keys,
-and lemma keys.
-
-Classes
--------
-ParsedWordNetSymbol
-    Parsed WordNet symbol information.
-
-Functions
----------
-parse_synset_id
-    Parse a WordNet synset ID.
-parse_sense_key
-    Parse a WordNet sense key.
-parse_lemma_key
-    Parse a lemma key.
-extract_pos_from_synset
-    Extract POS from synset ID.
-extract_sense_number
-    Extract sense number from sense key.
-normalize_lemma
-    Normalize a lemma for matching.
-filter_by_relation_type
-    Filter pointers by relation type.
+and lemma keys using Pydantic v2 models for validation.
 """
 
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal
 
-from glazing.wordnet.types import Lemma, LemmaKey, Offset, SenseKey, SynsetID, WordNetPOS
+from pydantic import Field, field_validator
+
+from glazing.symbols import BaseSymbol
+from glazing.wordnet.types import WordNetPOS
 
 if TYPE_CHECKING:
-    from glazing.wordnet.models import Pointer
+    from glazing.wordnet.models import Pointer, Synset
 
+# Type aliases
+type POSType = Literal["n", "v", "a", "r", "s"]
+type SynsetType = Literal["synset", "sense", "lemma"]
 
-class ParsedWordNetSymbol(TypedDict):
-    """Parsed WordNet symbol.
-
-    Attributes
-    ----------
-    raw_string : str
-        Original unparsed string.
-    symbol_type : Literal["synset", "sense_key", "lemma"]
-        Type of WordNet symbol.
-    offset : str | None
-        8-digit synset offset.
-    pos : WordNetPOS | None
-        Part of speech (n, v, a, r, s).
-    lemma : str | None
-        Word lemma.
-    sense_number : int | None
-        Sense number.
-    lex_filenum : int | None
-        Lexical file number.
-    lex_id : int | None
-        Lexical ID.
-    head_word : str | None
-        Head word for satellites.
-    """
-
-    raw_string: str
-    symbol_type: Literal["synset", "sense_key", "lemma"]
-    offset: str | None
-    pos: WordNetPOS | None
-    lemma: str | None
-    sense_number: int | None
-    lex_filenum: int | None
-    lex_id: int | None
-    head_word: str | None
-
-
-# Patterns for parsing WordNet symbols
+# Validation patterns
 SYNSET_ID_PATTERN = re.compile(r"^(\d{8})-([nvasr])$")
-SENSE_KEY_PATTERN = re.compile(r"^(.+)%(\d+):(\d+):(\d+)(?:::(.+))?$")
+SENSE_KEY_PATTERN = re.compile(r"^(.+)%(\d+):(\d{2}):(\d{2}):(.*)$")
 LEMMA_KEY_PATTERN = re.compile(r"^(.+)#([nvasr])#(\d+)$")
 
-# Map between numeric POS and letter codes
+# POS number mapping
 POS_MAP = {
     "1": "n",  # noun
     "2": "v",  # verb
@@ -90,217 +38,482 @@ POS_MAP = {
 POS_REVERSE_MAP = {v: k for k, v in POS_MAP.items()}
 
 
-def parse_synset_id(synset_id: SynsetID) -> ParsedWordNetSymbol:
+class ParsedSynsetID(BaseSymbol):
+    """Parsed WordNet synset ID.
+
+    Attributes
+    ----------
+    raw_string : str
+        Original synset ID string.
+    normalized : str
+        Normalized synset ID.
+    symbol_type : Literal["synset"]
+        Always "synset".
+    dataset : Literal["wordnet"]
+        Always "wordnet".
+    offset : str
+        8-digit synset offset.
+    pos : POSType
+        Part of speech.
+    numeric_offset : int
+        Numeric value of the offset.
+    """
+
+    symbol_type: Literal["synset"] = "synset"
+    dataset: Literal["wordnet"] = "wordnet"
+    offset: str = Field(..., pattern=r"^\d{8}$")
+    pos: POSType
+    numeric_offset: int = Field(..., ge=0)
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_synset_format(cls, v: str) -> str:
+        """Validate synset ID format."""
+        # Try with hyphen
+        if SYNSET_ID_PATTERN.match(v):
+            return v
+        # Try without hyphen (e.g., "00001740n")
+        if len(v) == 9 and v[:8].isdigit() and v[8] in "nvasr":
+            return v
+        msg = f"Invalid synset ID format: {v}"
+        raise ValueError(msg)
+
+    @classmethod
+    def from_string(cls, synset_id: str) -> ParsedSynsetID:
+        """Create from synset ID string.
+
+        Parameters
+        ----------
+        synset_id : str
+            Synset ID (e.g., "00001740-n", "00001740n").
+
+        Returns
+        -------
+        ParsedSynsetID
+            Parsed synset ID.
+        """
+        # Try with hyphen
+        match = SYNSET_ID_PATTERN.match(synset_id)
+        if match:
+            offset = match.group(1)
+            pos: POSType = match.group(2)  # type: ignore[assignment]
+            normalized = f"{offset}-{pos}"
+        # Try without hyphen
+        elif len(synset_id) == 9 and synset_id[:8].isdigit() and synset_id[8] in "nvasr":
+            offset = synset_id[:8]
+            pos = synset_id[8]  # type: ignore[assignment]
+            normalized = f"{offset}-{pos}"
+        else:
+            msg = f"Invalid synset ID format: {synset_id}"
+            raise ValueError(msg)
+
+        return cls(
+            raw_string=synset_id,
+            normalized=normalized,
+            offset=offset,
+            pos=pos,
+            numeric_offset=int(offset),
+        )
+
+
+class ParsedSenseKey(BaseSymbol):
+    """Parsed WordNet sense key.
+
+    Attributes
+    ----------
+    raw_string : str
+        Original sense key string.
+    normalized : str
+        Normalized lemma.
+    symbol_type : Literal["sense_key"]
+        Always "sense_key".
+    dataset : Literal["wordnet"]
+        Always "wordnet".
+    lemma : str
+        Word lemma.
+    ss_type : int
+        Synset type (POS number).
+    pos : POSType
+        Part of speech.
+    lex_filenum : int
+        Lexical file number.
+    lex_id : int
+        Lexical ID.
+    head : str
+        Head word for satellites (empty string if none).
+    """
+
+    symbol_type: Literal["sense_key"] = "sense_key"
+    dataset: Literal["wordnet"] = "wordnet"
+    lemma: str = Field(..., min_length=1)
+    ss_type: int = Field(..., ge=1, le=5)
+    pos: POSType
+    lex_filenum: int = Field(..., ge=0, le=99)
+    lex_id: int = Field(..., ge=0, le=99)
+    head: str = ""
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_sense_key_format(cls, v: str) -> str:
+        """Validate sense key format."""
+        if not SENSE_KEY_PATTERN.match(v):
+            msg = f"Invalid sense key format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(cls, sense_key: str) -> ParsedSenseKey:
+        """Create from sense key string.
+
+        Parameters
+        ----------
+        sense_key : str
+            Sense key (e.g., "dog%1:05:00::").
+
+        Returns
+        -------
+        ParsedSenseKey
+            Parsed sense key.
+        """
+        match = SENSE_KEY_PATTERN.match(sense_key)
+        if not match:
+            msg = f"Invalid sense key format: {sense_key}"
+            raise ValueError(msg)
+
+        lemma = match.group(1)
+        pos_num = match.group(2)
+        lex_filenum = int(match.group(3))
+        lex_id = int(match.group(4))
+        raw_head = match.group(5) if match.group(5) else ""
+        # Handle double colon case where raw_head is just ":"
+        head = "" if raw_head == ":" else raw_head
+
+        # Convert POS number to letter
+        ss_type = int(pos_num)
+        pos = POS_MAP.get(pos_num)
+        if not pos:
+            msg = f"Invalid ss_type in sense key: {pos_num}"
+            raise ValueError(msg)
+
+        # Normalize lemma (spaces to underscores)
+        normalized_lemma = cls.normalize_string(lemma)
+
+        return cls(
+            raw_string=sense_key,
+            normalized=normalized_lemma,
+            lemma=lemma,
+            ss_type=ss_type,
+            pos=pos,  # type: ignore[arg-type]
+            lex_filenum=lex_filenum,
+            lex_id=lex_id,
+            head=head,
+        )
+
+
+class ParsedLemmaKey(BaseSymbol):
+    """Parsed WordNet lemma key.
+
+    Attributes
+    ----------
+    raw_string : str
+        Original lemma key string.
+    normalized : str
+        Normalized lemma.
+    symbol_type : Literal["lemma_key"]
+        Always "lemma_key".
+    dataset : Literal["wordnet"]
+        Always "wordnet".
+    lemma : str
+        Word lemma.
+    pos : POSType
+        Part of speech.
+    sense_number : int
+        Sense number.
+    """
+
+    symbol_type: Literal["lemma_key"] = "lemma_key"
+    dataset: Literal["wordnet"] = "wordnet"
+    lemma: str = Field(..., min_length=1)
+    pos: POSType
+    sense_number: int = Field(..., ge=0)
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_lemma_key_format(cls, v: str) -> str:
+        """Validate lemma key format."""
+        if not LEMMA_KEY_PATTERN.match(v):
+            msg = f"Invalid lemma key format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(cls, lemma_key: str) -> ParsedLemmaKey:
+        """Create from lemma key string.
+
+        Parameters
+        ----------
+        lemma_key : str
+            Lemma key (e.g., "dog#n#1").
+
+        Returns
+        -------
+        ParsedLemmaKey
+            Parsed lemma key.
+        """
+        match = LEMMA_KEY_PATTERN.match(lemma_key)
+        if not match:
+            msg = f"Invalid lemma key format: {lemma_key}"
+            raise ValueError(msg)
+
+        lemma = match.group(1)
+        pos: POSType = match.group(2)  # type: ignore[assignment]
+        sense_number = int(match.group(3))
+
+        # Normalize lemma (spaces to underscores)
+        normalized_lemma = cls.normalize_string(lemma)
+
+        return cls(
+            raw_string=lemma_key,
+            normalized=normalized_lemma,
+            lemma=lemma,
+            pos=pos,
+            sense_number=sense_number,
+        )
+
+
+def parse_synset_id(synset_id: str) -> ParsedSynsetID:
     """Parse a WordNet synset ID.
 
     Parameters
     ----------
-    synset_id : SynsetID
-        Synset ID (e.g., "00001740-n", "00001740n").
+    synset_id : str
+        Synset ID to parse.
 
     Returns
     -------
-    ParsedWordNetSymbol
-        Parsed synset information.
-
-    Examples
-    --------
-    >>> parse_synset_id("00001740-n")
-    {'raw_string': '00001740-n', 'offset': '00001740', 'pos': 'n', ...}
-    >>> parse_synset_id("02084442v")
-    {'raw_string': '02084442v', 'offset': '02084442', 'pos': 'v', ...}
+    ParsedSynsetID
+        Parsed synset ID.
     """
-    result = ParsedWordNetSymbol(
-        raw_string=synset_id,
-        symbol_type="synset",
-        offset=None,
-        pos=None,
-        lemma=None,
-        sense_number=None,
-        lex_filenum=None,
-        lex_id=None,
-        head_word=None,
-    )
-
-    # Try with hyphen
-    if match := SYNSET_ID_PATTERN.match(synset_id):
-        result["offset"] = match.group(1)
-        result["pos"] = cast(WordNetPOS, match.group(2))
-    # Try without hyphen
-    elif len(synset_id) == 9 and synset_id[:8].isdigit() and synset_id[8] in "nvasr":
-        result["offset"] = synset_id[:8]
-        result["pos"] = cast(WordNetPOS, synset_id[8])
-
-    return result
+    return ParsedSynsetID.from_string(synset_id)
 
 
-def parse_sense_key(sense_key: SenseKey) -> ParsedWordNetSymbol:
+def parse_sense_key(sense_key: str) -> ParsedSenseKey:
     """Parse a WordNet sense key.
 
     Parameters
     ----------
-    sense_key : SenseKey
-        Sense key (e.g., "dog%1:05:00::", "give%2:40:00::").
+    sense_key : str
+        Sense key to parse.
 
     Returns
     -------
-    ParsedWordNetSymbol
-        Parsed sense key information.
-
-    Examples
-    --------
-    >>> parse_sense_key("dog%1:05:00::")
-    {'raw_string': 'dog%1:05:00::', 'lemma': 'dog', 'pos': 'n', ...}
-    >>> parse_sense_key("give%2:40:00::")
-    {'raw_string': 'give%2:40:00::', 'lemma': 'give', 'pos': 'v', ...}
+    ParsedSenseKey
+        Parsed sense key.
     """
-    result = ParsedWordNetSymbol(
-        raw_string=sense_key,
-        symbol_type="sense_key",
-        offset=None,
-        pos=None,
-        lemma=None,
-        sense_number=None,
-        lex_filenum=None,
-        lex_id=None,
-        head_word=None,
-    )
-
-    if match := SENSE_KEY_PATTERN.match(sense_key):
-        result["lemma"] = match.group(1)
-
-        # Convert numeric POS to letter
-        pos_num = match.group(2)
-        result["pos"] = cast(WordNetPOS | None, POS_MAP.get(pos_num))
-
-        result["lex_filenum"] = int(match.group(3))
-        result["lex_id"] = int(match.group(4))
-
-        # Head word for satellites (if present)
-        if match.group(5):
-            result["head_word"] = match.group(5)
-
-    return result
+    return ParsedSenseKey.from_string(sense_key)
 
 
-def parse_lemma_key(lemma_key: LemmaKey) -> ParsedWordNetSymbol:
-    """Parse a lemma key.
+def parse_lemma_key(lemma_key: str) -> ParsedLemmaKey:
+    """Parse a WordNet lemma key.
 
     Parameters
     ----------
-    lemma_key : LemmaKey
-        Lemma key (e.g., "dog#n#1", "give#v#2").
+    lemma_key : str
+        Lemma key to parse.
 
     Returns
     -------
-    ParsedWordNetSymbol
-        Parsed lemma information.
-
-    Examples
-    --------
-    >>> parse_lemma_key("dog#n#1")
-    {'raw_string': 'dog#n#1', 'lemma': 'dog', 'pos': 'n', 'sense_number': 1, ...}
+    ParsedLemmaKey
+        Parsed lemma key.
     """
-    result = ParsedWordNetSymbol(
-        raw_string=lemma_key,
-        symbol_type="lemma",
-        offset=None,
-        pos=None,
-        lemma=None,
-        sense_number=None,
-        lex_filenum=None,
-        lex_id=None,
-        head_word=None,
-    )
-
-    if match := LEMMA_KEY_PATTERN.match(lemma_key):
-        result["lemma"] = match.group(1)
-        result["pos"] = cast(WordNetPOS, match.group(2))
-        result["sense_number"] = int(match.group(3))
-
-    return result
+    return ParsedLemmaKey.from_string(lemma_key)
 
 
-def extract_pos_from_synset(synset_id: SynsetID) -> WordNetPOS | None:
+def extract_pos_from_synset(synset_id: str) -> WordNetPOS:
     """Extract POS from synset ID.
 
     Parameters
     ----------
-    synset_id : SynsetID
+    synset_id : str
         Synset ID.
 
     Returns
     -------
-    WordNetPOS | None
-        POS letter (n, v, a, r, s) or None.
+    WordNetPOS
+        Part of speech.
 
-    Examples
-    --------
-    >>> extract_pos_from_synset("00001740-n")
-    'n'
-    >>> extract_pos_from_synset("02084442v")
-    'v'
+    Raises
+    ------
+    ValueError
+        If synset_id is invalid.
     """
-    parsed = parse_synset_id(synset_id)
-    return parsed["pos"]
+    try:
+        parsed = parse_synset_id(synset_id)
+    except ValueError as e:
+        msg = f"Cannot extract POS from invalid synset ID: {synset_id}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.pos
 
 
-def extract_sense_number(sense_key: SenseKey) -> int | None:
-    """Extract sense number from sense key.
-
-    The sense number is derived from the lex_id field.
+def extract_pos_from_sense(sense_key: str) -> WordNetPOS:
+    """Extract POS from a sense key.
 
     Parameters
     ----------
-    sense_key : SenseKey
-        WordNet sense key.
+    sense_key : str
+        Sense key.
 
     Returns
     -------
-    int | None
-        Sense number or None.
+    WordNetPOS
+        The POS.
 
-    Examples
-    --------
-    >>> extract_sense_number("dog%1:05:00::")
-    0
-    >>> extract_sense_number("dog%1:05:01::")
-    1
+    Raises
+    ------
+    ValueError
+        If sense_key is invalid.
     """
-    parsed = parse_sense_key(sense_key)
-    return parsed["lex_id"]
+    try:
+        parsed = parse_sense_key(sense_key)
+    except ValueError as e:
+        msg = f"Cannot extract POS from invalid sense key: {sense_key}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.pos
 
 
-def normalize_lemma(lemma: Lemma) -> str:
+def extract_lemma_from_key(lemma_key: str) -> str:
+    """Extract lemma from a lemma key or sense key.
+
+    Parameters
+    ----------
+    lemma_key : str
+        Lemma key or sense key.
+
+    Returns
+    -------
+    str
+        The lemma.
+
+    Raises
+    ------
+    ValueError
+        If key is neither a valid lemma key nor sense key.
+    """
+    # Try as lemma key first
+    try:
+        parsed_lemma = parse_lemma_key(lemma_key)
+    except ValueError:
+        pass
+    else:
+        return parsed_lemma.lemma
+
+    # Try as sense key
+    try:
+        parsed_sense = parse_sense_key(lemma_key)
+    except ValueError as e:
+        msg = f"Cannot extract lemma from invalid key: {lemma_key}"
+        raise ValueError(msg) from e
+    else:
+        return parsed_sense.lemma
+
+
+def extract_synset_offset(synset_id: str) -> str:
+    """Extract offset from synset ID.
+
+    Parameters
+    ----------
+    synset_id : str
+        Synset ID.
+
+    Returns
+    -------
+    str
+        The 8-digit offset.
+
+    Raises
+    ------
+    ValueError
+        If synset_id is invalid.
+    """
+    try:
+        parsed = parse_synset_id(synset_id)
+    except ValueError as e:
+        msg = f"Cannot extract offset from invalid synset ID: {synset_id}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.offset
+
+
+def extract_sense_number(sense_key: str) -> int:
+    """Extract sense number (lex_id) from a sense key.
+
+    Parameters
+    ----------
+    sense_key : str
+        Sense key.
+
+    Returns
+    -------
+    int
+        Sense number (lex_id).
+
+    Raises
+    ------
+    ValueError
+        If sense_key is invalid.
+    """
+    try:
+        parsed = parse_sense_key(sense_key)
+    except ValueError as e:
+        msg = f"Cannot extract sense number from invalid sense key: {sense_key}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.lex_id
+
+
+def normalize_lemma(lemma: str) -> str:
     """Normalize a lemma for matching.
 
     Parameters
     ----------
-    lemma : Lemma
-        Word lemma.
+    lemma : str
+        Lemma to normalize.
 
     Returns
     -------
     str
         Normalized lemma.
-
-    Examples
-    --------
-    >>> normalize_lemma("dog")
-    'dog'
-    >>> normalize_lemma("give_up")
-    'give up'
-    >>> normalize_lemma("well-known")
-    'well known'
     """
-    # Replace underscores and hyphens with spaces
-    normalized = lemma.replace("_", " ").replace("-", " ")
+    return BaseSymbol.normalize_string(lemma)
 
-    # Remove apostrophes
-    normalized = normalized.replace("'", "")
 
-    # Lowercase and normalize whitespace
-    return " ".join(normalized.split()).lower()
+def normalize_synset_for_matching(synset_id: str) -> str:
+    """Normalize a synset ID for matching.
+
+    Parameters
+    ----------
+    synset_id : str
+        Synset ID to normalize.
+
+    Returns
+    -------
+    str
+        Normalized synset ID.
+
+    Raises
+    ------
+    ValueError
+        If synset_id is invalid.
+    """
+    try:
+        parsed = parse_synset_id(synset_id)
+    except ValueError as e:
+        msg = f"Cannot normalize invalid synset ID: {synset_id}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.normalized
 
 
 def is_satellite_adjective(pos: WordNetPOS) -> bool:
@@ -309,68 +522,147 @@ def is_satellite_adjective(pos: WordNetPOS) -> bool:
     Parameters
     ----------
     pos : WordNetPOS
-        POS code.
+        Part of speech.
 
     Returns
     -------
     bool
-        True if satellite adjective (s).
-
-    Examples
-    --------
-    >>> is_satellite_adjective("s")
-    True
-    >>> is_satellite_adjective("a")
-    False
+        True if satellite adjective.
     """
     return pos == "s"
 
 
-def synset_id_to_offset(synset_id: SynsetID) -> str | None:
+def is_valid_synset_id(synset_id: str) -> bool:
+    """Check if a string is a valid synset ID.
+
+    Parameters
+    ----------
+    synset_id : str
+        String to check.
+
+    Returns
+    -------
+    bool
+        True if valid synset ID.
+    """
+    try:
+        parse_synset_id(synset_id)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def is_valid_sense_key(sense_key: str) -> bool:
+    """Check if a string is a valid sense key.
+
+    Parameters
+    ----------
+    sense_key : str
+        String to check.
+
+    Returns
+    -------
+    bool
+        True if valid sense key.
+    """
+    try:
+        parse_sense_key(sense_key)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def is_valid_lemma_key(lemma_key: str) -> bool:
+    """Check if a string is a valid lemma key.
+
+    Parameters
+    ----------
+    lemma_key : str
+        String to check.
+
+    Returns
+    -------
+    bool
+        True if valid lemma key.
+    """
+    try:
+        parse_lemma_key(lemma_key)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def synset_id_to_offset(synset_id: str) -> str:
     """Convert synset ID to offset.
 
     Parameters
     ----------
-    synset_id : SynsetID
+    synset_id : str
         Synset ID.
 
     Returns
     -------
-    str | None
-        8-digit offset or None.
+    str
+        8-digit offset.
 
-    Examples
-    --------
-    >>> synset_id_to_offset("00001740-n")
-    '00001740'
-    >>> synset_id_to_offset("02084442v")
-    '02084442'
+    Raises
+    ------
+    ValueError
+        If synset_id is invalid.
     """
-    parsed = parse_synset_id(synset_id)
-    return parsed["offset"]
+    try:
+        parsed = parse_synset_id(synset_id)
+    except ValueError as e:
+        msg = f"Cannot convert invalid synset ID to offset: {synset_id}"
+        raise ValueError(msg) from e
+    else:
+        return parsed.offset
 
 
-def build_synset_id(offset: Offset, pos: WordNetPOS) -> str:
+def build_synset_id(offset: str, pos: WordNetPOS) -> str:
     """Build a synset ID from offset and POS.
 
     Parameters
     ----------
-    offset : Offset
+    offset : str
         8-digit offset.
     pos : WordNetPOS
-        POS letter.
+        Part of speech.
 
     Returns
     -------
     str
         Synset ID.
-
-    Examples
-    --------
-    >>> build_synset_id("00001740", "n")
-    '00001740-n'
     """
     return f"{offset}-{pos}"
+
+
+def filter_synsets_by_pos(
+    synsets: list[Synset],
+    pos: WordNetPOS | None = None,
+) -> list[Synset]:
+    """Filter synsets by part of speech.
+
+    Parameters
+    ----------
+    synsets : list[Synset]
+        List of synsets.
+    pos : WordNetPOS | None
+        POS to filter by (n, v, a, r, s).
+
+    Returns
+    -------
+    list[Synset]
+        Filtered synsets.
+    """
+    if pos is None:
+        return synsets
+
+    # Simply filter by matching POS
+    return [s for s in synsets if s.ss_type == pos]
 
 
 def filter_by_relation_type(
@@ -383,20 +675,13 @@ def filter_by_relation_type(
     ----------
     pointers : list[Pointer]
         List of pointers to filter.
-    relation_type : str | None, optional
+    relation_type : str | None
         Filter by relation type (e.g., "hypernym", "hyponym", "antonym").
 
     Returns
     -------
     list[Pointer]
         Filtered list of pointers.
-
-    Examples
-    --------
-    >>> pointers = [ptr1, ptr2, ptr3]  # Where ptr1.symbol = "@"
-    >>> filtered = filter_by_relation_type(pointers, relation_type="hypernym")
-    >>> len(filtered)
-    1
     """
     if relation_type is None:
         return pointers
@@ -414,19 +699,22 @@ def filter_by_relation_type(
         "part_meronym": "%p",
         "substance_meronym": "%s",
         "antonym": "!",
-        "similar_to": "&",
-        "attribute": "=",
-        "also_see": "^",
-        "entailment": "*",
-        "cause": ">",
-        "verb_group": "$",
         "derivation": "+",
         "pertainym": "\\",
+        "attribute": "=",
+        "cause": ">",
+        "entailment": "*",
+        "similar_to": "&",
+        "also": "^",
+        "domain_topic": ";c",
+        "domain_region": ";r",
+        "domain_usage": ";u",
         "participle": "<",
+        "verb_group": "$",
     }
 
-    symbol = relation_map.get(relation_type.lower())
-    if symbol is None:
-        return []
+    symbol = relation_map.get(relation_type)
+    if not symbol:
+        return pointers
 
-    return [ptr for ptr in pointers if ptr.symbol == symbol]
+    return [p for p in pointers if p.symbol == symbol]

@@ -1,327 +1,424 @@
-"""VerbNet symbol parser.
+"""VerbNet symbol parser using Pydantic v2 models.
 
-This module provides parsing utilities for VerbNet thematic role symbols,
-including optional roles, indexed roles, and PP roles.
-
-Classes
--------
-ParsedVerbNetRole
-    Parsed VerbNet thematic role information.
-
-Functions
----------
-parse_thematic_role
-    Parse a VerbNet thematic role value.
-parse_frame_element
-    Parse a VerbNet frame description element.
-is_optional_role
-    Check if a role is optional.
-is_indexed_role
-    Check if a role has an index.
-is_pp_element
-    Check if an element is a PP element.
-extract_role_base
-    Extract the base role name.
-filter_roles_by_properties
-    Filter roles by their properties.
+This module provides parsing utilities for VerbNet verb class IDs and thematic
+role symbols, with normalization and validation.
 """
 
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal
 
-from glazing.verbnet.types import FrameDescriptionElement, ThematicRoleType, ThematicRoleValue
+from pydantic import Field, field_validator
+
+from glazing.symbols import BaseSymbol
 
 if TYPE_CHECKING:
     from glazing.verbnet.models import ThematicRole
 
+# Type aliases
+type RoleOptionalityType = Literal["required", "optional", "implicit"]
+type RoleIndexType = Literal["indexed", "coindexed", "none"]
+type RoleType = Literal["thematic", "pp", "verb_specific"]
 
-class ParsedVerbNetRole(TypedDict):
+# Validation patterns
+VERB_CLASS_PATTERN = re.compile(r"^[a-z][a-z0-9_]*-\d+(\.\d+)*(-\d+)?$")
+THEMATIC_ROLE_PATTERN = re.compile(r"^\??[A-Z][a-zA-Z_]+(_[IJijk])?$")
+FRAME_ELEMENT_PATTERN = re.compile(r"^(PP\.|NP\.)?[A-Za-z][a-zA-Z_]*$")
+
+
+class ParsedVerbClass(BaseSymbol):
+    """Parsed VerbNet verb class ID.
+
+    Attributes
+    ----------
+    raw_string : str
+        Original class ID string.
+    normalized : str
+        Normalized ID (lowercase, spaces to underscores).
+    symbol_type : Literal["verb_class"]
+        Always "verb_class".
+    dataset : Literal["verbnet"]
+        Always "verbnet".
+    base_name : str
+        Base class name without numbers.
+    class_number : str
+        Full class number (e.g., "13.1-1").
+    parent_class : str | None
+        Parent class ID if this is a subclass.
+    """
+
+    symbol_type: Literal["verb_class"] = "verb_class"
+    dataset: Literal["verbnet"] = "verbnet"
+    base_name: str = Field(..., min_length=1)
+    class_number: str = Field(..., min_length=1)
+    parent_class: str | None = None
+
+    @field_validator("raw_string")
+    @classmethod
+    def validate_class_format(cls, v: str) -> str:
+        """Validate verb class ID format."""
+        if not VERB_CLASS_PATTERN.match(v.lower()):
+            msg = f"Invalid verb class ID format: {v}"
+            raise ValueError(msg)
+        return v
+
+    @classmethod
+    def from_string(cls, class_id: str) -> ParsedVerbClass:
+        """Create from verb class ID string.
+
+        Parameters
+        ----------
+        class_id : str
+            Verb class ID (e.g., "give-13.1-1").
+
+        Returns
+        -------
+        ParsedVerbClass
+            Parsed verb class ID.
+        """
+        # Normalize to lowercase
+        class_lower = class_id.lower()
+
+        # Split by dash to get base name and numbers
+        parts = class_lower.split("-")
+        if len(parts) < 2:
+            msg = f"Invalid verb class ID format: {class_id}"
+            raise ValueError(msg)
+
+        base_name = parts[0]
+        class_number = "-".join(parts[1:])
+
+        # Determine parent class (everything except last dash-separated number)
+        parent_class: str | None = None
+        if len(parts) > 2:
+            parent_class = f"{parts[0]}-{'-'.join(parts[1:-1])}"
+
+        # Normalize base name (spaces to underscores)
+        normalized_base = cls.normalize_string(base_name)
+        normalized = f"{normalized_base}-{class_number}"
+
+        return cls(
+            raw_string=class_id,
+            normalized=normalized,
+            base_name=normalized_base,
+            class_number=class_number,
+            parent_class=parent_class,
+        )
+
+
+class ParsedThematicRole(BaseSymbol):
     """Parsed VerbNet thematic role.
 
     Attributes
     ----------
     raw_string : str
-        Original unparsed role string.
+        Original role string.
+    normalized : str
+        Normalized role (lowercase, no prefix/suffix).
+    symbol_type : Literal["thematic_role"]
+        Always "thematic_role".
+    dataset : Literal["verbnet"]
+        Always "verbnet".
     base_role : str
         Base role name without modifiers.
     is_optional : bool
-        Whether the role is optional (?-prefix).
+        Whether role is optional.
     index : str | None
-        Role index (I, J, etc.) if present.
-    pp_type : str | None
-        PP type (e.g., "location" for PP.location).
+        Index letter if present (I, J).
     is_verb_specific : bool
-        Whether role is verb-specific (V_-prefix).
-    role_type : Literal["thematic", "pp", "verb_specific"]
+        Whether role is verb-specific.
+    role_type : RoleType
         Type of role.
     """
 
-    raw_string: str
-    base_role: str
-    is_optional: bool
-    index: str | None
-    pp_type: str | None
-    is_verb_specific: bool
-    role_type: Literal["thematic", "pp", "verb_specific"]
+    symbol_type: Literal["thematic_role"] = "thematic_role"
+    dataset: Literal["verbnet"] = "verbnet"
+    base_role: str = Field(..., min_length=0)  # Can be empty for edge cases
+    is_optional: bool = False
+    index: str | None = None
+    is_verb_specific: bool = False
+    role_type: RoleType = "thematic"
+
+    @classmethod
+    def from_string(cls, role: str) -> ParsedThematicRole:
+        """Create from thematic role string.
+
+        Parameters
+        ----------
+        role : str
+            Thematic role (e.g., "Agent", "?Theme_I").
+
+        Returns
+        -------
+        ParsedThematicRole
+            Parsed thematic role.
+        """
+        original = role
+        is_optional = False
+        is_verb_specific = False
+        index: str | None = None
+        role_type: RoleType = "thematic"
+
+        # Check for optional prefix
+        if role.startswith("?"):
+            is_optional = True
+            role = role[1:]
+
+        # Check for verb-specific prefix
+        if role.startswith("V_"):
+            is_verb_specific = True
+            role_type = "verb_specific"
+            role = role[2:]
+
+        # Check for index suffix (both uppercase and lowercase)
+        if role.endswith(("_I", "_J")):
+            index = role[-1]
+            role = role[:-2]
+        elif role.endswith(("_i", "_j", "_k")):
+            index = role[-1].upper()
+            role = role[:-2]
+
+        # Normalize to lowercase with underscores
+        base_role = role
+        if not base_role:
+            msg = f"Empty base role after processing: {original}"
+            raise ValueError(msg)
+        normalized = cls.normalize_string(base_role)
+
+        return cls(
+            raw_string=original,
+            normalized=normalized,
+            base_role=base_role,
+            is_optional=is_optional,
+            index=index,
+            is_verb_specific=is_verb_specific,
+            role_type=role_type,
+        )
 
 
-# Patterns for parsing VerbNet roles
-OPTIONAL_PATTERN = re.compile(r"^\?(.+)$")
-INDEXED_PATTERN = re.compile(r"^(.+)_([IJ])$")
-PP_PATTERN = re.compile(r"^PP\.(.+)$")
-VERB_SPECIFIC_PATTERN = re.compile(r"^V_(.+)$")
+class ParsedFrameElement(BaseSymbol):
+    """Parsed VerbNet frame element.
 
-
-def parse_thematic_role(role: ThematicRoleValue | ThematicRoleType) -> ParsedVerbNetRole:
-    """Parse a VerbNet thematic role value.
-
-    Parameters
+    Attributes
     ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value (e.g., "?Agent", "Theme_I", "V_Final_State").
-
-    Returns
-    -------
-    ParsedVerbNetRole
-        Parsed role information.
-
-    Examples
-    --------
-    >>> parse_thematic_role("?Agent")
-    {'raw_string': '?Agent', 'base_role': 'Agent', 'is_optional': True, ...}
-    >>> parse_thematic_role("Theme_I")
-    {'raw_string': 'Theme_I', 'base_role': 'Theme', 'index': 'I', ...}
+    raw_string : str
+        Original element string.
+    normalized : str
+        Normalized element.
+    symbol_type : Literal["frame_element"]
+        Always "frame_element".
+    dataset : Literal["verbnet"]
+        Always "verbnet".
+    base_role : str
+        Base role name.
+    pp_type : str | None
+        PP type if PP element.
+    role_type : RoleType
+        Type of role.
     """
-    result = ParsedVerbNetRole(
-        raw_string=role,
-        base_role=role,
-        is_optional=False,
-        index=None,
-        pp_type=None,
-        is_verb_specific=False,
-        role_type="thematic",
-    )
 
-    stripped_role: str = role  # Initialize to handle all cases
+    symbol_type: Literal["frame_element"] = "frame_element"
+    dataset: Literal["verbnet"] = "verbnet"
+    base_role: str = Field(..., min_length=1)
+    pp_type: str | None = None
+    role_type: RoleType = "thematic"
 
-    # Check for optional prefix
-    if match := OPTIONAL_PATTERN.match(role):
-        result["is_optional"] = True
-        stripped_role = match.group(1)
-        result["base_role"] = stripped_role
+    @classmethod
+    def from_string(cls, element: str) -> ParsedFrameElement:
+        """Create from frame element string.
 
-    # Check for verb-specific prefix
-    if match := VERB_SPECIFIC_PATTERN.match(stripped_role):
-        result["is_verb_specific"] = True
-        result["base_role"] = match.group(1)
-        result["role_type"] = "verb_specific"
-        return result
+        Parameters
+        ----------
+        element : str
+            Frame element string.
 
-    # Check for indexed suffix
-    if match := INDEXED_PATTERN.match(stripped_role):
-        result["base_role"] = match.group(1)
-        result["index"] = match.group(2)
+        Returns
+        -------
+        ParsedFrameElement
+            Parsed frame element.
+        """
+        base_role = element
+        pp_type: str | None = None
+        role_type: RoleType = "thematic"
 
-    return result
+        if element.startswith("PP."):
+            pp_type = element[3:]
+            base_role = element
+            role_type = "pp"
+        elif element.startswith("NP."):
+            base_role = element[3:]
+
+        normalized = cls.normalize_string(base_role)
+
+        return cls(
+            raw_string=element,
+            normalized=normalized,
+            base_role=base_role,
+            pp_type=pp_type,
+            role_type=role_type,
+        )
 
 
-def parse_frame_element(element: FrameDescriptionElement) -> ParsedVerbNetRole:
-    """Parse a VerbNet frame description element.
+def parse_verb_class(class_id: str) -> ParsedVerbClass:
+    """Parse a VerbNet verb class ID.
 
     Parameters
     ----------
-    element : FrameDescriptionElement
-        Frame description element (e.g., "PP.location", "NP.agent").
+    class_id : str
+        Verb class ID to parse.
 
     Returns
     -------
-    ParsedVerbNetRole
+    ParsedVerbClass
+        Parsed verb class ID.
+    """
+    return ParsedVerbClass.from_string(class_id)
+
+
+def parse_thematic_role(role: str) -> ParsedThematicRole:
+    """Parse a VerbNet thematic role.
+
+    Parameters
+    ----------
+    role : str
+        Thematic role to parse.
+
+    Returns
+    -------
+    ParsedThematicRole
+        Parsed thematic role.
+    """
+    return ParsedThematicRole.from_string(role)
+
+
+def parse_frame_element(element: str) -> ParsedFrameElement:
+    """Parse a frame description element.
+
+    Parameters
+    ----------
+    element : str
+        Frame element string.
+
+    Returns
+    -------
+    ParsedFrameElement
         Parsed element information.
-
-    Examples
-    --------
-    >>> parse_frame_element("PP.location")
-    {'raw_string': 'PP.location', 'pp_type': 'location', 'role_type': 'pp', ...}
-    >>> parse_frame_element("NP.agent")
-    {'raw_string': 'NP.agent', 'base_role': 'agent', 'role_type': 'thematic', ...}
     """
-    result = ParsedVerbNetRole(
-        raw_string=element,
-        base_role=element,
-        is_optional=False,
-        index=None,
-        pp_type=None,
-        is_verb_specific=False,
-        role_type="thematic",
-    )
-
-    # Check for PP elements
-    if match := PP_PATTERN.match(element):
-        result["pp_type"] = match.group(1)
-        result["base_role"] = f"PP.{match.group(1)}"
-        result["role_type"] = "pp"
-    # Check for NP elements with semantic roles
-    elif element.startswith("NP."):
-        result["base_role"] = element[3:]  # Remove "NP." prefix
-        result["role_type"] = "thematic"
-
-    return result
+    return ParsedFrameElement.from_string(element)
 
 
-def is_optional_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
-    """Check if a role is optional.
+def extract_role_base(role: str) -> str:
+    """Extract base role name without modifiers.
 
     Parameters
     ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value.
-
-    Returns
-    -------
-    bool
-        True if role has optional prefix (?).
-
-    Examples
-    --------
-    >>> is_optional_role("?Agent")
-    True
-    >>> is_optional_role("Agent")
-    False
-    """
-    return role.startswith("?")
-
-
-def is_indexed_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
-    """Check if a role has an index.
-
-    Parameters
-    ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value.
-
-    Returns
-    -------
-    bool
-        True if role has index suffix (_I, _J).
-
-    Examples
-    --------
-    >>> is_indexed_role("Theme_I")
-    True
-    >>> is_indexed_role("Theme")
-    False
-    """
-    return bool(INDEXED_PATTERN.match(role.lstrip("?")))
-
-
-def is_pp_element(element: FrameDescriptionElement) -> bool:
-    """Check if an element is a PP element.
-
-    Parameters
-    ----------
-    element : FrameDescriptionElement
-        Frame description element.
-
-    Returns
-    -------
-    bool
-        True if element is a PP element.
-
-    Examples
-    --------
-    >>> is_pp_element("PP.location")
-    True
-    >>> is_pp_element("NP.agent")
-    False
-    """
-    return element.startswith("PP.")
-
-
-def is_verb_specific_role(role: ThematicRoleValue | ThematicRoleType) -> bool:
-    """Check if a role is verb-specific.
-
-    Parameters
-    ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value.
-
-    Returns
-    -------
-    bool
-        True if role is verb-specific.
-
-    Examples
-    --------
-    >>> is_verb_specific_role("V_Final_State")
-    True
-    >>> is_verb_specific_role("Agent")
-    False
-    """
-    return role.lstrip("?").startswith("V_")
-
-
-def extract_role_base(role: ThematicRoleValue | ThematicRoleType) -> str:
-    """Extract the base role name without modifiers.
-
-    Parameters
-    ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value.
+    role : str
+        Thematic role string.
 
     Returns
     -------
     str
         Base role name.
-
-    Examples
-    --------
-    >>> extract_role_base("?Agent")
-    'Agent'
-    >>> extract_role_base("Theme_I")
-    'Theme'
     """
-    parsed = parse_thematic_role(role)
-    return parsed["base_role"]
+    # Remove optional prefix
+    if role.startswith("?"):
+        role = role[1:]
+
+    # Remove verb-specific prefix
+    if role.startswith("V_"):
+        role = role[2:]
+
+    # Remove index suffix
+    if role.endswith(("_I", "_J", "_i", "_j", "_k")):
+        role = role[:-2]
+
+    return role
 
 
-def normalize_role_for_matching(role: ThematicRoleValue | ThematicRoleType) -> str:
-    """Normalize a role for fuzzy matching.
+def normalize_role_for_matching(role: str) -> str:
+    """Normalize a thematic role for fuzzy matching.
 
     Parameters
     ----------
-    role : ThematicRoleValue | ThematicRoleType
-        VerbNet thematic role value.
+    role : str
+        Thematic role string.
 
     Returns
     -------
     str
-        Normalized role string.
-
-    Examples
-    --------
-    >>> normalize_role_for_matching("?Agent")
-    'agent'
-    >>> normalize_role_for_matching("Theme_I")
-    'theme'
+        Normalized role.
     """
-    normalized_role = cast(str, role)
+    base = extract_role_base(role)
+    return BaseSymbol.normalize_string(base)
 
-    # Remove optional prefix
-    if normalized_role.startswith("?"):
-        normalized_role = normalized_role[1:]
 
-    # Remove index suffix
-    if match := INDEXED_PATTERN.match(normalized_role):
-        normalized_role = cast(str, match.group(1))
+def is_optional_role(role: str) -> bool:
+    """Check if role is optional.
 
-    # Remove V_ prefix for verb-specific roles
-    if normalized_role.startswith("V_"):
-        normalized_role = normalized_role[2:]
+    Parameters
+    ----------
+    role : str
+        Thematic role string.
 
-    # Keep PP roles as-is but lowercase
-    return normalized_role.lower().replace("_", " ")
+    Returns
+    -------
+    bool
+        True if optional.
+    """
+    return role.startswith("?")
+
+
+def is_indexed_role(role: str) -> bool:
+    """Check if role is indexed.
+
+    Parameters
+    ----------
+    role : str
+        Thematic role string.
+
+    Returns
+    -------
+    bool
+        True if indexed.
+    """
+    # Check both uppercase and lowercase variants
+    return role.endswith(("_I", "_J", "_i", "_j", "_k"))
+
+
+def is_verb_specific_role(role: str) -> bool:
+    """Check if role is verb-specific (starts with V_).
+
+    Parameters
+    ----------
+    role : str
+        Thematic role string.
+
+    Returns
+    -------
+    bool
+        True if verb-specific.
+    """
+    # Remove optional prefix first
+    if role.startswith("?"):
+        role = role[1:]
+    return role.startswith("V_")
+
+
+def is_pp_element(element: str) -> bool:
+    """Check if element is a PP (prepositional phrase) element.
+
+    Parameters
+    ----------
+    element : str
+        Frame element string.
+
+    Returns
+    -------
+    bool
+        True if PP element.
+    """
+    return element.startswith("PP.")
 
 
 def filter_roles_by_properties(
@@ -329,50 +426,50 @@ def filter_roles_by_properties(
     optional: bool | None = None,
     indexed: bool | None = None,
     verb_specific: bool | None = None,
-    pp_type: str | None = None,
+    base_role: str | None = None,
 ) -> list[ThematicRole]:
     """Filter thematic roles by their properties.
 
     Parameters
     ----------
     roles : list[ThematicRole]
-        List of thematic roles to filter.
-    optional : bool | None, optional
-        Filter for optional roles (? prefix).
-    indexed : bool | None, optional
-        Filter for indexed roles (_I, _J suffix).
-    verb_specific : bool | None, optional
-        Filter for verb-specific roles (V_ prefix).
-    pp_type : str | None, optional
-        Filter for specific PP type (e.g., "location" for PP.location).
+        Roles to filter.
+    optional : bool | None
+        Filter for optional roles.
+    indexed : bool | None
+        Filter for indexed roles.
+    verb_specific : bool | None
+        Filter for verb-specific roles.
+    base_role : str | None
+        Filter for specific base role.
 
     Returns
     -------
     list[ThematicRole]
-        Filtered list of roles.
-
-    Examples
-    --------
-    >>> roles = [role1, role2, role3]  # Where role1.type = "?Agent"
-    >>> filtered = filter_roles_by_properties(roles, optional=True)
-    >>> len(filtered)
-    1
+        Filtered roles.
     """
-    filtered = []
+    filtered = roles
 
-    for role in roles:
-        parsed = parse_thematic_role(role.type)
+    if optional is not None:
+        if optional:
+            filtered = [r for r in filtered if is_optional_role(r.type)]
+        else:
+            filtered = [r for r in filtered if not is_optional_role(r.type)]
 
-        # Apply filters
-        if optional is not None and parsed["is_optional"] != optional:
-            continue
-        if indexed is not None and (parsed["index"] is not None) != indexed:
-            continue
-        if verb_specific is not None and parsed["is_verb_specific"] != verb_specific:
-            continue
-        if pp_type is not None and parsed["pp_type"] != pp_type:
-            continue
+    if indexed is not None:
+        if indexed:
+            filtered = [r for r in filtered if is_indexed_role(r.type)]
+        else:
+            filtered = [r for r in filtered if not is_indexed_role(r.type)]
 
-        filtered.append(role)
+    if verb_specific is not None:
+        if verb_specific:
+            filtered = [r for r in filtered if is_verb_specific_role(r.type)]
+        else:
+            filtered = [r for r in filtered if not is_verb_specific_role(r.type)]
+
+    if base_role is not None:
+        normalized_base = BaseSymbol.normalize_string(base_role)
+        filtered = [r for r in filtered if extract_role_base(r.type) == normalized_base]
 
     return filtered

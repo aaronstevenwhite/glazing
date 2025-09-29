@@ -36,18 +36,81 @@ glazing search query "run" --dataset verbnet
 glazing search query "give" --limit 10 --json
 ```
 
+### Fuzzy Search
+
+Use fuzzy matching to find results even with typos or partial matches:
+
+```bash
+# Find matches for typos
+glazing search query "giv" --fuzzy
+glazing search query "instrment" --fuzzy --threshold 0.7
+
+# Adjust the threshold (0.0-1.0, higher is stricter)
+glazing search query "runing" --fuzzy --threshold 0.85
+```
+
+### Entity Lookup
+
 Look up specific entities by their IDs:
 
 ```bash
 glazing search entity give-13.1 --dataset verbnet
 glazing search entity 01772306 --dataset wordnet
+glazing search entity give.01 --dataset propbank
 ```
 
-Find cross-references between datasets:
+## Cross-Reference Resolution
+
+The xref commands provide powerful cross-dataset reference resolution:
+
+### Extract Cross-References
+
+Build the cross-reference index (required before resolving):
 
 ```bash
-glazing search cross-ref --source propbank --id "give.01" --target verbnet
-glazing search cross-ref --source verbnet --id "give-13.1" --target all
+# Extract all cross-references
+glazing xref extract
+
+# Extract with progress indicator
+glazing xref extract --progress
+
+# Force rebuild of the index
+glazing xref extract --force
+
+# Use custom cache directory
+glazing xref extract --cache-dir /path/to/cache
+```
+
+### Resolve Cross-References
+
+Find mappings between datasets:
+
+```bash
+# Basic resolution
+glazing xref resolve "give.01" --source propbank
+glazing xref resolve "give-13.1" --source verbnet
+
+# Use fuzzy matching for typos
+glazing xref resolve "giv.01" --source propbank --fuzzy
+glazing xref resolve "transfer-11.1" --source verbnet --fuzzy --threshold 0.8
+
+# Get JSON output
+glazing xref resolve "Giving" --source framenet --json
+```
+
+### Clear Cache
+
+Remove cached cross-reference data:
+
+```bash
+# Clear with confirmation prompt
+glazing xref clear-cache
+
+# Clear without confirmation
+glazing xref clear-cache --yes
+
+# Clear specific cache directory
+glazing xref clear-cache --cache-dir /path/to/cache
 ```
 
 ## Downloading and Converting

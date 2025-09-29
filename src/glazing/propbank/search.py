@@ -337,20 +337,20 @@ class PropBankSearch:
         is_core: bool | None = None,
         modifier_type: str | None = None,
         prefix: str | None = None,
-        arg_number: int | None = None,
+        arg_number: str | None = None,
     ) -> list[Roleset]:
         """Find rolesets by argument properties.
 
         Parameters
         ----------
         is_core : bool | None, optional
-            Filter for core arguments (ARG0-7, ARGA).
+            Filter for core arguments (ARG0-6).
         modifier_type : str | None, optional
             Filter for specific modifier type (e.g., "LOC", "TMP").
         prefix : str | None, optional
             Filter for continuation or reference prefix ("C" or "R").
-        arg_number : int | None, optional
-            Filter for specific argument number (0-7, -1 for ARGA).
+        arg_number : str | None, optional
+            Filter for specific argument number (e.g., "0", "1", "2").
 
         Returns
         -------
@@ -363,8 +363,8 @@ class PropBankSearch:
                 filtered_args = filter_args_by_properties(
                     roleset.roles,
                     is_core=is_core,
-                    modifier_type=modifier_type,
-                    prefix=prefix if prefix in ["C", "R"] else None,  # type: ignore[arg-type]
+                    modifier_type=modifier_type.lower() if modifier_type else None,  # type: ignore[arg-type]
+                    has_prefix=True if prefix in ["C", "R"] else None,
                     arg_number=arg_number,
                 )
                 if filtered_args:

@@ -318,6 +318,7 @@ type ParagraphID = int  # Paragraph identifier
 
 # String IDs
 type FrameName = str  # Frame name (validated)
+type FrameElementName = str  # Frame element name (validated)
 type FEName = str  # Frame element name (validated)
 type FEAbbrev = str  # FE abbreviation (validated)
 type LexicalUnitName = str  # LU name (lemma.pos format)
