@@ -590,25 +590,44 @@ class FrameNetSearch:
         return verb_inserted
 
     def _map_phrase_type_to_element(self, pt: str, fe: str) -> SyntaxElement:
-        """Map FrameNet phrase type to syntax element."""
-        # Map phrase types to constituents
+        """Map FrameNet phrase type to syntax element with features.
+
+        Raises
+        ------
+        ValueError
+            If an unknown phrase type is encountered.
+        """
         pt_mappings = {
             "NP": "NP",
-            "AJP": "ADJ",
-            "AVP": "ADV",
+            "AJP": "AP",
+            "AVP": "ADVP",
             "S": "S",
         }
 
         if pt == "PP":
-            semantic_role = self._map_fe_to_semantic_role(fe)
-            return SyntaxElement(
-                constituent="PP", semantic_role=semantic_role if semantic_role else None
-            )
+            return SyntaxElement(constituent="PP", semantic_role=fe if fe else None)
+
         if pt in ["VPing", "VPto", "VPbrst"]:
-            return SyntaxElement(constituent="VP")
-        # Use mapping or default to NP
-        constituent = pt_mappings.get(pt, "NP")
-        return SyntaxElement(constituent=constituent)  # type: ignore[arg-type]
+            features = {}
+            if pt == "VPing":
+                features["form"] = "ing"
+            elif pt == "VPto":
+                features["form"] = "inf"
+            elif pt == "VPbrst":
+                features["form"] = "bare"
+
+            return SyntaxElement(constituent="VP", features=features)
+
+        if pt not in pt_mappings:
+            msg = f"Unknown FrameNet phrase type: '{pt}'"
+            raise ValueError(msg)
+
+        constituent = pt_mappings[pt]
+
+        return SyntaxElement(
+            constituent=constituent,  # type: ignore[arg-type]
+            semantic_role=fe if fe else None,
+        )
 
     def _ensure_verb_present(self, elements: list[SyntaxElement], verb_inserted: bool) -> None:
         """Ensure a verb is present in the elements list."""
@@ -619,39 +638,6 @@ class FrameNetSearch:
                 elements.insert(np_indices[0] + 1, SyntaxElement(constituent="VERB"))
             else:
                 elements.insert(0, SyntaxElement(constituent="VERB"))
-
-    def _map_fe_to_semantic_role(self, fe_name: str) -> str | None:
-        """Map FrameNet frame element names to semantic roles."""
-        # Common FrameNet FE to semantic role mappings
-        fe_mappings = {
-            # Location and direction
-            "Source": "location",
-            "Goal": "location",
-            "Path": "location",
-            "Area": "location",
-            "Place": "location",
-            "Location": "location",
-            "Direction": "location",
-            # Time
-            "Time": "temporal",
-            "Duration": "temporal",
-            "Frequency": "temporal",
-            # Manner and means
-            "Manner": "manner",
-            "Means": "manner",
-            "Method": "manner",
-            "Instrument": "instrument",
-            # Purpose and reason
-            "Purpose": "purpose",
-            "Reason": "cause",
-            "Cause": "cause",
-            "Explanation": "cause",
-            # Benefactive
-            "Beneficiary": "beneficiary",
-            "Recipient": "beneficiary",
-        }
-
-        return fe_mappings.get(fe_name)
 
     def merge(self, other: FrameNetSearch) -> None:
         """Merge another index into this one.

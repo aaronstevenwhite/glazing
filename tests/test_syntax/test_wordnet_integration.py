@@ -50,13 +50,16 @@ class TestWordNetSyntaxIntegration:
         assert expected_frames.issubset(frame_numbers)
 
     def test_frame_number_mapping_ditransitive(self):
-        """Test mapping for ditransitive patterns (frame 10, 11)."""
+        """Test mapping for ditransitive patterns."""
+        # Test frame 10: NP V NP NP (double object)
         pattern = self.parser.parse("NP V NP NP")
         frame_numbers = self.search._get_frame_numbers_for_pattern(pattern)
+        assert 10 in frame_numbers
 
-        # Frames 10 and 11 both map to "NP V NP NP"
-        expected_frames = {10, 11}
-        assert expected_frames.issubset(frame_numbers)
+        # Test frame 11: NP V NP PP (to-dative)
+        pattern = self.parser.parse("NP V NP PP")
+        frame_numbers = self.search._get_frame_numbers_for_pattern(pattern)
+        assert 11 in frame_numbers
 
     def test_pattern_to_string_conversion(self):
         """Test pattern to string conversion."""

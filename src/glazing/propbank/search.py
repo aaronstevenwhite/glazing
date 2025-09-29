@@ -532,34 +532,44 @@ class PropBankSearch:
         return positioned_elements
 
     def _map_propbank_arg_to_element(self, arg: Arg) -> SyntaxElement | None:
-        """Map PropBank argument to syntax element."""
+        """Map PropBank argument to syntax element with semantic role."""
         arg_type = arg.type
 
         if arg_type in ["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5"]:
-            # Core arguments usually map to NP
-            return SyntaxElement(constituent="NP")
+            return SyntaxElement(constituent="NP", semantic_role=arg_type)
         if arg_type.startswith("ARGM-"):
             return self._map_modifier_arg_to_element(arg_type)
-        return None  # Skip unknown argument types
+        return None
 
     def _map_modifier_arg_to_element(self, arg_type: str) -> SyntaxElement:
-        """Map PropBank modifier argument to syntax element."""
+        """Map PropBank modifier argument to syntax element with features."""
         modifier = arg_type.split("-", 1)[1] if "-" in arg_type else ""
 
         role_mappings = {
             "LOC": "location",
-            "DIR": "location",
-            "GOL": "location",
+            "DIR": "direction",
+            "GOL": "goal",
             "TMP": "temporal",
             "MNR": "manner",
             "PRP": "purpose",
             "CAU": "cause",
+            "ADV": "adverbial",
+            "DIS": "discourse",
+            "EXT": "extent",
+            "NEG": "negation",
+            "MOD": "modal",
         }
 
         semantic_role = role_mappings.get(modifier)
+        features = {}
+
+        # Add modifier type as feature
+        if modifier:
+            features["modifier"] = modifier.lower()
+
         if semantic_role:
-            return SyntaxElement(constituent="PP", semantic_role=semantic_role)
-        return SyntaxElement(constituent="PP")
+            return SyntaxElement(constituent="PP", semantic_role=semantic_role, features=features)
+        return SyntaxElement(constituent="PP", features=features)
 
     def _sort_and_extract_elements(
         self, positioned_elements: list[tuple[int, SyntaxElement]]

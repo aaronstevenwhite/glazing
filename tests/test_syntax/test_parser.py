@@ -28,32 +28,32 @@ class TestSyntaxParser:
         assert len(pattern.elements) == 3
         assert pattern.elements[2].constituent == "PP"
         assert pattern.elements[2].semantic_role == "instrument"
-        assert pattern.elements[2].preposition is None
-        assert pattern.normalized == "NP VERB PP"  # Normalized form shows basic constituents
+        assert pattern.elements[2].head is None
+        assert pattern.normalized == "NP VERB PP"
 
-    def test_pp_with_preposition(self):
-        """Test parsing PP with preposition."""
-        pattern = self.parser.parse("NP V PP.with")
+    def test_pp_with_preposition_bracket(self):
+        """Test parsing PP with preposition in brackets."""
+        pattern = self.parser.parse("NP V PP[with]")
 
         assert len(pattern.elements) == 3
         assert pattern.elements[2].constituent == "PP"
-        assert pattern.elements[2].preposition == "with"
+        assert pattern.elements[2].head == "with"
         assert pattern.elements[2].semantic_role is None
-        assert pattern.normalized == "NP VERB PP"  # Normalized form shows basic constituents
+        assert pattern.normalized == "NP VERB PP"
 
-    def test_preposition_detection(self):
-        """Test automatic preposition detection."""
-        # "with" should be detected as a preposition
-        pattern = self.parser.parse("NP V PP.with")
+    def test_semantic_roles_after_dot(self):
+        """Test semantic roles come after dots."""
+        # All dot notation should be semantic roles
+        pattern = self.parser.parse("NP V PP.location")
         pp_element = pattern.elements[2]
-        assert pp_element.preposition == "with"
+        assert pp_element.semantic_role == "location"
+        assert pp_element.head is None
+
+        # Prepositions go in brackets
+        pattern = self.parser.parse("NP V PP[with]")
+        pp_element = pattern.elements[2]
+        assert pp_element.head == "with"
         assert pp_element.semantic_role is None
-
-        # "instrument" should be treated as semantic role
-        pattern = self.parser.parse("NP V PP.instrument")
-        pp_element = pattern.elements[2]
-        assert pp_element.semantic_role == "instrument"
-        assert pp_element.preposition is None
 
     def test_wildcard_parsing(self):
         """Test parsing patterns with wildcards."""
@@ -163,26 +163,25 @@ class TestSyntaxParser:
             pattern = self.parser.parse("NP V NP PP.instrument")
             assert len(pattern.elements) == 4
 
-    def test_common_prepositions_detection(self):
-        """Test that common prepositions are correctly identified."""
+    def test_prepositions_in_brackets(self):
+        """Test that prepositions use bracket notation."""
         common_preps = ["with", "at", "on", "in", "for", "by", "from", "to"]
 
         for prep in common_preps:
-            pattern = self.parser.parse(f"NP V PP.{prep}")
+            pattern = self.parser.parse(f"NP V PP[{prep}]")
             pp_element = pattern.elements[2]
-            assert pp_element.preposition == prep
+            assert pp_element.head == prep
             assert pp_element.semantic_role is None
 
-    def test_semantic_roles_detection(self):
-        """Test that semantic roles are correctly identified."""
+    def test_semantic_roles_with_dot_notation(self):
+        """Test that semantic roles use dot notation."""
         semantic_roles = ["instrument", "location", "agent", "patient", "theme"]
 
         for role in semantic_roles:
-            if role not in self.parser.COMMON_PREPOSITIONS:
-                pattern = self.parser.parse(f"NP V PP.{role}")
-                pp_element = pattern.elements[2]
-                assert pp_element.semantic_role == role
-                assert pp_element.preposition is None
+            pattern = self.parser.parse(f"NP V PP.{role}")
+            pp_element = pattern.elements[2]
+            assert pp_element.semantic_role == role
+            assert pp_element.head is None
 
     def test_error_handling_invalid_syntax(self):
         """Test error handling for invalid syntax."""
@@ -209,3 +208,61 @@ class TestSyntaxParser:
         pattern = self.parser.parse(original)
 
         assert pattern.source_pattern == original
+
+    def test_verb_morphological_features(self):
+        """Test parsing verb with morphological features in brackets."""
+        # Test V[ING] format
+        pattern = self.parser.parse("NP V[ING] NP")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[1].constituent == "VERB"
+        assert pattern.elements[1].features == {"form": "ing"}
+
+        # Test VP[INF] format
+        pattern = self.parser.parse("NP V VP[INF]")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[2].constituent == "VP"
+        assert pattern.elements[2].features == {"form": "inf"}
+
+        # Test VP[TO] format
+        pattern = self.parser.parse("NP V VP[TO]")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[2].constituent == "VP"
+        assert pattern.elements[2].features == {"form": "to"}
+
+    def test_np_with_semantic_roles(self):
+        """Test parsing NP with semantic roles."""
+        # Test VerbNet-style roles
+        pattern = self.parser.parse("NP V NP.Patient")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[2].constituent == "NP"
+        assert pattern.elements[2].semantic_role == "Patient"
+
+        # Test PropBank-style roles
+        pattern = self.parser.parse("NP.ARG0 V NP.ARG1")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[0].semantic_role == "ARG0"
+        assert pattern.elements[2].semantic_role == "ARG1"
+
+        # Test FrameNet frame element names
+        pattern = self.parser.parse("NP.Agent V NP.Theme")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[0].semantic_role == "Agent"
+        assert pattern.elements[2].semantic_role == "Theme"
+
+    def test_combined_features(self):
+        """Test combining brackets and dots."""
+        # PP with both head and semantic role
+        pattern = self.parser.parse("NP V PP[with].instrument")
+        assert len(pattern.elements) == 3
+        assert pattern.elements[2].constituent == "PP"
+        assert pattern.elements[2].head == "with"
+        assert pattern.elements[2].semantic_role == "instrument"
+
+        # Complex pattern
+        pattern = self.parser.parse("NP.Agent V[ING] NP.Patient PP[with].instrument")
+        assert len(pattern.elements) == 4
+        assert pattern.elements[0].semantic_role == "Agent"
+        assert pattern.elements[1].features == {"form": "ing"}
+        assert pattern.elements[2].semantic_role == "Patient"
+        assert pattern.elements[3].head == "with"
+        assert pattern.elements[3].semantic_role == "instrument"

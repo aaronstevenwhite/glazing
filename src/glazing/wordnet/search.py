@@ -437,33 +437,49 @@ class WordNetSearch:
         self, parsed_pattern: UnifiedSyntaxPattern
     ) -> set[VerbFrameNumber]:
         """Map syntax pattern to WordNet verb frame numbers."""
-        # Standard WordNet verb frame to syntax pattern mapping
+        # Complete WordNet verb frame to syntax pattern mapping (35 frames)
         verb_frame_patterns = {
-            # Basic intransitive patterns
+            # Basic intransitive patterns (1-7)
             1: "NP V",  # Something ----s
             2: "NP V PP",  # Somebody ----s PP
-            # Basic transitive patterns
+            3: "NP V ADV",  # Somebody ----s Adverb
+            4: "NP V",  # Something is ----ing PP
+            5: "NP V ADJ",  # Something ----s Adjective/Noun
+            6: "NP V ADJ",  # Something ----s Adjective/Noun
+            7: "NP V NP",  # Somebody ----s somebody
+            # Basic transitive patterns (8-12)
             8: "NP V NP",  # Somebody ----s something
             9: "NP V NP PP",  # Somebody ----s somebody PP
             10: "NP V NP NP",  # Something ----s somebody something
-            11: "NP V NP NP",  # Something ----s something to somebody
-            # Reflexive patterns
+            11: "NP V NP PP",  # Something ----s something to somebody
+            12: "NP V NP",  # Something ----s something
+            # Reflexive and reciprocal patterns (13-16)
             13: "NP V NP",  # Somebody ----s himself
-            # Sentential complement patterns
+            14: "NP V NP",  # Somebody ----s somebody
+            15: "NP V NP",  # Something ----s something
+            16: "NP V PP",  # Somebody ----s PP
+            # Movement and change of state (17-24)
+            17: "NP V PP",  # Somebody ----s from something
+            18: "NP V PP",  # Somebody ----s on something
+            19: "NP V PP",  # Somebody ----s with something
+            20: "NP V PP",  # Somebody ----s of something
+            21: "NP V NP PP",  # Somebody ----s something on something
+            22: "NP V NP PP",  # Somebody ----s something with something
+            23: "NP V NP PP",  # Somebody ----s something from something
+            24: "NP V NP PP",  # Somebody ----s something to something
+            # Sentential complement patterns (25-29)
             25: "NP V S",  # Somebody ----s that CLAUSE
             26: "NP V NP S",  # Somebody ----s somebody that CLAUSE
-            27: "NP V S",  # Somebody ----s to INFINITIVE
-            28: "NP V NP S",  # Somebody ----s somebody to INFINITIVE
-            29: "NP V NP S",  # Somebody ----s somebody into V-ing something
-            # Locative patterns
+            27: "NP V TO VP",  # Somebody ----s to INFINITIVE
+            28: "NP V NP TO VP",  # Somebody ----s somebody to INFINITIVE
+            29: "NP V NP VP[ING]",  # Somebody ----s somebody into V-ing something
+            # Complex locative and resultative patterns (30-35)
             30: "NP V PP",  # Somebody ----s PP
             31: "NP V NP PP",  # Somebody ----s something PP
             32: "NP V PP PP",  # Somebody ----s PP PP
-            # Resultative patterns
-            33: "NP V NP ADJ",  # Somebody ----s something Adjective/Noun
-            34: "NP V NP ADJ",  # Somebody ----s somebody Adjective/Noun
-            # Passive-like patterns
-            35: "NP V",  # Something ----s Adjective/Noun
+            33: "NP V NP AP",  # Somebody ----s something Adjective/Noun
+            34: "NP V NP AP",  # Somebody ----s somebody Adjective/Noun
+            35: "NP V AP",  # Something ----s Adjective/Noun
         }
 
         pattern_str = self._pattern_to_string(parsed_pattern)

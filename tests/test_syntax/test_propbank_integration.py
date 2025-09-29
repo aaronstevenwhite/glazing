@@ -97,8 +97,8 @@ class TestPropBankSyntaxIntegration:
             ("ARGM-MNR", "manner"),
             ("ARGM-PRP", "purpose"),
             ("ARGM-CAU", "cause"),
-            ("ARGM-DIR", "location"),  # Direction maps to location
-            ("ARGM-GOL", "location"),  # Goal maps to location
+            ("ARGM-DIR", "direction"),  # Direction maps to direction
+            ("ARGM-GOL", "goal"),  # Goal maps to goal
         ]
 
         for argm_type, expected_role in modifier_tests:

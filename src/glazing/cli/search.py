@@ -799,10 +799,10 @@ def search_syntax(
     dataset: str,
     limit: int,
 ) -> None:
-    """Search for syntactic patterns across datasets.
+    """Search for syntactic patterns with morphological features.
 
-    Supports hierarchical matching where general patterns match specific ones.
-    For example, "NP V PP" matches "NP V PP.instrument", "NP V PP.goal", etc.
+    Supports hierarchical matching and morphological features. General patterns
+    match specific ones (e.g., "NP V PP" matches "NP V PP.instrument").
 
     Examples
     --------
@@ -811,6 +811,12 @@ def search_syntax(
 
     Find patterns with specific PP type:
         $ glazing search syntax "NP V PP.instrument"
+
+    Find patterns with specific preposition:
+        $ glazing search syntax "NP V PP[with]"
+
+    Find patterns with morphological features:
+        $ glazing search syntax "NP V[ING] NP"
 
     Find patterns with wildcards:
         $ glazing search syntax "NP V NP *"

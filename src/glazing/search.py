@@ -922,7 +922,7 @@ class UnifiedSearch:
                 if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
                     if hasattr(fn_mapping.confidence, "score"):
                         confidence = fn_mapping.confidence.score
-                    elif isinstance(fn_mapping.confidence, (int, float)):
+                    elif isinstance(fn_mapping.confidence, int | float):
                         confidence = float(fn_mapping.confidence)
 
                 references.append(
@@ -941,7 +941,7 @@ class UnifiedSearch:
                     if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
                         if hasattr(fn_mapping.confidence, "score"):
                             confidence = fn_mapping.confidence.score
-                        elif isinstance(fn_mapping.confidence, (int, float)):
+                        elif isinstance(fn_mapping.confidence, int | float):
                             confidence = float(fn_mapping.confidence)
 
                     references.append(
@@ -1006,7 +1006,7 @@ class UnifiedSearch:
                         if hasattr(fn_mapping, "confidence") and fn_mapping.confidence is not None:
                             if hasattr(fn_mapping.confidence, "score"):
                                 base_confidence = fn_mapping.confidence.score
-                            elif isinstance(fn_mapping.confidence, (int, float)):
+                            elif isinstance(fn_mapping.confidence, int | float):
                                 base_confidence = float(fn_mapping.confidence)
 
                         final_confidence = similarity * base_confidence
@@ -1567,7 +1567,7 @@ class UnifiedSearch:
             )
 
     def _extract_verbnet_pattern(self, frame: VNFrame) -> UnifiedSyntaxPattern:
-        """Extract syntactic pattern from VerbNet frame."""
+        """Extract syntactic pattern from VerbNet frame with morphological features."""
         elements = []
         skip_next = False
 
@@ -1582,8 +1582,18 @@ class UnifiedSearch:
             skip_next = should_skip
 
         source = self._get_verbnet_source_pattern(frame)
-        return UnifiedSyntaxPattern(
-            elements=elements, source_pattern=source, source_dataset="VerbNet"
+
+        # Extract morphological features from synrestrs
+        synrestrs = []
+        for elem in frame.syntax.elements:
+            if hasattr(elem, "synrestrs") and elem.synrestrs:
+                synrestrs.extend(
+                    [{"type": str(sr.type), "value": sr.value} for sr in elem.synrestrs]
+                )
+
+        # Use the new class method to handle synrestrs
+        return UnifiedSyntaxPattern.from_verbnet_synrestrs(
+            elements=elements, synrestrs=synrestrs, source_pattern=source
         )
 
     def _process_verbnet_element(
@@ -1599,12 +1609,12 @@ class UnifiedSearch:
     def _create_pp_element(
         self, elem: VNSyntaxElement, all_elements: list[VNSyntaxElement], index: int
     ) -> tuple[SyntaxElement, bool]:
-        """Create PP element with preposition and optional semantic role."""
+        """Create PP element with head and optional semantic role."""
         pp_elem = SyntaxElement(constituent="PP")
 
-        # Add preposition value if present
+        # Add head value (specific preposition)
         if elem.value:
-            pp_elem.preposition = elem.value.lower()
+            pp_elem.head = elem.value.lower()
 
         # Check next element for semantic role
         skip_next = False
@@ -1617,34 +1627,46 @@ class UnifiedSearch:
         return pp_elem, skip_next
 
     def _create_np_element(self, elem: VNSyntaxElement) -> SyntaxElement:
-        """Create NP element with optional argument role."""
+        """Create NP element with optional semantic role."""
         np_elem = SyntaxElement(constituent="NP")
         if elem.value:
-            np_elem.argument_role = elem.value
+            np_elem.semantic_role = elem.value
         return np_elem
 
     def _create_other_element(self, elem: VNSyntaxElement) -> SyntaxElement | None:
-        """Create element for other constituent types."""
+        """Create element for other constituent types.
+
+        Maps VerbNet constituents to base constituents.
+        LEX elements represent specific lexical items (e.g., 'there' in 'There V NP')
+        and are skipped as they are not syntactic constituents.
+
+        Raises
+        ------
+        ValueError
+            If an unknown VerbNet constituent type is encountered.
+        """
         const = elem.pos
-        valid_constituents = [
-            "NP",
-            "VP",
-            "V",
-            "VERB",
-            "PP",
-            "PREP",
-            "ADV",
-            "ADVP",
-            "ADJ",
-            "ADJP",
-            "S",
-            "SBAR",
-            "LEX",
-            "*",
-        ]
-        if const in valid_constituents:
-            return SyntaxElement(constituent=const)
-        return None
+
+        # LEX represents specific lexical items, not syntactic constituents
+        if const == "LEX":
+            return None
+
+        # Map VerbNet constituents to base constituents
+        const_mapping = {
+            "VERB": "VERB",
+            "V": "VERB",
+            "ADV": "ADV",
+            "ADVP": "ADVP",
+            "ADJ": "ADJ",
+            "S": "S",
+            "SBAR": "SBAR",
+        }
+
+        if const not in const_mapping:
+            msg = f"Unknown VerbNet constituent type: '{const}'"
+            raise ValueError(msg)
+
+        return SyntaxElement(constituent=const_mapping[const])  # type: ignore[arg-type]
 
     def _get_verbnet_source_pattern(self, frame: VNFrame) -> str:
         """Get source pattern description for VerbNet frame."""

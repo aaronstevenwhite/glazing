@@ -37,31 +37,23 @@ class TestFrameNetSyntaxIntegration:
         assert isinstance(results, list)
         assert len(results) == 0
 
-    def test_map_fe_to_semantic_role(self):
-        """Test FE to semantic role mapping."""
-        mappings = [
-            ("Location", "location"),
-            ("Place", "location"),
-            ("Source", "location"),
-            ("Goal", "location"),
-            ("Time", "temporal"),
-            ("Duration", "temporal"),
-            ("Manner", "manner"),
-            ("Means", "manner"),
-            ("Instrument", "instrument"),
-            ("Purpose", "purpose"),
-            ("Reason", "cause"),
-            ("Cause", "cause"),
-            ("Beneficiary", "beneficiary"),
-            ("Recipient", "beneficiary"),
-            ("UnknownFE", None),  # Should return None for unmapped FEs
-        ]
+    def test_fe_names_preserved_in_syntax_element(self):
+        """Test that FE names are preserved as semantic roles without mapping."""
+        # Test the _map_phrase_type_to_element method preserves FE names
 
-        for fe_name, expected_role in mappings:
-            result = self.search._map_fe_to_semantic_role(fe_name)
-            assert result == expected_role, (
-                f"Failed for FE {fe_name}: got {result}, expected {expected_role}"
-            )
+        # Create syntax element from PP with FE name
+        element = self.search._map_phrase_type_to_element("PP", "Instrument")
+        assert element.semantic_role == "Instrument"
+
+        element = self.search._map_phrase_type_to_element("PP", "Location")
+        assert element.semantic_role == "Location"
+
+        element = self.search._map_phrase_type_to_element("NP", "Agent")
+        assert element.semantic_role == "Agent"
+
+        # Test with custom FE names (not in traditional mappings)
+        element = self.search._map_phrase_type_to_element("NP", "CustomRole")
+        assert element.semantic_role == "CustomRole"
 
     def test_extract_pattern_basic_transitive(self):
         """Test pattern extraction from basic transitive valence."""
@@ -128,7 +120,7 @@ class TestFrameNetSyntaxIntegration:
         assert pattern.elements[1].constituent == "VERB"
         assert pattern.elements[2].constituent == "NP"  # Theme (Obj)
         assert pattern.elements[3].constituent == "PP"  # Location (Dep)
-        assert pattern.elements[3].semantic_role == "location"
+        assert pattern.elements[3].semantic_role == "Location"
 
     def test_by_syntax_with_mock_data(self):
         """Test syntax search with mock FrameNet data."""
