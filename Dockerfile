@@ -34,6 +34,9 @@ RUN mkdir -p /data
 # Set environment variable for data directory
 ENV GLAZING_DATA_DIR=/data
 
+# Initialize datasets during build
+RUN glazing init --data-dir /data
+
 # Expose data directory as volume
 VOLUME ["/data"]
 
