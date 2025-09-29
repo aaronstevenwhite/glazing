@@ -198,7 +198,7 @@ def search() -> None:
 )
 @click.option(
     "--threshold",
-    type=float,
+    type=click.FloatRange(0.0, 1.0),
     default=0.8,
     help="Minimum similarity threshold for fuzzy matching (0.0-1.0).",
 )
@@ -515,7 +515,7 @@ def find_cross_ref(
 )
 @click.option(
     "--threshold",
-    type=float,
+    type=click.FloatRange(0.0, 1.0),
     default=0.8,
     help="Minimum similarity threshold (0.0-1.0).",
 )
