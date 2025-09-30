@@ -198,9 +198,11 @@ class SyntaxElement(BaseModel):
             # This is general PP - matches all PP subtypes
             return (True, 1.0)  # Perfect match!
 
-        # PP.role matches same role only
+        # PP.role matches same role only (case-insensitive)
         if self.semantic_role:
-            matches = other.semantic_role == self.semantic_role
+            matches = bool(
+                other.semantic_role and self.semantic_role.lower() == other.semantic_role.lower()
+            )
             return (matches, 1.0 if matches else 0.0)
 
         # PP[with] matches if heads match
@@ -231,18 +233,22 @@ class SyntaxElement(BaseModel):
         if not self.semantic_role and not self.head and not self.features:
             return (True, 1.0)
 
-        # Check semantic role match
-        if self.semantic_role and other.semantic_role and self.semantic_role != other.semantic_role:
+        # Check semantic role match (case-insensitive)
+        if (
+            self.semantic_role
+            and other.semantic_role
+            and self.semantic_role.lower() != other.semantic_role.lower()
+        ):
             return (False, 0.0)
 
         # Check head match
         if self.head and other.head and self.head.lower() != other.head.lower():
             return (False, 0.0)
 
-        # Check features match
+        # Check features match (case-insensitive for values)
         if self.features and other.features:
             for key, value in self.features.items():
-                if key in other.features and other.features[key] != value:
+                if key in other.features and other.features[key].lower() != value.lower():
                     return (False, 0.0)
 
         # If we have specific requirements, other must have them too
@@ -259,18 +265,22 @@ class SyntaxElement(BaseModel):
         if not self.semantic_role and not self.head and not self.features:
             return (True, 1.0)
 
-        # Check semantic role match
-        if self.semantic_role and other.semantic_role and self.semantic_role != other.semantic_role:
+        # Check semantic role match (case-insensitive)
+        if (
+            self.semantic_role
+            and other.semantic_role
+            and self.semantic_role.lower() != other.semantic_role.lower()
+        ):
             return (False, 0.0)
 
         # Check head match
         if self.head and other.head and self.head.lower() != other.head.lower():
             return (False, 0.0)
 
-        # Check features match
+        # Check features match (case-insensitive for values)
         if self.features and other.features:
             for key, value in self.features.items():
-                if key in other.features and other.features[key] != value:
+                if key in other.features and other.features[key].lower() != value.lower():
                     return (False, 0.0)
 
         # If we have specific requirements, other must have them too

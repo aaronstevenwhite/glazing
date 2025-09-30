@@ -371,3 +371,52 @@ class TestMorphologicalFeatures:
         # Check normalization
         assert normalized.elements[0].features["form"] == "ing"
         assert normalized.elements[1].features["form"] == "ing"
+
+
+def test_case_insensitive_semantic_role_matching():
+    """Test that semantic role matching is case-insensitive."""
+    # Test PP with different case semantic roles
+    pp_lower = SyntaxElement(constituent="PP", semantic_role="instrument")
+    pp_upper = SyntaxElement(constituent="PP", semantic_role="Instrument")
+    pp_mixed = SyntaxElement(constituent="PP", semantic_role="InStRuMeNt")
+
+    # All should match each other
+    matches, confidence = pp_lower.matches_hierarchically(pp_upper)
+    assert matches is True
+    assert confidence == 1.0
+
+    matches, confidence = pp_upper.matches_hierarchically(pp_mixed)
+    assert matches is True
+    assert confidence == 1.0
+
+    matches, confidence = pp_lower.matches_hierarchically(pp_mixed)
+    assert matches is True
+    assert confidence == 1.0
+
+    # Test NP with different case semantic roles
+    np_agent_lower = SyntaxElement(constituent="NP", semantic_role="agent")
+    np_agent_upper = SyntaxElement(constituent="NP", semantic_role="Agent")
+
+    matches, confidence = np_agent_lower.matches_hierarchically(np_agent_upper)
+    assert matches is True
+    assert confidence == 1.0
+
+
+def test_case_insensitive_feature_matching():
+    """Test that morphological feature matching is case-insensitive."""
+    v_ing_lower = SyntaxElement(constituent="V", features={"form": "ing"})
+    v_ing_upper = SyntaxElement(constituent="V", features={"form": "ING"})
+    v_ing_mixed = SyntaxElement(constituent="V", features={"form": "InG"})
+
+    # All should match each other
+    matches, confidence = v_ing_lower.matches_hierarchically(v_ing_upper)
+    assert matches is True
+    assert confidence == 1.0
+
+    matches, confidence = v_ing_upper.matches_hierarchically(v_ing_mixed)
+    assert matches is True
+    assert confidence == 1.0
+
+    matches, confidence = v_ing_lower.matches_hierarchically(v_ing_mixed)
+    assert matches is True
+    assert confidence == 1.0

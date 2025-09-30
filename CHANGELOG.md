@@ -125,7 +125,7 @@ Initial release of `glazing`, a package containing unified data models and inter
 - **Unified data models** for all four linguistic resources using Pydantic v2
 - **One-command initialization** with `glazing init` to download and convert all datasets
 - **JSON Lines format** for efficient storage and streaming of large datasets
-- **Type-safe interfaces** with comprehensive type hints for Python 3.13+
+- **Type-safe interfaces** with comprehensive type hints using Python 3.13+ conventions
 - **Cross-reference resolution** between FrameNet, PropBank, VerbNet, and WordNet
 - **Memory-efficient streaming** support for processing large datasets
 
