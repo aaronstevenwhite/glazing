@@ -613,9 +613,9 @@ def get_downloader(dataset: DatasetType | str) -> BaseDownloader:
 
     Examples
     --------
-    >>> downloader = get_downloader("VerbNet")
+    >>> downloader = get_downloader("verbnet")
     >>> print(downloader.version)
-    ae8e9cfdc2c0d3414b748763612f1a0a34194cc1
+    3.4
     """
     # Normalize to lowercase for case-insensitive lookup
     dataset_lower = dataset.lower()
@@ -660,7 +660,7 @@ def download_dataset(dataset: DatasetType | str, output_dir: Path) -> Path:
     Examples
     --------
     >>> from pathlib import Path
-    >>> path = download_dataset("VerbNet", Path("data/raw"))
+    >>> path = download_dataset("verbnet", Path("data/raw"))
     >>> print(f"Downloaded to: {path}")
     """
     downloader = get_downloader(dataset)
@@ -750,9 +750,9 @@ def get_dataset_info(dataset: DatasetType | str) -> dict[str, str]:
 
     Examples
     --------
-    >>> info = get_dataset_info("VerbNet")
+    >>> info = get_dataset_info("verbnet")
     >>> print(info["version"])
-    ae8e9cfdc2c0d3414b748763612f1a0a34194cc1
+    3.4
     """
     downloader = get_downloader(dataset)
     return {

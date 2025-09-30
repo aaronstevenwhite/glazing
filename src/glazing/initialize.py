@@ -76,15 +76,37 @@ def _get_dataset_config(name: str) -> tuple[BaseDownloader | None, object | None
     tuple[BaseDownloader | None, object | None, str]
         Downloader, converter, and output file name.
     """
-    if name == "VerbNet":
+    if name == "verbnet":
         return VerbNetDownloader(), VerbNetConverter(), "verbnet.jsonl"
-    if name == "PropBank":
+    if name == "propbank":
         return PropBankDownloader(), PropBankConverter(), "propbank.jsonl"
-    if name == "WordNet":
+    if name == "wordnet":
         return WordNetDownloader(), WordNetConverter(), "wordnet.jsonl"
-    if name == "FrameNet":
+    if name == "framenet":
         return FrameNetDownloader(), FrameNetConverter(), "framenet.jsonl"
     return None, None, ""
+
+
+def _get_display_name(name: str) -> str:
+    """Get the display name for a dataset.
+
+    Parameters
+    ----------
+    name : str
+        Dataset name (lowercase).
+
+    Returns
+    -------
+    str
+        Display name with proper capitalization.
+    """
+    display_names = {
+        "verbnet": "VerbNet",
+        "propbank": "PropBank",
+        "wordnet": "WordNet",
+        "framenet": "FrameNet",
+    }
+    return display_names.get(name, name)
 
 
 def _process_dataset(name: str, data_dir: Path, verbose: bool) -> bool:
@@ -105,8 +127,10 @@ def _process_dataset(name: str, data_dir: Path, verbose: bool) -> bool:
         True if successful, False otherwise.
     """
     try:
+        display_name = _get_display_name(name)
+
         if verbose:
-            click.echo(f"\n{name}:")
+            click.echo(f"\n{display_name}:")
             click.echo("-" * 40)
 
         # Download
@@ -114,7 +138,7 @@ def _process_dataset(name: str, data_dir: Path, verbose: bool) -> bool:
         raw_dir.mkdir(exist_ok=True)
 
         if verbose:
-            click.echo(f"  Downloading {name}...")
+            click.echo(f"  Downloading {display_name}...")
 
         downloader, converter, output_file = _get_dataset_config(name)
 
@@ -131,7 +155,7 @@ def _process_dataset(name: str, data_dir: Path, verbose: bool) -> bool:
         converted_dir.mkdir(exist_ok=True)
 
         if verbose:
-            click.echo(f"  Converting {name}...")
+            click.echo(f"  Converting {display_name}...")
 
         output = converted_dir / output_file
         _convert_dataset(name, download_path, output, converter, verbose)
@@ -162,23 +186,23 @@ def _convert_dataset(
     verbose : bool
         Print progress messages.
     """
-    if name == "VerbNet":
+    if name == "verbnet":
         source = download_path / "verbnet3.4"
         count = converter.convert_verbnet_directory(source, output)  # type: ignore[attr-defined]
         if verbose:
             click.echo(f"  ✓ Converted {count} files")
-    elif name == "PropBank":
+    elif name == "propbank":
         source = download_path / "frames"
         count = converter.convert_framesets_directory(source, output)  # type: ignore[attr-defined]
         if verbose:
             click.echo(f"  ✓ Converted {count} framesets")
-    elif name == "WordNet":
+    elif name == "wordnet":
         source = download_path
         stats = converter.convert_wordnet_database(source, output)  # type: ignore[attr-defined]
         if verbose:
             synset_count = sum(v for k, v in stats.items() if k.startswith("synsets_"))
             click.echo(f"  ✓ Converted {synset_count} synsets")
-    elif name == "FrameNet":
+    elif name == "framenet":
         source = download_path / "frame"
         count = converter.convert_frames_directory(source, output)  # type: ignore[attr-defined]
         if verbose:
@@ -222,7 +246,7 @@ def initialize_datasets(
         click.echo("=" * 60)
 
     # Process each dataset
-    datasets = ["VerbNet", "PropBank", "WordNet", "FrameNet"]
+    datasets = ["verbnet", "propbank", "wordnet", "framenet"]
     results = [_process_dataset(name, data_dir, verbose) for name in datasets]
     success = all(results)
 

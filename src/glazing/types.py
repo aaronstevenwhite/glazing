@@ -41,7 +41,7 @@ HEX_COLOR_PATTERN : str
 Examples
 --------
 >>> from glazing.types import DatasetType, MappingSource
->>> dataset: DatasetType = "FrameNet"
+>>> dataset: DatasetType = "framenet"
 >>> source: MappingSource = "manual"
 """
 

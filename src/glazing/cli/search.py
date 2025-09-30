@@ -269,9 +269,17 @@ def search_query(  # noqa: PLR0913
             table.add_column("Description", style="white")
             table.add_column("Score", style="yellow")
 
+            display_names = {
+                "verbnet": "VerbNet",
+                "propbank": "PropBank",
+                "wordnet": "WordNet",
+                "framenet": "FrameNet",
+            }
+
             for result in results[:limit]:
+                dataset_display = display_names.get(result.dataset.lower(), result.dataset)
                 table.add_row(
-                    result.dataset.upper(),
+                    dataset_display,
                     result.type,
                     f"{result.id}\n{result.name}" if result.name != result.id else result.id,
                     (
