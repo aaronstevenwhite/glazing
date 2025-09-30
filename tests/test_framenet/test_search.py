@@ -6,12 +6,16 @@ import pytest
 
 from glazing.framenet.models import (
     AnnotatedText,
+    FERealization,
     Frame,
     FrameElement,
     Lexeme,
     LexicalUnit,
     SentenceCount,
     TextAnnotation,
+    ValencePattern,
+    ValenceRealizationPattern,
+    ValenceUnit,
 )
 from glazing.framenet.search import FrameNetSearch
 
@@ -484,3 +488,430 @@ class TestFrameNetSearch:
 
         with pytest.raises(re.error):
             index.search_lexical_units("*invalid")
+
+    # Syntax-related tests moved from test_syntax/test_framenet_integration.py
+    def test_by_syntax_method_exists(self):
+        """Test that by_syntax method exists and is callable."""
+        search = FrameNetSearch()
+        assert hasattr(search, "by_syntax")
+        assert callable(search.by_syntax)
+
+    def test_by_syntax_empty_search(self):
+        """Test syntax search on empty search index."""
+        search = FrameNetSearch()
+        results = search.by_syntax("NP V NP")
+
+        # Should return empty list for empty index
+        assert isinstance(results, list)
+        assert len(results) == 0
+
+    def test_fe_names_preserved_in_syntax_element(self):
+        """Test that FE names are preserved as semantic roles without mapping."""
+        search = FrameNetSearch()
+        # Test the _map_phrase_type_to_element method preserves FE names
+
+        # Create syntax element from PP with FE name
+        element = search._map_phrase_type_to_element("PP", "Instrument")
+        assert element.semantic_role == "Instrument"
+
+        element = search._map_phrase_type_to_element("PP", "Location")
+        assert element.semantic_role == "Location"
+
+        element = search._map_phrase_type_to_element("NP", "Agent")
+        assert element.semantic_role == "Agent"
+
+        # Test with custom FE names (not in traditional mappings)
+        element = search._map_phrase_type_to_element("NP", "CustomRole")
+        assert element.semantic_role == "CustomRole"
+
+    def test_extract_pattern_basic_transitive(self):
+        """Test pattern extraction from basic transitive valence."""
+        search = FrameNetSearch()
+        # Create a basic NP V NP pattern
+        agent_unit = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+        theme_unit = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+
+        agent_pattern = ValenceRealizationPattern(
+            valence_units=[agent_unit], anno_set_ids=[1], total=1
+        )
+        theme_pattern = ValenceRealizationPattern(
+            valence_units=[theme_unit], anno_set_ids=[2], total=1
+        )
+
+        agent_realization = FERealization(fe_name="Agent", total=1, patterns=[agent_pattern])
+        theme_realization = FERealization(fe_name="Theme", total=1, patterns=[theme_pattern])
+
+        valence_pattern = ValencePattern(
+            total_annotated=2, fe_realizations=[agent_realization, theme_realization], patterns=[]
+        )
+
+        pattern = search._extract_pattern_from_valence(valence_pattern)
+
+        assert pattern is not None
+        assert len(pattern.elements) == 3  # NP V NP
+        assert pattern.elements[0].constituent == "NP"  # Agent (Ext)
+        assert pattern.elements[1].constituent == "VERB"
+        assert pattern.elements[2].constituent == "NP"  # Theme (Obj)
+
+    def test_extract_pattern_with_pp_location(self):
+        """Test pattern extraction with PP location."""
+        search = FrameNetSearch()
+        # Create NP V NP PP.location pattern
+        agent_unit = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+        theme_unit = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+        location_unit = ValenceUnit(gf="Dep", pt="PP", fe="Location")
+
+        agent_pattern = ValenceRealizationPattern(
+            valence_units=[agent_unit], anno_set_ids=[1], total=1
+        )
+        theme_pattern = ValenceRealizationPattern(
+            valence_units=[theme_unit], anno_set_ids=[2], total=1
+        )
+        location_pattern = ValenceRealizationPattern(
+            valence_units=[location_unit], anno_set_ids=[3], total=1
+        )
+
+        agent_realization = FERealization(fe_name="Agent", total=1, patterns=[agent_pattern])
+        theme_realization = FERealization(fe_name="Theme", total=1, patterns=[theme_pattern])
+        location_realization = FERealization(
+            fe_name="Location", total=1, patterns=[location_pattern]
+        )
+
+        valence_pattern = ValencePattern(
+            total_annotated=3,
+            fe_realizations=[agent_realization, theme_realization, location_realization],
+            patterns=[],
+        )
+
+        pattern = search._extract_pattern_from_valence(valence_pattern)
+
+        assert pattern is not None
+        assert len(pattern.elements) == 4  # NP V NP PP
+        assert pattern.elements[0].constituent == "NP"  # Agent (Ext)
+        assert pattern.elements[1].constituent == "VERB"
+        assert pattern.elements[2].constituent == "NP"  # Theme (Obj)
+        assert pattern.elements[3].constituent == "PP"  # Location (Dep)
+        assert pattern.elements[3].semantic_role == "Location"
+
+    def test_by_syntax_with_mock_data(self):
+        """Test syntax search with mock FrameNet data."""
+        search = FrameNetSearch()
+
+        # Create a mock frame with valence patterns
+
+        # Create Agent FE
+        agent_fe = FrameElement(
+            id=1,
+            name="Agent",
+            abbrev="Agt",
+            core_type="Core",
+            definition=AnnotatedText.parse("The agent"),
+            bg_color="FF0000",
+            fg_color="FFFFFF",
+            requires_fe=[],
+        )
+
+        # Create Theme FE
+        theme_fe = FrameElement(
+            id=2,
+            name="Theme",
+            abbrev="Thm",
+            core_type="Core",
+            definition=AnnotatedText.parse("The theme"),
+            bg_color="00FF00",
+            fg_color="000000",
+            requires_fe=[],
+        )
+
+        # Create valence pattern (NP V NP)
+        agent_unit = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+        theme_unit = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+
+        agent_realization_pattern = ValenceRealizationPattern(
+            valence_units=[agent_unit], anno_set_ids=[1], total=1
+        )
+        theme_realization_pattern = ValenceRealizationPattern(
+            valence_units=[theme_unit], anno_set_ids=[2], total=1
+        )
+
+        agent_realization = FERealization(
+            fe_name="Agent", total=1, patterns=[agent_realization_pattern]
+        )
+        theme_realization = FERealization(
+            fe_name="Theme", total=1, patterns=[theme_realization_pattern]
+        )
+
+        valence_pattern = ValencePattern(
+            total_annotated=2, fe_realizations=[agent_realization, theme_realization], patterns=[]
+        )
+
+        # Create lexical unit with valence patterns
+        lu = LexicalUnit(
+            id=1,
+            name="test.v",
+            pos="V",
+            definition="To test",
+            frame_id=1,
+            frame_name="Testing",
+            sentence_count=SentenceCount(annotated=0, total=0),
+            lexemes=[Lexeme(name="test", pos="V", headword=True)],
+            valence_patterns=[valence_pattern],
+        )
+
+        # Create frame
+        frame = Frame(
+            id=1,
+            name="Testing",
+            creation_date="2023-01-01T00:00:00Z",
+            definition=AnnotatedText.parse("A test frame"),
+            frame_elements=[agent_fe, theme_fe],
+            lexical_units=[lu],
+            frame_relations=[],
+        )
+
+        search.add_frame(frame)
+
+        # Search for NP V NP pattern - should match
+        results = search.by_syntax("NP V NP")
+        assert len(results) == 1
+        assert results[0] == frame
+
+    def test_by_syntax_no_valence_patterns(self):
+        """Test with lexical units that have no valence patterns."""
+        search = FrameNetSearch()
+        # Create frame with LU but no valence patterns
+        fe = FrameElement(
+            id=1,
+            name="Agent",
+            abbrev="Agt",
+            core_type="Core",
+            definition=AnnotatedText.parse("The agent"),
+            bg_color="FF0000",
+            fg_color="FFFFFF",
+            requires_fe=[],
+        )
+
+        lu = LexicalUnit(
+            id=1,
+            name="test.v",
+            pos="V",
+            definition="To test",
+            frame_id=1,
+            frame_name="Testing",
+            sentence_count=SentenceCount(annotated=0, total=0),
+            lexemes=[Lexeme(name="test", pos="V", headword=True)],
+            valence_patterns=[],  # No valence patterns
+        )
+
+        frame = Frame(
+            id=1,
+            name="Testing",
+            creation_date="2023-01-01T00:00:00Z",
+            definition=AnnotatedText.parse("A test frame"),
+            frame_elements=[fe],
+            lexical_units=[lu],
+            frame_relations=[],
+        )
+
+        search.add_frame(frame)
+
+        # Should not match any pattern since no valence patterns
+        results = search.by_syntax("NP V NP")
+        assert len(results) == 0
+
+    def test_by_syntax_results_sorted(self):
+        """Test that results are sorted by frame name."""
+        search = FrameNetSearch()
+        # Create multiple frames with different names
+        frames_data = [("Zeta_Frame", 3), ("Alpha_Frame", 1), ("Beta_Frame", 2)]
+
+        for frame_name, frame_id in frames_data:
+            # Create basic NP V NP valence pattern
+            agent_unit = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+            theme_unit = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+
+            agent_pattern = ValenceRealizationPattern(
+                valence_units=[agent_unit], anno_set_ids=[1], total=1
+            )
+            theme_pattern = ValenceRealizationPattern(
+                valence_units=[theme_unit], anno_set_ids=[2], total=1
+            )
+
+            agent_realization = FERealization(fe_name="Agent", total=1, patterns=[agent_pattern])
+            theme_realization = FERealization(fe_name="Theme", total=1, patterns=[theme_pattern])
+
+            valence_pattern = ValencePattern(
+                total_annotated=2,
+                fe_realizations=[agent_realization, theme_realization],
+                patterns=[],
+            )
+
+            lu = LexicalUnit(
+                id=frame_id,
+                name="test.v",
+                pos="V",
+                definition="To test",
+                frame_id=frame_id,
+                frame_name=frame_name,
+                sentence_count=SentenceCount(annotated=0, total=0),
+                lexemes=[Lexeme(name="test", pos="V", headword=True)],
+                valence_patterns=[valence_pattern],
+            )
+
+            # Create FEs
+            agent_fe = FrameElement(
+                id=frame_id * 10 + 1,
+                name="Agent",
+                abbrev="Agt",
+                core_type="Core",
+                definition=AnnotatedText.parse("The agent"),
+                bg_color="FF0000",
+                fg_color="FFFFFF",
+                requires_fe=[],
+            )
+            theme_fe = FrameElement(
+                id=frame_id * 10 + 2,
+                name="Theme",
+                abbrev="Thm",
+                core_type="Core",
+                definition=AnnotatedText.parse("The theme"),
+                bg_color="00FF00",
+                fg_color="000000",
+                requires_fe=[],
+            )
+
+            frame = Frame(
+                id=frame_id,
+                name=frame_name,
+                creation_date="2023-01-01T00:00:00Z",
+                definition=AnnotatedText.parse("A test frame"),
+                frame_elements=[agent_fe, theme_fe],
+                lexical_units=[lu],
+                frame_relations=[],
+            )
+
+            search.add_frame(frame)
+
+        results = search.by_syntax("NP V NP")
+
+        # Should be sorted by frame name
+        assert len(results) == 3
+        assert results[0].name == "Alpha_Frame"
+        assert results[1].name == "Beta_Frame"
+        assert results[2].name == "Zeta_Frame"
+
+    def test_by_syntax_duplicate_removal(self):
+        """Test that duplicate frames are removed from results."""
+        search = FrameNetSearch()
+        # Create frame with LU that has multiple valence patterns matching same syntax
+
+        # Create Agent and Theme FEs
+        agent_fe = FrameElement(
+            id=1,
+            name="Agent",
+            abbrev="Agt",
+            core_type="Core",
+            definition=AnnotatedText.parse("The agent"),
+            bg_color="FF0000",
+            fg_color="FFFFFF",
+            requires_fe=[],
+        )
+        theme_fe = FrameElement(
+            id=2,
+            name="Theme",
+            abbrev="Thm",
+            core_type="Core",
+            definition=AnnotatedText.parse("The theme"),
+            bg_color="00FF00",
+            fg_color="000000",
+            requires_fe=[],
+        )
+
+        # Create two different valence patterns that both yield NP V NP
+        # Pattern 1: Agent(Ext:NP), Theme(Obj:NP)
+        agent_unit1 = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+        theme_unit1 = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+
+        pattern1 = ValencePattern(
+            total_annotated=2,
+            fe_realizations=[
+                FERealization(
+                    fe_name="Agent",
+                    total=1,
+                    patterns=[
+                        ValenceRealizationPattern(
+                            valence_units=[agent_unit1], anno_set_ids=[1], total=1
+                        )
+                    ],
+                ),
+                FERealization(
+                    fe_name="Theme",
+                    total=1,
+                    patterns=[
+                        ValenceRealizationPattern(
+                            valence_units=[theme_unit1], anno_set_ids=[2], total=1
+                        )
+                    ],
+                ),
+            ],
+            patterns=[],
+        )
+
+        # Pattern 2: Different realization but same syntax
+        agent_unit2 = ValenceUnit(gf="Ext", pt="NP", fe="Agent")
+        theme_unit2 = ValenceUnit(gf="Obj", pt="NP", fe="Theme")
+
+        pattern2 = ValencePattern(
+            total_annotated=2,
+            fe_realizations=[
+                FERealization(
+                    fe_name="Agent",
+                    total=1,
+                    patterns=[
+                        ValenceRealizationPattern(
+                            valence_units=[agent_unit2], anno_set_ids=[3], total=1
+                        )
+                    ],
+                ),
+                FERealization(
+                    fe_name="Theme",
+                    total=1,
+                    patterns=[
+                        ValenceRealizationPattern(
+                            valence_units=[theme_unit2], anno_set_ids=[4], total=1
+                        )
+                    ],
+                ),
+            ],
+            patterns=[],
+        )
+
+        # LU with both patterns
+        lu = LexicalUnit(
+            id=1,
+            name="test.v",
+            pos="V",
+            definition="To test",
+            frame_id=1,
+            frame_name="Testing",
+            sentence_count=SentenceCount(annotated=0, total=0),
+            lexemes=[Lexeme(name="test", pos="V", headword=True)],
+            valence_patterns=[pattern1, pattern2],  # Both patterns match NP V NP
+        )
+
+        frame = Frame(
+            id=1,
+            name="Testing",
+            creation_date="2023-01-01T00:00:00Z",
+            definition=AnnotatedText.parse("A test frame"),
+            frame_elements=[agent_fe, theme_fe],
+            lexical_units=[lu],
+            frame_relations=[],
+        )
+
+        search.add_frame(frame)
+
+        # Should return frame only once despite multiple matching patterns
+        results = search.by_syntax("NP V NP")
+        assert len(results) == 1
+        assert results[0] == frame

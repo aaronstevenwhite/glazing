@@ -318,7 +318,7 @@ class SyntaxParser:
 
         Parameters
         ----------
-        elements : list
+        elements : list[VNSyntaxElement]
             List of VerbNet syntax elements with pos and value fields.
 
         Returns
