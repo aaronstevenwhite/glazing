@@ -46,6 +46,7 @@ import tempfile
 import zipfile
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import cast
 
 import requests
 from tqdm import tqdm
@@ -592,13 +593,13 @@ _DOWNLOADERS: dict[DatasetType, DownloaderClass] = {
 }
 
 
-def get_downloader(dataset: DatasetType) -> BaseDownloader:
+def get_downloader(dataset: DatasetType | str) -> BaseDownloader:
     """Get downloader instance for a dataset.
 
     Parameters
     ----------
-    dataset : DatasetType
-        Name of the dataset to get downloader for.
+    dataset : DatasetType | str
+        Name of the dataset to get downloader for (case-insensitive).
 
     Returns
     -------
@@ -616,22 +617,27 @@ def get_downloader(dataset: DatasetType) -> BaseDownloader:
     >>> print(downloader.version)
     ae8e9cfdc2c0d3414b748763612f1a0a34194cc1
     """
-    if dataset not in _DOWNLOADERS:
+    # Normalize to lowercase for case-insensitive lookup
+    dataset_lower = dataset.lower()
+
+    if dataset_lower not in _DOWNLOADERS:
         supported = ", ".join(_DOWNLOADERS.keys())
         msg = f"Unsupported dataset: {dataset}. Supported: {supported}"
         raise ValueError(msg)
 
-    downloader_class = _DOWNLOADERS[dataset]
+    # Cast to DatasetType for type checking
+    dataset_typed = cast(DatasetType, dataset_lower)
+    downloader_class = _DOWNLOADERS[dataset_typed]
     return downloader_class()
 
 
-def download_dataset(dataset: DatasetType, output_dir: Path) -> Path:
+def download_dataset(dataset: DatasetType | str, output_dir: Path) -> Path:
     """Download a specific dataset.
 
     Parameters
     ----------
-    dataset : DatasetType
-        Name of the dataset to download.
+    dataset : DatasetType | str
+        Name of the dataset to download (case-insensitive).
     output_dir : Path
         Directory to download the dataset to.
 
@@ -724,13 +730,13 @@ def get_available_datasets() -> list[DatasetType]:
     return list(_DOWNLOADERS.keys())
 
 
-def get_dataset_info(dataset: DatasetType) -> dict[str, str]:
+def get_dataset_info(dataset: DatasetType | str) -> dict[str, str]:
     """Get information about a dataset.
 
     Parameters
     ----------
-    dataset : DatasetType
-        Name of the dataset.
+    dataset : DatasetType | str
+        Name of the dataset (case-insensitive).
 
     Returns
     -------
