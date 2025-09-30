@@ -30,16 +30,26 @@ pip install glazing
 
 ### Via Docker
 
+Build and run Glazing in a containerized environment:
+
 ```bash
 # Build the image
 git clone https://github.com/aaronstevenwhite/glazing.git
 cd glazing
 docker build -t glazing:latest .
 
-# Run commands
+# Initialize datasets (persisted in volume)
 docker run --rm -v glazing-data:/data glazing:latest init
+
+# Use the CLI
 docker run --rm -v glazing-data:/data glazing:latest search query "give"
+docker run --rm -v glazing-data:/data glazing:latest search query "transfer" --fuzzy
+
+# Interactive Python session
+docker run --rm -it -v glazing-data:/data --entrypoint python glazing:latest
 ```
+
+See the [installation docs](https://glazing.readthedocs.io/en/latest/installation/#docker-installation) for more Docker usage examples.
 
 ## Quick Start
 
