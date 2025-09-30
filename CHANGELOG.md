@@ -186,4 +186,7 @@ Initial release of `glazing`, a package containing unified data models and inter
 - `tqdm >= 4.60.0` (progress bars)
 - `rich >= 13.0.0` (CLI formatting)
 
+[Unreleased]: https://github.com/aaronstevenwhite/glazing/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aaronstevenwhite/glazing/releases/tag/v0.2.0
+[0.1.1]: https://github.com/aaronstevenwhite/glazing/releases/tag/v0.1.1
 [0.1.0]: https://github.com/aaronstevenwhite/glazing/releases/tag/v0.1.0
