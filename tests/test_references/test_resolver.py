@@ -114,10 +114,10 @@ class TestReferenceResolver:
 
         # Create valid reference
         ref = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=None,
@@ -139,10 +139,10 @@ class TestReferenceResolver:
 
         # Create invalid reference
         ref = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="NonexistentFrame",
             mapping_type="direct",
             confidence=None,
@@ -173,10 +173,10 @@ class TestReferenceResolver:
 
         # Create reference with multiple targets
         ref = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id=["give.01", "give.02"],
             mapping_type="direct",
             confidence=None,
@@ -201,10 +201,10 @@ class TestReferenceResolver:
 
         # Create mapping chain: VerbNet -> PropBank -> FrameNet
         vn_to_pb = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
             mapping_type="direct",
             confidence=MappingConfidence(score=0.9, method="manual", factors={}),
@@ -217,10 +217,10 @@ class TestReferenceResolver:
         )
 
         pb_to_fn = CrossReference(
-            source_dataset="PropBank",
+            source_dataset="propbank",
             source_id="give.01",
             source_version="3.0",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=MappingConfidence(score=0.8, method="manual", factors={}),
@@ -237,7 +237,7 @@ class TestReferenceResolver:
         resolver.mapping_index.add_mapping(pb_to_fn)
 
         # Resolve transitive
-        results = resolver.resolve_transitive("give#2", "VerbNet", "FrameNet")
+        results = resolver.resolve_transitive("give#2", "verbnet", "framenet")
 
         assert len(results) == 1
         assert results[0].source_id == "give#2"
@@ -252,10 +252,10 @@ class TestReferenceResolver:
         # Create longer chain
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give#2",
                 source_version="3.4",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="give.01",
                 mapping_type="direct",
                 confidence=None,
@@ -267,10 +267,10 @@ class TestReferenceResolver:
                 ),
             ),
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.0",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="02232813",
                 mapping_type="direct",
                 confidence=None,
@@ -282,10 +282,10 @@ class TestReferenceResolver:
                 ),
             ),
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="02232813",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=None,
@@ -302,11 +302,11 @@ class TestReferenceResolver:
             resolver.mapping_index.add_mapping(mapping)
 
         # With max_hops=2, should not find the path
-        results = resolver.resolve_transitive("give#2", "VerbNet", "FrameNet", max_hops=2)
+        results = resolver.resolve_transitive("give#2", "verbnet", "framenet", max_hops=2)
         assert len(results) == 0
 
         # With max_hops=3, should find it
-        results = resolver.resolve_transitive("give#2", "VerbNet", "FrameNet", max_hops=3)
+        results = resolver.resolve_transitive("give#2", "verbnet", "framenet", max_hops=3)
         assert len(results) == 1
 
     def test_resolve_verbnet_inheritance(self) -> None:
@@ -471,10 +471,10 @@ class TestReferenceResolver:
         # Path with all confidence scores
         path = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="a",
                 source_version="1",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="b",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="", factors={}),
@@ -486,10 +486,10 @@ class TestReferenceResolver:
                 ),
             ),
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="b",
                 source_version="1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="c",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.8, method="", factors={}),
@@ -518,10 +518,10 @@ class TestReferenceResolver:
         # Create conflicting high-confidence mappings
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give#2",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="manual",
                 confidence=MappingConfidence(score=0.9, method="", factors={}),
@@ -533,10 +533,10 @@ class TestReferenceResolver:
                 ),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give#2",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.85, method="", factors={}),
@@ -562,10 +562,10 @@ class TestReferenceResolver:
         # One high, one low confidence
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give#2",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="manual",
                 confidence=MappingConfidence(score=0.9, method="", factors={}),
@@ -577,10 +577,10 @@ class TestReferenceResolver:
                 ),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give#2",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.3, method="", factors={}),

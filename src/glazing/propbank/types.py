@@ -12,6 +12,14 @@ AliasPOS : type[Literal]
     Part-of-speech markers for aliases.
 ArgumentTypePB : type[Literal]
     Complete argument types including modifiers and continuations.
+CoreArgumentType : type[Literal]
+    Core argument types (ARG0-6).
+ModifierArgumentType : type[Literal]
+    Modifier argument types (ARGM-*).
+ContinuationArgumentType : type[Literal]
+    Continuation argument types (C-ARG*, C-ARGM-*).
+ReferenceArgumentType : type[Literal]
+    Reference argument types (R-ARG*, R-ARGM-*).
 UsageInUse : type[Literal]
     Usage status indicators.
 RolesetID : type[str]
@@ -32,11 +40,16 @@ Examples
 
 from typing import Literal
 
-# Argument number literals
-type ArgumentNumber = Literal["0", "1", "2", "3", "4", "5", "6", "7", "m", "M"]
+# Argument number literals - these are the actual values of the 'n' field in PropBank data
+# Core arguments: "0"-"6" for ARG0-ARG6
+# Modifiers: "m", "M" for modifier arguments (function tags go in 'f' field)
+type ArgumentNumber = Literal["0", "1", "2", "3", "4", "5", "6", "m", "M"]
 
 # Complete function tag set based on PropBank documentation
 type FunctionTag = Literal[
+    # Prefix tags for continuation and reference
+    "C",  # Continuation prefix
+    "R",  # Reference prefix
     # Standard function tags
     "ADJ",  # Adjectival modifier
     "ADV",  # Adverbial modifier
@@ -141,7 +154,6 @@ type ArgumentTypePB = Literal[
     "ARG4",
     "ARG5",
     "ARG6",
-    "ARG7",
     # Continuation arguments (C-ARG)
     "C-ARG0",
     "C-ARG1",
@@ -150,7 +162,6 @@ type ArgumentTypePB = Literal[
     "C-ARG4",
     "C-ARG5",
     "C-ARG6",
-    "C-ARG7",
     # Reference arguments (R-ARG)
     "R-ARG0",
     "R-ARG1",
@@ -159,7 +170,6 @@ type ArgumentTypePB = Literal[
     "R-ARG4",
     "R-ARG5",
     "R-ARG6",
-    "R-ARG7",
     # Modifier arguments (ARGM)
     "ARGM-ADJ",  # Adjectival modifier
     "ARGM-ADV",  # Adverbial modifier
@@ -214,7 +224,7 @@ type ArgumentTypePB = Literal[
     "R-ARGM-PRP",
     "R-ARGM-TMP",
     # Additional argument types found in data
-    "ARGA",  # Special argument type
+    "ARGA",  # Special argument type (found in examples)
     "ARGM-TOP",  # Topic modifier
 ]
 
@@ -229,3 +239,88 @@ PREDICATE_LEMMA_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_-]*$"  # Allow uppercase
 type RolesetID = str  # Validated with ROLESET_ID_PATTERN
 type PredicateLemma = str  # Validated with PREDICATE_LEMMA_PATTERN
 type IntOrQuestionMark = int | Literal["?"]  # For start/end fields that can be ? or integer
+
+# Core argument types (ARG0-6, ARGA) - based on actual data
+type CoreArgumentType = Literal["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5", "ARG6", "ARGA"]
+
+# Modifier argument types (ARGM-*)
+type ModifierArgumentType = Literal[
+    "ARGM-ADJ",
+    "ARGM-ADV",
+    "ARGM-CAU",
+    "ARGM-COM",
+    "ARGM-DIR",
+    "ARGM-DIS",
+    "ARGM-DSP",
+    "ARGM-EXT",
+    "ARGM-GOL",
+    "ARGM-LOC",
+    "ARGM-LVB",
+    "ARGM-MNR",
+    "ARGM-MOD",
+    "ARGM-NEG",
+    "ARGM-PNC",
+    "ARGM-PRD",
+    "ARGM-PRP",
+    "ARGM-PRR",
+    "ARGM-PRX",
+    "ARGM-REC",
+    "ARGM-TMP",
+    "ARGM-CXN",
+    "ARGM-TOP",
+]
+
+# Continuation argument types (C-ARG*, C-ARGM-*)
+type ContinuationArgumentType = Literal[
+    "C-ARG0",
+    "C-ARG1",
+    "C-ARG2",
+    "C-ARG3",
+    "C-ARG4",
+    "C-ARG5",
+    "C-ARG6",
+    "C-ARGM-ADJ",
+    "C-ARGM-ADV",
+    "C-ARGM-CAU",
+    "C-ARGM-COM",
+    "C-ARGM-DIR",
+    "C-ARGM-DIS",
+    "C-ARGM-DSP",
+    "C-ARGM-EXT",
+    "C-ARGM-LOC",
+    "C-ARGM-MNR",
+    "C-ARGM-MOD",
+    "C-ARGM-NEG",
+    "C-ARGM-PRP",
+    "C-ARGM-TMP",
+    "C-ARGM-CXN",
+]
+
+# Reference argument types (R-ARG*, R-ARGM-*)
+type ReferenceArgumentType = Literal[
+    "R-ARG0",
+    "R-ARG1",
+    "R-ARG2",
+    "R-ARG3",
+    "R-ARG4",
+    "R-ARG5",
+    "R-ARG6",
+    "R-ARGM-ADV",
+    "R-ARGM-CAU",
+    "R-ARGM-COM",
+    "R-ARGM-DIR",
+    "R-ARGM-EXT",
+    "R-ARGM-GOL",
+    "R-ARGM-LOC",
+    "R-ARGM-MNR",
+    "R-ARGM-MOD",
+    "R-ARGM-PNC",
+    "R-ARGM-PRD",
+    "R-ARGM-PRP",
+    "R-ARGM-TMP",
+]
+
+# Union of all PropBank argument types
+type PropBankArgumentType = (
+    CoreArgumentType | ModifierArgumentType | ContinuationArgumentType | ReferenceArgumentType
+)

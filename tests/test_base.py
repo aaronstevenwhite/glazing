@@ -148,26 +148,26 @@ class TestCrossReferenceBase:
     def test_basic_cross_reference(self):
         """Test basic cross-reference creation."""
         ref = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
             mapping_type="direct",
             confidence=0.95,
         )
 
-        assert ref.source_dataset == "FrameNet"
+        assert ref.source_dataset == "framenet"
         assert ref.source_id == "frame_123"
-        assert ref.target_dataset == "PropBank"
+        assert ref.target_dataset == "propbank"
         assert ref.target_id == "give.01"
         assert ref.confidence == 0.95
 
     def test_multiple_target_ids(self):
         """Test cross-reference with multiple targets."""
         ref = CrossReferenceBase(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id=["give.01", "give.02"],
             mapping_type="direct",
         )
@@ -180,17 +180,17 @@ class TestCrossReferenceBase:
         """Test that empty IDs are rejected."""
         with pytest.raises(ValidationError):
             CrossReferenceBase(
-                source_dataset="FrameNet",
+                source_dataset="framenet",
                 source_id="",  # Empty ID
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="give.01",
             )
 
         with pytest.raises(ValidationError):
             CrossReferenceBase(
-                source_dataset="FrameNet",
+                source_dataset="framenet",
                 source_id="frame_123",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id=[],  # Empty list
             )
 
@@ -199,18 +199,18 @@ class TestCrossReferenceBase:
         # Should fail for direct mapping
         with pytest.raises(ValidationError):
             CrossReferenceBase(
-                source_dataset="FrameNet",
+                source_dataset="framenet",
                 source_id="frame_123",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="frame_456",
                 mapping_type="direct",
             )
 
         # Should succeed for inherited mapping
         ref = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="frame_456",
             mapping_type="inherited",
         )
@@ -220,9 +220,9 @@ class TestCrossReferenceBase:
         """Test confidence score methods."""
         # With confidence
         ref1 = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
             confidence=0.85,
         )
@@ -232,9 +232,9 @@ class TestCrossReferenceBase:
 
         # Without confidence
         ref2 = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
         )
         assert ref2.get_confidence_score() == 0.5  # Default
@@ -422,17 +422,17 @@ class TestConflictResolution:
     def test_basic_conflict_resolution(self):
         """Test basic conflict resolution creation."""
         ref1 = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
             confidence=0.8,
         )
 
         ref2 = CrossReferenceBase(
-            source_dataset="FrameNet",
+            source_dataset="framenet",
             source_id="frame_123",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="transfer.01",
             confidence=0.7,
         )

@@ -336,10 +336,10 @@ class TestMember:
             ],
             propbank_mappings=[
                 CrossReference(
-                    source_dataset="VerbNet",
+                    source_dataset="verbnet",
                     source_id="give#2",
                     source_version="3.4",
-                    target_dataset="PropBank",
+                    target_dataset="propbank",
                     target_id="give.01",
                     mapping_type="direct",
                     metadata=MappingMetadata(
@@ -417,10 +417,10 @@ class TestMember:
             verbnet_key="give#2",
             propbank_mappings=[
                 CrossReference(
-                    source_dataset="VerbNet",
+                    source_dataset="verbnet",
                     source_id="give#2",
                     source_version="3.4",
-                    target_dataset="PropBank",
+                    target_dataset="propbank",
                     target_id="give.01",
                     mapping_type="direct",
                     metadata=MappingMetadata(
@@ -431,10 +431,10 @@ class TestMember:
                     ),
                 ),
                 CrossReference(
-                    source_dataset="VerbNet",
+                    source_dataset="verbnet",
                     source_id="give#2",
                     source_version="3.4",
-                    target_dataset="PropBank",
+                    target_dataset="propbank",
                     target_id="give.02",
                     mapping_type="direct",
                     metadata=MappingMetadata(

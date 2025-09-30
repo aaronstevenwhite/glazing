@@ -41,7 +41,7 @@ HEX_COLOR_PATTERN : str
 Examples
 --------
 >>> from glazing.types import DatasetType, MappingSource
->>> dataset: DatasetType = "FrameNet"
+>>> dataset: DatasetType = "framenet"
 >>> source: MappingSource = "manual"
 """
 
@@ -52,19 +52,23 @@ from pydantic import Field
 # Use Python 3.13+ type statement for all aliases
 
 # Primary dataset types
-type DatasetType = Literal["FrameNet", "PropBank", "VerbNet", "WordNet"]
+type DatasetType = Literal["framenet", "propbank", "verbnet", "wordnet"]
 
 # Extended resource types including additional datasets
 type ResourceType = Literal[
-    "VerbNet",
-    "FrameNet",
-    "WordNet",
-    "PropBank",
+    "verbnet",
+    "framenet",
+    "wordnet",
+    "propbank",
     "AMR",
     "UMR",
     "Flickr",
     "THYME",
     "Spatial",
+    "VerbNet",  # Variant capitalization found in some files
+    "FrameNet",  # Variant capitalization found in some files
+    "WordNet",  # Variant capitalization found in some files
+    "PropBank",  # Variant capitalization found in some files
     "Framenet",  # Variant capitalization found in some PropBank files
 ]
 
@@ -77,7 +81,6 @@ type MappingSource = Literal[
     "auto",  # Short for automatic
     "gold",  # Gold standard annotation
     "silver",  # Silver standard (less reliable)
-    "legacy",  # From previous version
     "inherited",  # Inherited from parent class/frame
 ]
 
@@ -195,7 +198,7 @@ def is_dataset_type(value: str) -> bool:
     bool
         True if the value is a valid DatasetType.
     """
-    return value in {"FrameNet", "PropBank", "VerbNet", "WordNet"}
+    return value in {"framenet", "propbank", "verbnet", "wordnet"}
 
 
 def is_resource_type(value: str) -> bool:
@@ -212,10 +215,15 @@ def is_resource_type(value: str) -> bool:
         True if the value is a valid ResourceType.
     """
     return value in {
+        "verbnet",
+        "framenet",
+        "wordnet",
+        "propbank",
         "VerbNet",
         "FrameNet",
         "WordNet",
         "PropBank",
+        "Framenet",
         "AMR",
         "UMR",
         "Flickr",

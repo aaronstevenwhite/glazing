@@ -193,7 +193,7 @@ class Usage(GlazingBaseModel):
 
     Examples
     --------
-    >>> usage = Usage(resource="VerbNet", version="3.4", inuse="+")
+    >>> usage = Usage(resource="verbnet", version="3.4", inuse="+")
     """
 
     resource: ResourceType

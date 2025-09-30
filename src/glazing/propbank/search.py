@@ -11,13 +11,16 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from glazing.propbank.models import Frameset, Roleset
+from glazing.propbank.models import Arg, Example, Frameset, Rel, Roleset
+from glazing.propbank.symbol_parser import filter_args_by_properties
 from glazing.propbank.types import (
     ArgumentNumber,
     FunctionTag,
     PredicateLemma,
     RolesetID,
 )
+from glazing.syntax.models import SyntaxElement, UnifiedSyntaxPattern
+from glazing.syntax.parser import SyntaxParser
 from glazing.types import ResourceType
 
 
@@ -331,6 +334,46 @@ class PropBankSearch:
         """
         return sorted(self._framesets.values(), key=lambda f: f.predicate_lemma)
 
+    def by_arg_properties(
+        self,
+        is_core: bool | None = None,
+        modifier_type: str | None = None,
+        prefix: str | None = None,
+        arg_number: str | None = None,
+    ) -> list[Roleset]:
+        """Find rolesets by argument properties.
+
+        Parameters
+        ----------
+        is_core : bool | None, optional
+            Filter for core arguments (ARG0-6).
+        modifier_type : str | None, optional
+            Filter for specific modifier type (e.g., "LOC", "TMP").
+        prefix : str | None, optional
+            Filter for continuation or reference prefix ("C" or "R").
+        arg_number : str | None, optional
+            Filter for specific argument number (e.g., "0", "1", "2").
+
+        Returns
+        -------
+        list[Roleset]
+            Rolesets with matching argument properties.
+        """
+        matching_rolesets = []
+        for frameset in self._framesets.values():
+            for roleset in frameset.rolesets:
+                filtered_args = filter_args_by_properties(
+                    roleset.roles,
+                    is_core=is_core,
+                    modifier_type=modifier_type.lower() if modifier_type else None,  # type: ignore[arg-type]
+                    has_prefix=True if prefix in ["C", "R"] else None,
+                    arg_number=arg_number,
+                )
+                if filtered_args:
+                    matching_rolesets.append(roleset)
+
+        return sorted(matching_rolesets, key=lambda r: r.id)
+
     def get_statistics(self) -> dict[str, int]:
         """Get search index statistics.
 
@@ -388,3 +431,174 @@ class PropBankSearch:
                     framesets.append(frameset)
 
         return cls(framesets)
+
+    def by_syntax(self, pattern: str) -> list[Roleset]:
+        """Find rolesets with examples matching a syntactic pattern.
+
+        Parameters
+        ----------
+        pattern : str
+            Syntactic pattern (e.g., "NP V NP", "NP V PP").
+
+        Returns
+        -------
+        list[Roleset]
+            Rolesets with examples matching the syntactic pattern.
+        """
+        parser = SyntaxParser()
+        parsed_pattern = parser.parse(pattern)
+
+        matching_rolesets = []
+        for frameset in self._framesets.values():
+            for roleset in frameset.rolesets:
+                for example in roleset.examples:
+                    if example.propbank and self._example_matches_pattern(example, parsed_pattern):
+                        matching_rolesets.append(roleset)
+                        break
+
+        # Remove duplicates while preserving order
+        seen_ids = set()
+        unique_rolesets = []
+        for roleset in matching_rolesets:
+            if roleset.id not in seen_ids:
+                seen_ids.add(roleset.id)
+                unique_rolesets.append(roleset)
+
+        return sorted(unique_rolesets, key=lambda r: r.id)
+
+    def _example_matches_pattern(
+        self, example: Example, parsed_pattern: UnifiedSyntaxPattern
+    ) -> bool:
+        """Check if an example matches the syntactic pattern."""
+        if not example.propbank or not example.propbank.args:
+            return False
+
+        # Extract syntactic pattern from PropBank annotation
+        extracted_pattern = self._extract_pattern_from_example(example)
+        if not extracted_pattern:
+            return False
+
+        # Use hierarchical matching
+        if len(parsed_pattern.elements) != len(extracted_pattern.elements):
+            return False
+
+        for search_elem, example_elem in zip(
+            parsed_pattern.elements, extracted_pattern.elements, strict=False
+        ):
+            matches, _ = search_elem.matches_hierarchically(example_elem)
+            if not matches:
+                return False
+
+        return True
+
+    def _extract_pattern_from_example(self, example: Example) -> UnifiedSyntaxPattern | None:
+        """Extract syntactic pattern from PropBank example."""
+        if not example.propbank or not example.propbank.args:
+            return None
+
+        positioned_elements = self._get_positioned_elements(example)
+        elements = self._sort_and_extract_elements(positioned_elements)
+        self._ensure_verb_in_elements(elements)
+
+        if not elements:
+            return None
+
+        return UnifiedSyntaxPattern(
+            elements=elements,
+            source_pattern=" ".join(e.constituent for e in elements),
+            source_dataset="propbank",
+        )
+
+    def _get_positioned_elements(self, example: Example) -> list[tuple[int, SyntaxElement]]:
+        """Get positioned elements from PropBank example."""
+        positioned_elements = []
+
+        # Add arguments
+        if example.propbank is None:
+            return []
+        for arg in example.propbank.args:
+            element = self._map_propbank_arg_to_element(arg)
+            if element is not None:
+                position = self._get_arg_position(arg)
+                positioned_elements.append((position, element))
+
+        # Add verb if we have its position
+        if example.propbank.rel:
+            rel_position = self._get_rel_position(example.propbank.rel)
+            if rel_position is not None:
+                verb_element = SyntaxElement(constituent="VERB")
+                positioned_elements.append((rel_position, verb_element))
+
+        return positioned_elements
+
+    def _map_propbank_arg_to_element(self, arg: Arg) -> SyntaxElement | None:
+        """Map PropBank argument to syntax element with semantic role."""
+        arg_type = arg.type
+
+        if arg_type in ["ARG0", "ARG1", "ARG2", "ARG3", "ARG4", "ARG5"]:
+            return SyntaxElement(constituent="NP", semantic_role=arg_type)
+        if arg_type.startswith("ARGM-"):
+            return self._map_modifier_arg_to_element(arg_type)
+        return None
+
+    def _map_modifier_arg_to_element(self, arg_type: str) -> SyntaxElement:
+        """Map PropBank modifier argument to syntax element with features."""
+        modifier = arg_type.split("-", 1)[1] if "-" in arg_type else ""
+
+        role_mappings = {
+            "LOC": "location",
+            "DIR": "direction",
+            "GOL": "goal",
+            "TMP": "temporal",
+            "MNR": "manner",
+            "PRP": "purpose",
+            "CAU": "cause",
+            "ADV": "adverbial",
+            "DIS": "discourse",
+            "EXT": "extent",
+            "NEG": "negation",
+            "MOD": "modal",
+        }
+
+        semantic_role = role_mappings.get(modifier)
+        features = {}
+
+        # Add modifier type as feature
+        if modifier:
+            features["modifier"] = modifier.lower()
+
+        if semantic_role:
+            return SyntaxElement(constituent="PP", semantic_role=semantic_role, features=features)
+        return SyntaxElement(constituent="PP", features=features)
+
+    def _sort_and_extract_elements(
+        self, positioned_elements: list[tuple[int, SyntaxElement]]
+    ) -> list[SyntaxElement]:
+        """Sort positioned elements and extract the syntax elements."""
+        positioned_elements.sort(key=lambda x: x[0])
+        return [elem for pos, elem in positioned_elements]
+
+    def _ensure_verb_in_elements(self, elements: list[SyntaxElement]) -> None:
+        """Ensure a verb is present in the elements list."""
+        if not any(e.constituent == "VERB" for e in elements):
+            # Insert verb after first NP (typical SVO order)
+            np_indices = [i for i, e in enumerate(elements) if e.constituent == "NP"]
+            if np_indices:
+                elements.insert(np_indices[0] + 1, SyntaxElement(constituent="VERB"))
+            else:
+                elements.insert(0, SyntaxElement(constituent="VERB"))
+
+    def _get_arg_position(self, arg: Arg) -> int:
+        """Get argument position, handling '?' as high value."""
+        if arg.start == "?":
+            return 999
+        return int(arg.start)
+
+    def _get_rel_position(self, rel: Rel) -> int | None:
+        """Get relation position, handling '?' as None."""
+        if not rel or rel.relloc == "?":
+            return None
+        try:
+            return int(rel.relloc)
+        except (ValueError, TypeError):
+            return None

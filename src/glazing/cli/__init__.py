@@ -35,6 +35,7 @@ from glazing.__version__ import __version__
 from glazing.cli.convert import convert
 from glazing.cli.download import download
 from glazing.cli.search import search
+from glazing.cli.xref import xref
 from glazing.initialize import initialize_datasets
 
 
@@ -102,3 +103,4 @@ def init(ctx: click.Context, data_dir: str | Path | None, force: bool) -> None:
 cli.add_command(download)
 cli.add_command(convert)
 cli.add_command(search)
+cli.add_command(xref)

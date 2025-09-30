@@ -438,7 +438,7 @@ def validate_conditional_requirement(
         The values dictionary from a Pydantic model.
     condition_field : str
         The field to check for the condition.
-    condition_value : Any
+    condition_value : ValueType
         The value that triggers the requirement.
     required_fields : list[str]
         Fields that are required when the condition is met.

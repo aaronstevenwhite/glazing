@@ -18,7 +18,7 @@ Glazing provides a unified, type-safe interface for working with FrameNet, PropB
 - 📦 **Type-safe data models:** Using Pydantic v2 for validation and serialization
 - 🔍 **Command-line interface:** Download, convert, and search datasets from the command line
 - 🔗 **Cross-dataset references:** Find connections between different linguistic resources
-- 🐍 **Python 3.13+:** Modern Python with full type hints
+- 🐍 **Python 3.13+:** Python 3.13+ with full type hints
 - 📊 **Efficient storage:** JSON Lines format for fast loading and streaming
 
 ## Supported Datasets
@@ -93,7 +93,7 @@ If you use Glazing in your research, please cite:
   title = {Glazing: Unified Data Models and Interfaces for Syntactic and Semantic Frame Ontologies},
   year = {2025},
   url = {https://github.com/aaronstevenwhite/glazing},
-  version = {0.1.1},
+  version = {0.2.0},
   doi = {10.5281/zenodo.17185626}
 }
 ```

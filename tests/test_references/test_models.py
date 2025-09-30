@@ -104,10 +104,10 @@ class TestCrossReference:
     def test_single_target_mapping(self):
         """Test mapping to single target."""
         ref = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=MappingConfidence(score=0.95, method="manual"),
@@ -118,17 +118,17 @@ class TestCrossReference:
                 validation_status="validated",
             ),
         )
-        assert ref.source_dataset == "VerbNet"
+        assert ref.source_dataset == "verbnet"
         assert ref.target_id == "Giving"
         assert ref.confidence.score == 0.95
 
     def test_multiple_target_mapping(self):
         """Test mapping to multiple targets."""
         ref = CrossReference(
-            source_dataset="PropBank",
+            source_dataset="propbank",
             source_id="give.01",
             source_version="3.1",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_id=["give-13.1", "give-13.1-1"],
             mapping_type="automatic",
             confidence=None,
@@ -145,10 +145,10 @@ class TestCrossReference:
     def test_inherited_mapping(self):
         """Test inherited mapping from parent class."""
         ref = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1-1",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="inferred",
             confidence=MappingConfidence(score=0.85, method="inheritance"),
@@ -171,10 +171,10 @@ class TestMultiMapping:
         """Test finding best mapping by confidence."""
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -186,10 +186,10 @@ class TestMultiMapping:
                 ),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.7, method="auto"),
@@ -203,10 +203,10 @@ class TestMultiMapping:
         ]
 
         multi = MultiMapping(
-            source_dataset="VerbNet", source_id="give-13.1", source_version="3.4", mappings=mappings
+            source_dataset="verbnet", source_id="give-13.1", source_version="3.4", mappings=mappings
         )
 
-        best = multi.get_best_mapping("FrameNet")
+        best = multi.get_best_mapping("framenet")
         assert best is not None
         assert best.target_id == "Giving"
         assert best.confidence.score == 0.95
@@ -215,10 +215,10 @@ class TestMultiMapping:
         """Test when no mapping to target dataset exists."""
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=None,
@@ -232,10 +232,10 @@ class TestMultiMapping:
         ]
 
         multi = MultiMapping(
-            source_dataset="VerbNet", source_id="give-13.1", source_version="3.4", mappings=mappings
+            source_dataset="verbnet", source_id="give-13.1", source_version="3.4", mappings=mappings
         )
 
-        best = multi.get_best_mapping("PropBank")
+        best = multi.get_best_mapping("propbank")
         assert best is None
 
 
@@ -246,10 +246,10 @@ class TestTransitiveMapping:
         """Test confidence propagation through chain."""
         path = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -261,10 +261,10 @@ class TestTransitiveMapping:
                 ),
             ),
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="give%2:40:00",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.8, method="similarity"),
@@ -278,9 +278,9 @@ class TestTransitiveMapping:
         ]
 
         trans = TransitiveMapping(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             path=path,
             combined_confidence=0.72,  # 0.9 * 0.8
@@ -292,9 +292,9 @@ class TestTransitiveMapping:
     def test_empty_path_confidence(self):
         """Test confidence calculation with empty path."""
         trans = TransitiveMapping(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             path=[],
             combined_confidence=0.0,
@@ -377,13 +377,13 @@ class TestPropBankCrossRefs:
         refs = PropBankCrossRefs(
             roleset_id="give.01",
             rolelinks=[
-                RoleLink(class_name="give-13.1", resource="VerbNet", version="3.4", role="Agent")
+                RoleLink(class_name="give-13.1", resource="verbnet", version="3.4", role="Agent")
             ],
             lexlinks=[
                 LexLink(
                     class_name="give-13.1-1",
                     confidence=0.85,
-                    resource="VerbNet",
+                    resource="verbnet",
                     version="3.4",
                     src="automatic",
                 )
@@ -408,11 +408,11 @@ class TestUnifiedRoleMapping:
             propbank_args=[("give.01", "ARG0")],
             wordnet_restrictions=["animate", "volitional"],
             confidence_matrix={
-                "VerbNet:give-13.1:Agent": {
-                    "FrameNet:Giving:Donor": 0.95,
-                    "PropBank:give.01:ARG0": 0.98,
+                "verbnet:give-13.1:Agent": {
+                    "framenet:Giving:Donor": 0.95,
+                    "propbank:give.01:ARG0": 0.98,
                 },
-                "FrameNet:Giving:Donor": {"PropBank:give.01:ARG0": 0.92},
+                "framenet:Giving:Donor": {"propbank:give.01:ARG0": 0.92},
             },
         )
 
@@ -470,15 +470,15 @@ class TestRoleMappingTable:
 
     def test_is_agentive(self):
         """Test agentive role detection."""
-        # Test with VerbNet Agent
+        # Test with verbnet Agent
         mapping1 = RoleMappingTable(verbnet_role="Agent", framenet_fe="Donor", propbank_arg="ARG0")
         assert mapping1.is_agentive() is True
 
-        # Test with PropBank ARG0
+        # Test with propbank ARG0
         mapping2 = RoleMappingTable(verbnet_role="Theme", propbank_arg="ARG0")
         assert mapping2.is_agentive() is True
 
-        # Test with FrameNet Agent-containing FE
+        # Test with framenet Agent-containing FE
         mapping3 = RoleMappingTable(verbnet_role="Theme", framenet_fe="Agent_of_change")
         assert mapping3.is_agentive() is True
 
@@ -498,7 +498,7 @@ class TestFEAlignment:
         direct = FEAlignment(
             source_frame="Giving",
             source_fe="Donor",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_role="Agent",
             alignment_type="direct",
             confidence=base_confidence,
@@ -509,7 +509,7 @@ class TestFEAlignment:
         inherited = FEAlignment(
             source_frame="Giving",
             source_fe="Donor",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_role="Agent",
             alignment_type="inherited",
             confidence=base_confidence,
@@ -520,7 +520,7 @@ class TestFEAlignment:
         inferred = FEAlignment(
             source_frame="Giving",
             source_fe="Donor",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_role="Agent",
             alignment_type="inferred",
             confidence=base_confidence,
@@ -531,7 +531,7 @@ class TestFEAlignment:
         partial = FEAlignment(
             source_frame="Giving",
             source_fe="Donor",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_role="Agent",
             alignment_type="partial",
             confidence=base_confidence,
@@ -593,10 +593,10 @@ class TestMappingConflict:
         """Test resolving conflict by highest confidence."""
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -608,10 +608,10 @@ class TestMappingConflict:
                 ),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.7, method="auto"),
@@ -626,7 +626,7 @@ class TestMappingConflict:
 
         conflict = MappingConflict(
             conflict_type="ambiguous",
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
             conflicting_mappings=mappings,
         )
@@ -639,10 +639,10 @@ class TestMappingConflict:
         """Test resolving conflict by preferred source."""
         mappings = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=None,
@@ -654,10 +654,10 @@ class TestMappingConflict:
                 ),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="manual",
                 confidence=None,
@@ -672,7 +672,7 @@ class TestMappingConflict:
 
         conflict = MappingConflict(
             conflict_type="ambiguous",
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
             conflicting_mappings=mappings,
         )
@@ -690,10 +690,10 @@ class TestMappingIndex:
         index = MappingIndex()
 
         mapping = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=None,
@@ -708,13 +708,13 @@ class TestMappingIndex:
         index.add_mapping(mapping)
 
         # Check forward index
-        forward_key = "VerbNet:give-13.1"
+        forward_key = "verbnet:give-13.1"
         assert forward_key in index.forward_index
         assert len(index.forward_index[forward_key]) == 1
         assert index.forward_index[forward_key][0] == mapping
 
         # Check reverse index
-        reverse_key = "FrameNet:Giving"
+        reverse_key = "framenet:Giving"
         assert reverse_key in index.reverse_index
         assert len(index.reverse_index[reverse_key]) == 1
         assert index.reverse_index[reverse_key][0] == mapping
@@ -724,10 +724,10 @@ class TestMappingIndex:
         index = MappingIndex()
 
         mapping = CrossReference(
-            source_dataset="PropBank",
+            source_dataset="propbank",
             source_id="give.01",
             source_version="3.1",
-            target_dataset="VerbNet",
+            target_dataset="verbnet",
             target_id=["give-13.1", "give-13.1-1"],
             mapping_type="direct",
             confidence=None,
@@ -742,10 +742,10 @@ class TestMappingIndex:
         index.add_mapping(mapping)
 
         # Check both targets in reverse index
-        assert "VerbNet:give-13.1" in index.reverse_index
-        assert "VerbNet:give-13.1-1" in index.reverse_index
-        assert len(index.reverse_index["VerbNet:give-13.1"]) == 1
-        assert len(index.reverse_index["VerbNet:give-13.1-1"]) == 1
+        assert "verbnet:give-13.1" in index.reverse_index
+        assert "verbnet:give-13.1-1" in index.reverse_index
+        assert len(index.reverse_index["verbnet:give-13.1"]) == 1
+        assert len(index.reverse_index["verbnet:give-13.1-1"]) == 1
 
     def test_find_transitive_mappings_simple_path(self):
         """Test finding basic A→B→C transitive mapping."""
@@ -753,10 +753,10 @@ class TestMappingIndex:
 
         # Create A → B mapping
         mapping1 = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give-13.1",
             source_version="3.4",
-            target_dataset="WordNet",
+            target_dataset="wordnet",
             target_id="give%2:40:00",
             mapping_type="direct",
             confidence=MappingConfidence(score=0.9, method="manual"),
@@ -770,10 +770,10 @@ class TestMappingIndex:
 
         # Create B → C mapping
         mapping2 = CrossReference(
-            source_dataset="WordNet",
+            source_dataset="wordnet",
             source_id="give%2:40:00",
             source_version="3.1",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=MappingConfidence(score=0.8, method="automatic"),
@@ -789,12 +789,12 @@ class TestMappingIndex:
         index.add_mapping(mapping2)
 
         # Find transitive path from VerbNet to FrameNet
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
 
         assert len(results) == 1
-        assert results[0].source_dataset == "VerbNet"
+        assert results[0].source_dataset == "verbnet"
         assert results[0].source_id == "give-13.1"
-        assert results[0].target_dataset == "FrameNet"
+        assert results[0].target_dataset == "framenet"
         assert results[0].target_id == "Giving"
         assert len(results[0].path) == 2
         assert results[0].combined_confidence == pytest.approx(0.72, rel=1e-3)  # 0.9 * 0.8
@@ -803,13 +803,13 @@ class TestMappingIndex:
         """Test finding multiple paths to same target."""
         index = MappingIndex()
 
-        # Path 1: VerbNet → WordNet → FrameNet (high confidence)
+        # Path 1: verbnet → wordnet → framenet (high confidence)
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -823,10 +823,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="give%2:40:00",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -839,13 +839,13 @@ class TestMappingIndex:
             )
         )
 
-        # Path 2: VerbNet → PropBank → FrameNet (lower confidence)
+        # Path 2: verbnet → propbank → framenet (lower confidence)
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="give.01",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.8, method="automatic"),
@@ -859,10 +859,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.7, method="automatic"),
@@ -875,7 +875,7 @@ class TestMappingIndex:
             )
         )
 
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
 
         assert len(results) == 2
         # Should be sorted by confidence (high to low)
@@ -889,10 +889,10 @@ class TestMappingIndex:
         # Create a long chain: A → B → C → D
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -906,10 +906,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="give%2:40:00",
                 source_version="3.1",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="give.01",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.8, method="manual"),
@@ -923,10 +923,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.85, method="manual"),
@@ -940,11 +940,11 @@ class TestMappingIndex:
         )
 
         # With max_hops=2, should not find the 3-hop path
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
         assert len(results) == 0
 
         # With max_hops=3, should find the 3-hop path
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=3)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=3)
         assert len(results) == 1
         assert len(results[0].path) == 3
 
@@ -955,10 +955,10 @@ class TestMappingIndex:
         # Add isolated mappings
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -971,8 +971,8 @@ class TestMappingIndex:
             )
         )
 
-        # No path from VerbNet to FrameNet
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=3)
+        # No path from verbnet to framenet
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=3)
         assert len(results) == 0
 
     def test_find_transitive_mappings_cycle_prevention(self):
@@ -982,10 +982,10 @@ class TestMappingIndex:
         # Create a cycle: A → B → C → A
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -999,10 +999,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="give%2:40:00",
                 source_version="3.1",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="give.01",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.8, method="manual"),
@@ -1016,10 +1016,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.1",
-                target_dataset="VerbNet",
+                target_dataset="verbnet",
                 target_id="give-13.1",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.85, method="manual"),
@@ -1035,10 +1035,10 @@ class TestMappingIndex:
         # Also add target
         index.add_mapping(
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.75, method="manual"),
@@ -1052,7 +1052,7 @@ class TestMappingIndex:
         )
 
         # Should find path without infinite loop
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=5)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=5)
         assert len(results) > 0
         # Should find the shortest path
         assert results[0].target_id == "Giving"
@@ -1064,10 +1064,10 @@ class TestMappingIndex:
         # Mapping with confidence
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -1083,10 +1083,10 @@ class TestMappingIndex:
         # Mapping without confidence (should use 0.5 default)
         index.add_mapping(
             CrossReference(
-                source_dataset="WordNet",
+                source_dataset="wordnet",
                 source_id="give%2:40:00",
                 source_version="3.1",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=None,
@@ -1099,7 +1099,7 @@ class TestMappingIndex:
             )
         )
 
-        results = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
 
         assert len(results) == 1
         assert results[0].combined_confidence == pytest.approx(0.45, rel=1e-3)  # 0.9 * 0.5
@@ -1110,10 +1110,10 @@ class TestMappingIndex:
 
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="WordNet",
+                target_dataset="wordnet",
                 target_id="give%2:40:00",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -1127,16 +1127,16 @@ class TestMappingIndex:
         )
 
         # First call should compute and cache
-        results1 = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results1 = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
 
         # Second call should return cached results
-        results2 = index.find_transitive_mappings("VerbNet:give-13.1", "FrameNet", max_hops=2)
+        results2 = index.find_transitive_mappings("verbnet:give-13.1", "framenet", max_hops=2)
 
         # Should be the same object (cached)
         assert results1 is results2
 
         # Cache key should be in transitive_cache (includes max_hops)
-        cache_key = ("VerbNet:give-13.1", "FrameNet", 2)
+        cache_key = ("verbnet:give-13.1", "framenet", 2)
         assert cache_key in index.transitive_cache
 
     def test_find_transitive_mappings_multiple_targets(self):
@@ -1146,10 +1146,10 @@ class TestMappingIndex:
         # Mapping with multiple targets
         index.add_mapping(
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="3.1",
-                target_dataset="VerbNet",
+                target_dataset="verbnet",
                 target_id=["give-13.1", "give-13.1-1"],
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -1162,13 +1162,13 @@ class TestMappingIndex:
             )
         )
 
-        # Add paths from both VerbNet variants to FrameNet
+        # Add paths from both verbnet variants to framenet
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.85, method="manual"),
@@ -1182,10 +1182,10 @@ class TestMappingIndex:
         )
         index.add_mapping(
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1-1",
                 source_version="3.4",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Transfer",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.8, method="manual"),
@@ -1198,9 +1198,9 @@ class TestMappingIndex:
             )
         )
 
-        results = index.find_transitive_mappings("PropBank:give.01", "FrameNet", max_hops=2)
+        results = index.find_transitive_mappings("propbank:give.01", "framenet", max_hops=2)
 
-        # Should find paths through both VerbNet variants
+        # Should find paths through both verbnet variants
         assert len(results) == 2
         target_ids = {r.target_id for r in results}
         assert "Giving" in target_ids

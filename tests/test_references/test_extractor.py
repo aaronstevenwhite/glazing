@@ -47,10 +47,10 @@ class TestReferenceExtractor:
         )
 
         pb_mapping = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id="give.01",
             mapping_type="direct",
             confidence=None,
@@ -100,8 +100,8 @@ class TestReferenceExtractor:
         assert len(vn_refs.wn_mappings) == 1
 
         # Check mapping index
-        mappings = extractor.get_mappings_for_entity("give#2", "VerbNet")
-        assert len(mappings) >= 2  # At least FrameNet and WordNet mappings
+        mappings = extractor.get_mappings_for_entity("give#2", "verbnet")
+        assert len(mappings) >= 2  # At least framenet and wordnet mappings
 
     def test_extract_verbnet_subclasses(self) -> None:
         """Test extraction handles VerbNet subclasses recursively."""
@@ -149,14 +149,14 @@ class TestReferenceExtractor:
         lexlink = LexLink(
             class_name="give-13.1",
             confidence=0.92,
-            resource="VerbNet",
+            resource="verbnet",
             version="3.4",
             src="manual",
         )
 
         rolelink = RoleLink(
             class_name="Giving",
-            resource="FrameNet",
+            resource="framenet",
             version="1.7",
             role="Donor",
         )
@@ -194,8 +194,8 @@ class TestReferenceExtractor:
         assert pb_refs.lexlinks[0].class_name == "give-13.1"
 
         # Check mapping index
-        mappings = extractor.get_mappings_for_entity("give.01", "PropBank")
-        assert len(mappings) >= 2  # VerbNet and FrameNet mappings
+        mappings = extractor.get_mappings_for_entity("give.01", "propbank")
+        assert len(mappings) >= 2  # verbnet and framenet mappings
 
     def test_extract_framenet_relations(self) -> None:
         """Test extraction of FrameNet frame relations."""
@@ -229,7 +229,7 @@ class TestReferenceExtractor:
         assert relations[0].type == "Inherits from"
 
         # Check mapping index for inheritance
-        mappings = extractor.get_mappings_for_entity("2001", "FrameNet")
+        mappings = extractor.get_mappings_for_entity("2001", "framenet")
         assert len(mappings) >= 1
         assert any(m.target_id == "2000" for m in mappings)
 
@@ -269,7 +269,7 @@ class TestReferenceExtractor:
         assert extractor.wordnet_sense_index["give%2:40:00::"] == "02232813"
 
         # Check mapping index
-        mappings = extractor.get_mappings_for_entity("give%2:40:00::", "WordNet")
+        mappings = extractor.get_mappings_for_entity("give%2:40:00::", "wordnet")
         assert len(mappings) >= 1
         assert any(m.target_id == "02232813" for m in mappings)
 
@@ -336,10 +336,10 @@ class TestReferenceExtractor:
         """Test getting reverse mappings to an entity."""
         # Create a mapping
         mapping = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="FrameNet",
+            target_dataset="framenet",
             target_id="Giving",
             mapping_type="direct",
             confidence=None,
@@ -356,19 +356,19 @@ class TestReferenceExtractor:
         extractor.mapping_index.add_mapping(mapping)
 
         # Get reverse mappings
-        reverse = extractor.get_reverse_mappings("Giving", "FrameNet")
+        reverse = extractor.get_reverse_mappings("Giving", "framenet")
         assert len(reverse) == 1
         assert reverse[0].source_id == "give#2"
-        assert reverse[0].source_dataset == "VerbNet"
+        assert reverse[0].source_dataset == "verbnet"
 
     def test_multiple_target_mappings(self) -> None:
         """Test handling of multiple target IDs in a mapping."""
         # Create mapping with list of targets
         mapping = CrossReference(
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
             source_id="give#2",
             source_version="3.4",
-            target_dataset="PropBank",
+            target_dataset="propbank",
             target_id=["give.01", "give.02"],
             mapping_type="direct",
             confidence=None,
@@ -385,8 +385,8 @@ class TestReferenceExtractor:
         extractor.mapping_index.add_mapping(mapping)
 
         # Check reverse mappings for both targets
-        reverse1 = extractor.get_reverse_mappings("give.01", "PropBank")
-        reverse2 = extractor.get_reverse_mappings("give.02", "PropBank")
+        reverse1 = extractor.get_reverse_mappings("give.01", "propbank")
+        reverse2 = extractor.get_reverse_mappings("give.02", "propbank")
         assert len(reverse1) == 1
         assert len(reverse2) == 1
         assert reverse1[0].source_id == "give#2"

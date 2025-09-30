@@ -17,33 +17,29 @@ The simplest way to find cross-references is through the CLI:
 glazing search cross-ref --source propbank --id "give.01" --target verbnet
 ```
 
-In Python, the process requires extracting references from the loaded datasets:
+In Python, use the new ergonomic CrossReferenceIndex API:
 
 ```python
-from glazing.references.extractor import ReferenceExtractor
-from glazing.references.resolver import ReferenceResolver
-from glazing.verbnet.loader import VerbNetLoader
-from glazing.propbank.loader import PropBankLoader
+from glazing.references.index import CrossReferenceIndex
 
-# Load and extract references
-vn_loader = VerbNetLoader()
-pb_loader = PropBankLoader()
+# Automatic extraction on first use (cached for future runs)
+xref = CrossReferenceIndex()
 
-extractor = ReferenceExtractor()
-extractor.extract_verbnet_references(list(vn_loader.classes.values()))
-extractor.extract_propbank_references(list(pb_loader.framesets.values()))
+# Resolve references for a PropBank roleset
+refs = xref.resolve("give.01", source="propbank")
+print(f"VerbNet classes: {refs['verbnet_classes']}")
+print(f"Confidence scores: {refs['confidence_scores']}")
 
-# Resolve references
-resolver = ReferenceResolver(extractor.mapping_index)
-related = resolver.resolve("give.01", source="propbank")
-print(f"VerbNet classes: {related.verbnet_classes}")
+# Use fuzzy matching for typos
+refs = xref.resolve("giv.01", source="propbank", fuzzy=True)
+print(f"VerbNet classes: {refs['verbnet_classes']}")
 ```
 
 ## Working with References
 
-The extraction step scans the datasets for embedded cross-references and builds an index. This is computationally expensive, so you'll want to do it once and reuse the results. The resolver then uses this index to find connections between datasets.
+The CrossReferenceIndex automatically handles extraction and caching. On first use, it scans all datasets and builds an index, which is cached for future runs. The index includes confidence scores based on the quality of mappings and fuzzy matching similarity.
 
-When you resolve references for an item, you get back all the related items across datasets. Not every item has cross-references to all other datasets. Some connections are direct (explicitly stated in the data) while others are transitive (following chains of references).
+When you resolve references for an item, you get back all related items across datasets with confidence scores. Not every item has cross-references to all other datasets. Some connections are direct (explicitly stated in the data) while others use fuzzy matching to find potential matches.
 
 ## Practical Examples
 
@@ -53,7 +49,7 @@ To find semantic equivalents across datasets, search each one and collect the re
 from glazing.search import UnifiedSearch
 
 search = UnifiedSearch()
-results = search.search_by_lemma("give")
+results = search.by_lemma("give")
 
 # Group results by dataset
 by_dataset = {}
@@ -66,7 +62,7 @@ For analyzing coverage of a concept across datasets:
 ```python
 def check_coverage(lemma):
     search = UnifiedSearch()
-    results = search.search_by_lemma(lemma)
+    results = search.by_lemma(lemma)
 
     coverage = set(r.dataset for r in results)
     missing = {'propbank', 'verbnet', 'wordnet', 'framenet'} - coverage
@@ -76,8 +72,43 @@ def check_coverage(lemma):
     return coverage
 ```
 
+## Additional Features
+
+### Manual Control
+
+If you prefer manual control over extraction:
+
+```python
+from glazing.references.index import CrossReferenceIndex
+
+# Disable auto-extraction
+xref = CrossReferenceIndex(auto_extract=False)
+
+# Extract when ready
+xref.extract_all()
+
+# Clear cache if needed
+xref.clear_cache()
+```
+
+### Fuzzy Matching
+
+The system supports fuzzy matching for handling typos and variations:
+
+```python
+# Find matches even with typos
+refs = xref.resolve("transferr.01", source="propbank", fuzzy=True, threshold=0.7)
+
+# The system will find "transfer.01" and return its references
+```
+
+### Confidence Scores
+
+All mappings include confidence scores based on:
+- Original mapping confidence from the dataset
+- Fuzzy matching similarity scores
+- Mapping type (direct vs. inferred)
+
 ## Limitations
 
-Cross-references in these datasets are incomplete and sometimes approximate. VerbNet members don't always have WordNet mappings. PropBank rolesets may lack VerbNet mappings. The quality and coverage of references varies between dataset pairs. Transitive references (A→B→C) can introduce errors if the intermediate mapping is incorrect.
-
-The current API requires manual extraction before resolution, which we plan to improve in future versions to match the ergonomics of the data loaders.
+Cross-references in these datasets are incomplete and sometimes approximate. VerbNet members don't always have WordNet mappings. PropBank rolesets may lack VerbNet mappings. The quality and coverage of references varies between dataset pairs. Fuzzy matching can occasionally produce false positives at lower thresholds.

@@ -18,7 +18,7 @@ class TestVerbNetDownloader:
     def test_properties(self) -> None:
         """Test VerbNet downloader properties."""
         downloader = VerbNetDownloader()
-        assert downloader.dataset_name == "VerbNet"
+        assert downloader.dataset_name == "verbnet"
         assert downloader.version == "3.4"
         assert downloader.commit_hash == "ae8e9cfdc2c0d3414b748763612f1a0a34194cc1"
 

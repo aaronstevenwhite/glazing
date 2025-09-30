@@ -72,7 +72,47 @@ search = VerbNetSearch(list(loader.classes.values()))
 agent_classes = search.by_themroles(["Agent", "Theme"])
 
 # Find by syntactic pattern
-motion_classes = search.by_syntax("NP V PP")
+motion_classes = search.by_syntax("NP VERB PREP NP")
+```
+
+## Unified Syntax Search
+
+The unified search interface supports hierarchical syntactic pattern matching across datasets:
+
+```python
+from glazing.search import UnifiedSearch
+
+search = UnifiedSearch()
+
+# General patterns match specific patterns with full confidence
+results = search.search_by_syntax("NP V PP")
+# This matches: "NP V PP.instrument", "NP V PP.goal", etc.
+
+# Search for specific semantic roles on PPs
+instrument_results = search.search_by_syntax("NP V PP.instrument")
+
+# Use wildcards to match any following elements
+wildcard_results = search.search_by_syntax("NP V NP *")
+# This matches: "NP V NP PP", "NP V NP S", "NP V NP ADV", etc.
+
+# Combine prepositions and semantic roles
+with_instrument = search.search_by_syntax("NP V PP.with.instrument")
+```
+
+The syntax module provides a parser for creating patterns programmatically:
+
+```python
+from glazing.syntax import SyntaxParser
+
+parser = SyntaxParser()
+pattern = parser.parse("NP V PP.instrument")
+
+# Patterns support hierarchical matching
+general_pp = parser.parse("NP V PP")
+specific_pp = parser.parse("NP V PP.instrument")
+
+matches, confidence = general_pp.matches_hierarchically(specific_pp)
+assert matches and confidence == 1.0  # Perfect match!
 ```
 
 ## Cross-References

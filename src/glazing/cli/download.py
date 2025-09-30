@@ -63,22 +63,15 @@ def download() -> None:
     help="Output directory for downloaded datasets",
 )
 @click.option(
-    "--skip-manual",
-    is_flag=True,
-    default=True,
-    help="Skip datasets requiring manual download (FrameNet)",
-)
-@click.option(
     "--force",
     "-f",
     is_flag=True,
     help="Force re-download even if dataset already exists",
 )
-def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, force: bool) -> None:
+def dataset_command(dataset: str, output_dir: str | Path, force: bool) -> None:
     """Download a specific dataset or all datasets.
 
     Downloads the specified dataset(s) to the output directory.
-    By default, skips datasets that require manual download.
 
     Parameters
     ----------
@@ -86,8 +79,6 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         Dataset name to download ('all' for all datasets).
     output_dir : str | Path
         Output directory for downloaded datasets.
-    skip_manual : bool
-        Skip datasets requiring manual download (FrameNet).
     force : bool
         Force re-download even if dataset already exists.
 
@@ -100,7 +91,7 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         glazing download dataset --dataset all --output-dir /data
 
     Download with force:
-        glazing download dataset --dataset framenet --no-skip-manual
+        glazing download dataset --dataset framenet --force
     """
     # Convert output_dir to Path and resolve to absolute path
     output_path = Path(output_dir).resolve()
@@ -113,30 +104,26 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         click.get_current_context().exit(1)
 
     if dataset == "all":
-        _download_all_datasets(output_path, skip_manual)
+        _download_all_datasets(output_path)
     else:
         _download_single_dataset(dataset, output_path, force)
 
 
-def _download_all_datasets(output_path: Path, skip_manual: bool) -> None:
+def _download_all_datasets(output_path: Path) -> None:
     """Handle downloading all datasets.
 
     Parameters
     ----------
     output_path : Path
         Output directory path.
-    skip_manual : bool
-        Skip datasets requiring manual download.
     """
     click.echo(f"Downloading all datasets to: {output_path}")
 
     datasets_to_download: list[DatasetType] = get_available_datasets()
-    if skip_manual:
-        datasets_to_download = [d for d in datasets_to_download if d != "FrameNet"]
 
     click.echo(f"Datasets to download: {', '.join(datasets_to_download)}")
 
-    results = download_all(output_path, datasets_to_download, skip_manual=False)
+    results = download_all(output_path, datasets_to_download)
 
     # Report results
     success_count = 0
@@ -162,42 +149,47 @@ def _download_single_dataset(dataset: str, output_path: Path, force: bool) -> No
     Parameters
     ----------
     dataset : str
-        Dataset name (lowercase).
+        Dataset name (any case).
     output_path : Path
         Output directory path.
     force : bool
         Force re-download.
     """
-    dataset_map = {
+    # Normalize to lowercase for internal use
+    dataset_lower = dataset.lower()
+
+    # Get display name for user output
+    display_names = {
         "verbnet": "VerbNet",
         "propbank": "PropBank",
         "wordnet": "WordNet",
         "framenet": "FrameNet",
     }
+    display_name = display_names[dataset_lower]
 
-    dataset_name: DatasetType = dataset_map[dataset]  # type: ignore[assignment]
-    click.echo(f"Downloading {dataset_name} to: {output_path}")
+    click.echo(f"Downloading {display_name} to: {output_path}")
 
     # Check if dataset already exists and force flag
-    if not force and any(output_path.glob(f"{dataset.lower()}-*")):
-        click.echo(f"Dataset {dataset_name} already exists. Use --force to re-download.")
+    if not force and any(output_path.glob(f"{dataset_lower}-*")):
+        click.echo(f"Dataset {display_name} already exists. Use --force to re-download.")
         return
 
     try:
-        path = download_dataset(dataset_name, output_path)
-        click.echo(f"✓ {dataset_name}: Downloaded to {path}")
+        # Pass lowercase name to download_dataset (which now expects lowercase)
+        path = download_dataset(dataset_lower, output_path)
+        click.echo(f"✓ {display_name}: Downloaded to {path}")
 
     except NotImplementedError as e:
-        click.echo(f"Manual download required for {dataset_name}:", err=True)
+        click.echo(f"Manual download required for {display_name}:", err=True)
         click.echo(str(e), err=True)
         click.get_current_context().exit(2)
 
     except (DownloadError, ExtractionError) as e:
-        click.echo(f"✗ Failed to download {dataset_name}: {e}", err=True)
+        click.echo(f"✗ Failed to download {display_name}: {e}", err=True)
         click.get_current_context().exit(1)
 
     except (OSError, ValueError) as e:
-        click.echo(f"✗ Unexpected error downloading {dataset_name}: {e}", err=True)
+        click.echo(f"✗ Unexpected error downloading {display_name}: {e}", err=True)
         click.get_current_context().exit(1)
 
 
@@ -216,18 +208,27 @@ def list_datasets() -> None:
 
     datasets = get_available_datasets()
 
+    display_names = {
+        "verbnet": "VerbNet",
+        "propbank": "PropBank",
+        "wordnet": "WordNet",
+        "framenet": "FrameNet",
+    }
+
     for dataset in datasets:
         try:
             info = get_dataset_info(dataset)
-            status = "Manual download required" if dataset == "FrameNet" else "Auto-download"
+            status = "Auto-download"
+            display_name = display_names.get(dataset, dataset)
 
-            click.echo(f"  {dataset}:")
+            click.echo(f"  {display_name}:")
             click.echo(f"    Version: {info['version']}")
             click.echo(f"    Status:  {status}")
             click.echo()
 
         except ValueError as e:
-            click.echo(f"  {dataset}: Error getting info - {e}")
+            display_name = display_names.get(dataset, dataset)
+            click.echo(f"  {display_name}: Error getting info - {e}")
             click.echo()
 
 
@@ -242,43 +243,42 @@ def dataset_info(dataset: str) -> None:
         glazing download info verbnet
         glazing download info framenet
     """
-    # Map CLI names to DatasetType
-    dataset_map = {
+    # Normalize to lowercase for internal use
+    dataset_lower = dataset.lower()
+
+    # Get display name
+    display_names = {
         "verbnet": "VerbNet",
         "propbank": "PropBank",
         "wordnet": "WordNet",
         "framenet": "FrameNet",
     }
-
-    dataset_name: DatasetType = dataset_map[dataset]  # type: ignore[assignment]
+    display_name = display_names[dataset_lower]
 
     try:
-        info = get_dataset_info(dataset_name)
+        # Pass lowercase to get_dataset_info
+        info = get_dataset_info(dataset_lower)
 
-        click.echo(f"Dataset: {info['name']}")
+        click.echo(f"Dataset: {display_name}")
         click.echo(f"Version: {info['version']}")
         click.echo(f"Downloader: {info['class']}")
 
-        if dataset_name == "FrameNet":
-            click.echo("Download: Manual (license required)")
-            click.echo("URL: https://framenet.icsi.berkeley.edu/fndrupal/framenet_request_data")
-        else:
-            click.echo("Download: Automatic")
+        click.echo("Download: Automatic")
 
         # Add dataset-specific information
-        if dataset_name == "VerbNet":
+        if dataset_lower == "verbnet":
             click.echo("Source: GitHub (uvi-nlp/verbnet)")
             click.echo("Format: XML classes with thematic roles and frames")
 
-        elif dataset_name == "PropBank":
+        elif dataset_lower == "propbank":
             click.echo("Source: GitHub (propbank/propbank-frames)")
             click.echo("Format: XML framesets with semantic roles")
 
-        elif dataset_name == "WordNet":
+        elif dataset_lower == "wordnet":
             click.echo("Source: Princeton University")
             click.echo("Format: Text files with synsets and relations")
 
-        elif dataset_name == "FrameNet":
+        elif dataset_lower == "framenet":
             click.echo("Source: UC Berkeley ICSI")
             click.echo("Format: XML frames with lexical units and annotations")
 

@@ -15,20 +15,28 @@ VerbFrameNumber : type[Literal]
     Valid verb frame numbers (1-35).
 AdjPosition : type[Literal]
     Adjective positions (attributive, predicative, postnominal).
+SynsetID : type[Annotated[str, Field]]
+    Full synset identifier with POS (e.g., "00001740-n").
 SynsetOffset : type[Annotated[str, Field]]
     8-digit synset identifier with validation.
 SenseKey : type[Annotated[str, Field]]
     WordNet sense key with format validation.
+LemmaKey : type[Annotated[str, Field]]
+    Lemma key with format validation (e.g., "dog#n#1").
 LexID : type[Annotated[int, Field]]
     Lexical ID (0-15) for distinguishing words in synsets.
 SenseNumber : type[Annotated[int, Field]]
     Sense number for frequency-based ordering.
 TagCount : type[Annotated[int, Field]]
     Semantic concordance tag count.
+SYNSET_ID_PATTERN : str
+    Regex pattern for synset ID with POS.
 WORDNET_OFFSET_PATTERN : str
     Regex pattern for 8-digit synset offsets.
 WORDNET_SENSE_KEY_PATTERN : str
     Regex pattern for sense key validation.
+LEMMA_KEY_PATTERN : str
+    Regex pattern for lemma key validation.
 PERCENTAGE_NOTATION_PATTERN : str
     Regex pattern for VerbNet percentage notation.
 
@@ -192,7 +200,22 @@ WORDNET_SENSE_KEY_PATTERN = r"^[a-z0-9_.-]+%[1-5]:[0-9]{2}:[0-9]{2}:[a-z0-9_.-]*
 # VerbNet percentage notation (WordNet reference format)
 PERCENTAGE_NOTATION_PATTERN = r"^[a-z_-]+%[1-5]:[0-9]{2}:[0-9]{2}$"
 
+# WordNet synset ID (offset with POS)
+SYNSET_ID_PATTERN = r"^[0-9]{8}-?[nvasr]$"
+
+# WordNet lemma key (lemma#pos#sense)
+LEMMA_KEY_PATTERN = r"^[a-z0-9_.-]+#[nvasr]#[0-9]+$"
+
 # Validated string types with constraints
+
+# Full synset identifier with POS (e.g., "00001740-n" or "00001740n")
+type SynsetID = Annotated[
+    str,
+    Field(
+        pattern=SYNSET_ID_PATTERN,
+        description="Synset ID with POS (e.g., '00001740-n', '00001740n')",
+    ),
+]
 
 # 8-digit synset identifier
 type SynsetOffset = Annotated[
@@ -209,6 +232,15 @@ type SenseKey = Annotated[
     Field(
         pattern=WORDNET_SENSE_KEY_PATTERN,
         description="WordNet sense key (e.g., 'abandon%2:40:01::')",
+    ),
+]
+
+# WordNet lemma key (lemma#pos#sense)
+type LemmaKey = Annotated[
+    str,
+    Field(
+        pattern=LEMMA_KEY_PATTERN,
+        description="Lemma key (e.g., 'dog#n#1', 'give#v#2')",
     ),
 ]
 
@@ -239,3 +271,9 @@ type TagCount = Annotated[
         description="Number of times sense appears in semantic concordances",
     ),
 ]
+
+# Raw lemma string
+type Lemma = str
+
+# Synset offset string
+type Offset = str

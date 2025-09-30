@@ -17,7 +17,7 @@ class TestWordNetDownloader:
     def test_properties(self) -> None:
         """Test WordNet downloader properties."""
         downloader = WordNetDownloader()
-        assert downloader.dataset_name == "WordNet"
+        assert downloader.dataset_name == "wordnet"
         assert downloader.version == "3.1"
 
     def test_version_format(self) -> None:

@@ -17,7 +17,7 @@ class TestFrameNetDownloader:
     def test_properties(self) -> None:
         """Test FrameNet downloader properties."""
         downloader = FrameNetDownloader()
-        assert downloader.dataset_name == "FrameNet"
+        assert downloader.dataset_name == "framenet"
         assert downloader.version == "1.7"
         assert downloader.commit_hash == "427fc05d3a8cc1ca99e7ff93bdea937507cc9e7a"
 
