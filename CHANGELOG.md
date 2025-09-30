@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2025-09-28
+## [0.2.0] - 2025-09-30
 
 ### Added
 
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Structured symbol extraction** for parsing and normalizing entity identifiers
 - **Type-safe parsed symbol representations** using TypedDict patterns
 - **Symbol parser documentation** - Complete API documentation for all symbol parser modules
-- **Symbol parser caching** - LRU cache decorators on all parsing functions for improved performance
+- **Symbol parser caching** - LRU cache decorators on all parsing functions for better performance
 - Support for parsing complex symbols like ARG1-PPT, ?Theme_i, Core[Agent]
 
 #### Fuzzy Search and Matching
@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Batch search methods** - `batch_by_lemma` method in UnifiedSearch for processing multiple queries
 - `--fuzzy` flag in CLI commands with `--threshold` parameter
 - `search_with_fuzzy()` method in UnifiedSearch and dataset-specific search classes
+
+#### Syntax-Based Search
+- **Unified syntax patterns** for searching by syntactic structure
+- **Hierarchical pattern matching** where general patterns match specific subtypes
+- **Syntax parser** for converting string patterns to unified format
+- **Support for wildcards** and optional elements in patterns
+- New CLI command: `glazing search syntax`
+- `search_by_syntax()` method in UnifiedSearch class
 
 #### Cross-Reference Enhancements
 - **Automatic cross-reference extraction** on first use with progress indicators
