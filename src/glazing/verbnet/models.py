@@ -510,9 +510,9 @@ class Member(GlazingBaseModel):
         list[str]
             List of PropBank roleset IDs.
         """
-        result = []
+        result: list[str] = []
         for m in self.propbank_mappings:
-            if m.target_dataset == "PropBank":
+            if m.target_dataset == "propbank":
                 if isinstance(m.target_id, list):
                     result.extend(m.target_id)
                 else:

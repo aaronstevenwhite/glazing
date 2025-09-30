@@ -187,10 +187,10 @@ class TestUnifiedSyntaxPattern:
             elements=elements,
             normalized="NP VERB PP.instrument",
             source_pattern="NP V PP.instrument",
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
         )
 
-        assert pattern.source_dataset == "VerbNet"
+        assert pattern.source_dataset == "verbnet"
 
     def test_string_representation(self):
         """Test string representation of pattern."""

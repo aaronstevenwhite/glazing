@@ -47,20 +47,28 @@ class TestTypeLiterals:
     def test_dataset_type_values(self):
         """Test DatasetType guard accepts correct values."""
         # Test valid values
-        assert is_dataset_type("FrameNet")
-        assert is_dataset_type("PropBank")
-        assert is_dataset_type("VerbNet")
-        assert is_dataset_type("WordNet")
+        assert is_dataset_type("framenet")
+        assert is_dataset_type("propbank")
+        assert is_dataset_type("verbnet")
+        assert is_dataset_type("wordnet")
 
         # Test invalid values
         assert not is_dataset_type("Unknown")
         assert not is_dataset_type("AMR")
+        assert not is_dataset_type("FrameNet")  # Capitalized versions are invalid
+        assert not is_dataset_type("PropBank")
+        assert not is_dataset_type("VerbNet")
+        assert not is_dataset_type("WordNet")
 
     def test_resource_type_values(self):
         """Test ResourceType guard accepts correct values."""
         # Test all valid resource types
         for resource in [
-            "VerbNet",
+            "verbnet",
+            "framenet",
+            "wordnet",
+            "propbank",
+            "VerbNet",  # Also accept capitalized variants
             "FrameNet",
             "WordNet",
             "PropBank",
@@ -343,24 +351,32 @@ class TestTypeGuards:
     def test_is_dataset_type(self):
         """Test is_dataset_type guard."""
         # Valid dataset types
-        assert is_dataset_type("FrameNet")
-        assert is_dataset_type("PropBank")
-        assert is_dataset_type("VerbNet")
-        assert is_dataset_type("WordNet")
+        assert is_dataset_type("framenet")
+        assert is_dataset_type("propbank")
+        assert is_dataset_type("verbnet")
+        assert is_dataset_type("wordnet")
 
         # Invalid dataset types
         assert not is_dataset_type("AMR")
-        assert not is_dataset_type("framenet")  # Case sensitive
+        assert not is_dataset_type("FrameNet")  # Capitalized versions are invalid
+        assert not is_dataset_type("PropBank")
+        assert not is_dataset_type("VerbNet")
+        assert not is_dataset_type("WordNet")
         assert not is_dataset_type("Unknown")
         assert not is_dataset_type("")
 
     def test_is_resource_type(self):
         """Test is_resource_type guard."""
-        # Valid resource types
+        # Valid resource types - both lowercase and capitalized versions
+        assert is_resource_type("framenet")
+        assert is_resource_type("propbank")
+        assert is_resource_type("verbnet")
+        assert is_resource_type("wordnet")
         assert is_resource_type("FrameNet")
         assert is_resource_type("PropBank")
         assert is_resource_type("VerbNet")
         assert is_resource_type("WordNet")
+        assert is_resource_type("Framenet")  # PropBank variant
         assert is_resource_type("AMR")
         assert is_resource_type("UMR")
         assert is_resource_type("Flickr")
@@ -369,7 +385,6 @@ class TestTypeGuards:
 
         # Invalid resource types
         assert not is_resource_type("Unknown")
-        assert not is_resource_type("framenet")  # Case sensitive
         assert not is_resource_type("")
 
     def test_is_valid_confidence(self):
@@ -428,22 +443,22 @@ class TestTypeIntegration:
 
         # Valid model
         mapping = TestMapping(
-            source_dataset="FrameNet",
-            target_dataset="VerbNet",
+            source_dataset="framenet",
+            target_dataset="verbnet",
             mapping_type="direct",
             confidence=0.95,
             source="manual",
             status="validated",
         )
 
-        assert mapping.source_dataset == "FrameNet"
+        assert mapping.source_dataset == "framenet"
         assert mapping.confidence == 0.95
 
         # Invalid dataset type
         with pytest.raises(PydanticValidationError):
             TestMapping(
                 source_dataset="Unknown",  # Invalid
-                target_dataset="VerbNet",
+                target_dataset="verbnet",
                 mapping_type="direct",
                 confidence=0.95,
                 source="manual",
@@ -453,8 +468,8 @@ class TestTypeIntegration:
         # Invalid confidence
         with pytest.raises(PydanticValidationError):
             TestMapping(
-                source_dataset="FrameNet",
-                target_dataset="VerbNet",
+                source_dataset="framenet",
+                target_dataset="verbnet",
                 mapping_type="direct",
                 confidence=1.5,  # Invalid
                 source="manual",

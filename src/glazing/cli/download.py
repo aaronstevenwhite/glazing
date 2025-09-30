@@ -63,22 +63,15 @@ def download() -> None:
     help="Output directory for downloaded datasets",
 )
 @click.option(
-    "--skip-manual",
-    is_flag=True,
-    default=True,
-    help="Skip datasets requiring manual download (FrameNet)",
-)
-@click.option(
     "--force",
     "-f",
     is_flag=True,
     help="Force re-download even if dataset already exists",
 )
-def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, force: bool) -> None:
+def dataset_command(dataset: str, output_dir: str | Path, force: bool) -> None:
     """Download a specific dataset or all datasets.
 
     Downloads the specified dataset(s) to the output directory.
-    By default, skips datasets that require manual download.
 
     Parameters
     ----------
@@ -86,8 +79,6 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         Dataset name to download ('all' for all datasets).
     output_dir : str | Path
         Output directory for downloaded datasets.
-    skip_manual : bool
-        Skip datasets requiring manual download (FrameNet).
     force : bool
         Force re-download even if dataset already exists.
 
@@ -100,7 +91,7 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         glazing download dataset --dataset all --output-dir /data
 
     Download with force:
-        glazing download dataset --dataset framenet --no-skip-manual
+        glazing download dataset --dataset framenet --force
     """
     # Convert output_dir to Path and resolve to absolute path
     output_path = Path(output_dir).resolve()
@@ -113,30 +104,26 @@ def dataset_command(dataset: str, output_dir: str | Path, skip_manual: bool, for
         click.get_current_context().exit(1)
 
     if dataset == "all":
-        _download_all_datasets(output_path, skip_manual)
+        _download_all_datasets(output_path)
     else:
         _download_single_dataset(dataset, output_path, force)
 
 
-def _download_all_datasets(output_path: Path, skip_manual: bool) -> None:
+def _download_all_datasets(output_path: Path) -> None:
     """Handle downloading all datasets.
 
     Parameters
     ----------
     output_path : Path
         Output directory path.
-    skip_manual : bool
-        Skip datasets requiring manual download.
     """
     click.echo(f"Downloading all datasets to: {output_path}")
 
     datasets_to_download: list[DatasetType] = get_available_datasets()
-    if skip_manual:
-        datasets_to_download = [d for d in datasets_to_download if d != "FrameNet"]
 
     click.echo(f"Datasets to download: {', '.join(datasets_to_download)}")
 
-    results = download_all(output_path, datasets_to_download, skip_manual=False)
+    results = download_all(output_path, datasets_to_download)
 
     # Report results
     success_count = 0
@@ -219,7 +206,7 @@ def list_datasets() -> None:
     for dataset in datasets:
         try:
             info = get_dataset_info(dataset)
-            status = "Manual download required" if dataset == "FrameNet" else "Auto-download"
+            status = "Auto-download"
 
             click.echo(f"  {dataset}:")
             click.echo(f"    Version: {info['version']}")
@@ -259,26 +246,22 @@ def dataset_info(dataset: str) -> None:
         click.echo(f"Version: {info['version']}")
         click.echo(f"Downloader: {info['class']}")
 
-        if dataset_name == "FrameNet":
-            click.echo("Download: Manual (license required)")
-            click.echo("URL: https://framenet.icsi.berkeley.edu/fndrupal/framenet_request_data")
-        else:
-            click.echo("Download: Automatic")
+        click.echo("Download: Automatic")
 
         # Add dataset-specific information
-        if dataset_name == "VerbNet":
+        if dataset_name == "verbnet":
             click.echo("Source: GitHub (uvi-nlp/verbnet)")
             click.echo("Format: XML classes with thematic roles and frames")
 
-        elif dataset_name == "PropBank":
+        elif dataset_name == "propbank":
             click.echo("Source: GitHub (propbank/propbank-frames)")
             click.echo("Format: XML framesets with semantic roles")
 
-        elif dataset_name == "WordNet":
+        elif dataset_name == "wordnet":
             click.echo("Source: Princeton University")
             click.echo("Format: Text files with synsets and relations")
 
-        elif dataset_name == "FrameNet":
+        elif dataset_name == "framenet":
             click.echo("Source: UC Berkeley ICSI")
             click.echo("Format: XML frames with lexical units and annotations")
 

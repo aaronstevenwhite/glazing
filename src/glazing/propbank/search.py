@@ -506,7 +506,7 @@ class PropBankSearch:
         return UnifiedSyntaxPattern(
             elements=elements,
             source_pattern=" ".join(e.constituent for e in elements),
-            source_dataset="PropBank",
+            source_dataset="propbank",
         )
 
     def _get_positioned_elements(self, example: Example) -> list[tuple[int, SyntaxElement]]:

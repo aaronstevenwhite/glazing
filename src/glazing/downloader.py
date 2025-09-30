@@ -282,7 +282,7 @@ class VerbNetDownloader(BaseDownloader):
     Attributes
     ----------
     dataset_name : str
-        "VerbNet"
+        "verbnet"
     version : str
         "3.4"
     commit_hash : str
@@ -292,7 +292,7 @@ class VerbNetDownloader(BaseDownloader):
     @property
     def dataset_name(self) -> str:
         """Name of the dataset."""
-        return "VerbNet"
+        return "verbnet"
 
     @property
     def version(self) -> str:
@@ -352,7 +352,7 @@ class PropBankDownloader(BaseDownloader):
     Attributes
     ----------
     dataset_name : str
-        "PropBank"
+        "propbank"
     version : str
         "3.4.0"
     commit_hash : str
@@ -362,7 +362,7 @@ class PropBankDownloader(BaseDownloader):
     @property
     def dataset_name(self) -> str:
         """Name of the dataset."""
-        return "PropBank"
+        return "propbank"
 
     @property
     def version(self) -> str:
@@ -422,7 +422,7 @@ class WordNetDownloader(BaseDownloader):
     Attributes
     ----------
     dataset_name : str
-        "WordNet"
+        "wordnet"
     version : str
         "3.1"
     """
@@ -430,7 +430,7 @@ class WordNetDownloader(BaseDownloader):
     @property
     def dataset_name(self) -> str:
         """Name of the dataset."""
-        return "WordNet"
+        return "wordnet"
 
     @property
     def version(self) -> str:
@@ -505,7 +505,7 @@ class FrameNetDownloader(BaseDownloader):
     Attributes
     ----------
     dataset_name : str
-        "FrameNet"
+        "framenet"
     version : str
         "1.7"
     commit_hash : str
@@ -515,7 +515,7 @@ class FrameNetDownloader(BaseDownloader):
     @property
     def dataset_name(self) -> str:
         """Name of the dataset."""
-        return "FrameNet"
+        return "framenet"
 
     @property
     def version(self) -> str:
@@ -585,10 +585,10 @@ type DownloaderClass = (
 
 # Registry mapping dataset names to downloader classes
 _DOWNLOADERS: dict[DatasetType, DownloaderClass] = {
-    "VerbNet": VerbNetDownloader,
-    "PropBank": PropBankDownloader,
-    "WordNet": WordNetDownloader,
-    "FrameNet": FrameNetDownloader,
+    "verbnet": VerbNetDownloader,
+    "propbank": PropBankDownloader,
+    "wordnet": WordNetDownloader,
+    "framenet": FrameNetDownloader,
 }
 
 
@@ -664,7 +664,6 @@ def download_dataset(dataset: DatasetType, output_dir: Path) -> Path:
 def download_all(
     output_dir: Path,
     datasets: list[DatasetType] | None = None,
-    skip_manual: bool = True,
 ) -> dict[DatasetType, Path | Exception]:
     """Download all available datasets.
 
@@ -674,8 +673,6 @@ def download_all(
         Directory to download datasets to.
     datasets : list[DatasetType] | None, default=None
         List of datasets to download. If None, downloads all supported datasets.
-    skip_manual : bool, default=True
-        Whether to skip datasets requiring manual download (FrameNet).
 
     Returns
     -------
@@ -695,10 +692,6 @@ def download_all(
     """
     if datasets is None:
         datasets = list(_DOWNLOADERS.keys())
-
-    if skip_manual:
-        # Remove datasets that require manual download
-        datasets = [d for d in datasets if d != "FrameNet"]
 
     results: dict[DatasetType, Path | Exception] = {}
 

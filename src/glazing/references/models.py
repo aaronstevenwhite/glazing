@@ -405,11 +405,11 @@ class PropBankCrossRefs(BaseModel):
         vn_classes: list[tuple[str, float | None]] = []
         # From rolelinks (no confidence)
         for rl in self.rolelinks:
-            if rl.resource == "VerbNet":
+            if rl.resource == "verbnet":
                 vn_classes.append((rl.class_name, None))
         # From lexlinks (with confidence)
         for ll in self.lexlinks:
-            if ll.resource == "VerbNet":
+            if ll.resource == "verbnet":
                 vn_classes.append((ll.class_name, ll.confidence))
         return vn_classes
 
@@ -1092,11 +1092,11 @@ class MappingIndex(BaseModel):
         source_parts = source.split(":")
         if len(source_parts) == 2:
             source_dataset_str, source_id = source_parts
-            if source_dataset_str in ["FrameNet", "PropBank", "VerbNet", "WordNet"]:
+            if source_dataset_str in ["framenet", "propbank", "verbnet", "wordnet"]:
                 return source_dataset_str, source_id  # type: ignore[return-value]
 
         # Fallback to path or default
-        fallback_dataset = path[0].source_dataset if path else "FrameNet"
+        fallback_dataset = path[0].source_dataset if path else "framenet"
         source_id = source_parts[1] if len(source_parts) == 2 else source
         return fallback_dataset, source_id
 

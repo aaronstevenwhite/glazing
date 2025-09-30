@@ -382,7 +382,7 @@ class UnifiedSyntaxPattern(BaseModel):
         return cls(
             elements=feature_elements,
             source_pattern=source_pattern,
-            source_dataset="VerbNet",
+            source_dataset="verbnet",
         )
 
     def normalize_features(self) -> UnifiedSyntaxPattern:

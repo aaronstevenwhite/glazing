@@ -50,10 +50,10 @@ class TestCrossReferenceIntegration:
         # Mock the extractor's mapping index
         mock_xref_index.extractor.mapping_index.forward_index["verbnet:give-13.1"] = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -71,10 +71,10 @@ class TestCrossReferenceIntegration:
         # Mock both the reverse index AND the get_mappings_for_entity method
         mock_xref_index.extractor.mapping_index.reverse_index["framenet:Giving"] = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="give-13.1",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -96,7 +96,7 @@ class TestCrossReferenceIntegration:
         mappings = mock_xref_index.extractor.get_mappings_for_entity("Giving", "framenet")
 
         # Should find the VerbNet class via reverse lookup
-        vn_mappings = [m for m in mappings if m.source_dataset == "VerbNet"]
+        vn_mappings = [m for m in mappings if m.source_dataset == "verbnet"]
         assert len(vn_mappings) > 0
         assert vn_mappings[0].source_id == "give-13.1"
 
@@ -105,20 +105,20 @@ class TestCrossReferenceIntegration:
         # Mock PropBank to VerbNet mapping
         mock_xref_index.extractor.mapping_index.forward_index["propbank:give.01"] = [
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="1.0",
-                target_dataset="VerbNet",
+                target_dataset="verbnet",
                 target_id="give-13.1",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="lexlink"),
                 metadata=create_test_metadata(),
             ),
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="give.01",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Giving",
                 mapping_type="inferred",
                 confidence=MappingConfidence(score=0.85, method="inferred"),
@@ -153,20 +153,20 @@ class TestCrossReferenceIntegration:
         # Add mappings with various confidence scores
         mock_xref_index.extractor.mapping_index.forward_index["verbnet:spray-9.7"] = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="spray-9.7",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Filling",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.7, method="automatic"),
                 metadata=create_test_metadata(),
             ),
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="spray-9.7",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Adorning",
                 mapping_type="automatic",
                 confidence=MappingConfidence(score=0.5, method="inferred"),
@@ -199,10 +199,10 @@ class TestCrossReferenceIntegration:
         # VerbNet -> PropBank
         mock_xref_index.extractor.mapping_index.forward_index["verbnet:put-9.1"] = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="put-9.1",
                 source_version="1.0",
-                target_dataset="PropBank",
+                target_dataset="propbank",
                 target_id="put.01",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.95, method="manual"),
@@ -213,10 +213,10 @@ class TestCrossReferenceIntegration:
         # PropBank -> FrameNet (transitive)
         mock_xref_index.extractor.mapping_index.forward_index["propbank:put.01"] = [
             CrossReference(
-                source_dataset="PropBank",
+                source_dataset="propbank",
                 source_id="put.01",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id="Placing",
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.9, method="manual"),
@@ -240,10 +240,10 @@ class TestCrossReferenceIntegration:
             # Add mapping for corrected ID
             mock_xref_index.extractor.mapping_index.forward_index["verbnet:give-13.1"] = [
                 CrossReference(
-                    source_dataset="VerbNet",
+                    source_dataset="verbnet",
                     source_id="give-13.1",
                     source_version="1.0",
-                    target_dataset="FrameNet",
+                    target_dataset="framenet",
                     target_id="Giving",
                     mapping_type="direct",
                     confidence=MappingConfidence(score=0.95, method="manual"),
@@ -265,10 +265,10 @@ class TestCrossReferenceIntegration:
         # Add mapping with multiple targets
         mock_xref_index.extractor.mapping_index.forward_index["verbnet:break-45.1"] = [
             CrossReference(
-                source_dataset="VerbNet",
+                source_dataset="verbnet",
                 source_id="break-45.1",
                 source_version="1.0",
-                target_dataset="FrameNet",
+                target_dataset="framenet",
                 target_id=["Cause_to_fragment", "Breaking_apart", "Experience_bodily_harm"],
                 mapping_type="direct",
                 confidence=MappingConfidence(score=0.85, method="manual"),
@@ -442,10 +442,10 @@ class TestCrossReferencePerformance:
             # Mock some mappings
             index.extractor.mapping_index.forward_index["verbnet:test-1.0"] = [
                 CrossReference(
-                    source_dataset="VerbNet",
+                    source_dataset="verbnet",
                     source_id="test-1.0",
                     source_version="1.0",
-                    target_dataset="FrameNet",
+                    target_dataset="framenet",
                     target_id="Testing",
                     mapping_type="direct",
                     confidence=MappingConfidence(score=0.9, method="manual"),
@@ -483,10 +483,10 @@ class TestCrossReferencePerformance:
             for i in range(1000):
                 index.extractor.mapping_index.forward_index[f"verbnet:test-{i}"] = [
                     CrossReference(
-                        source_dataset="VerbNet",
+                        source_dataset="verbnet",
                         source_id=f"test-{i}",
                         source_version="1.0",
-                        target_dataset="FrameNet",
+                        target_dataset="framenet",
                         target_id=f"Frame_{i}",
                         mapping_type="direct",
                         confidence=MappingConfidence(score=0.9, method="automatic"),

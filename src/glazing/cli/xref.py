@@ -101,7 +101,7 @@ def resolve_xref(  # noqa: PLR0913, PLR0912, C901
 
         # Resolve references
         source_dataset = source  # DatasetType is a Literal, not a callable
-        refs = xref_index.resolve(entity_id, source_dataset, fuzzy=fuzzy, threshold=threshold)  # type: ignore[arg-type]
+        refs = xref_index.resolve(entity_id, source_dataset, fuzzy=fuzzy, threshold=threshold)
 
         if output_json:
             # Output as JSON

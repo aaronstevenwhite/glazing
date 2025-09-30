@@ -267,16 +267,12 @@ class CrossReferenceIndex:
         # Get direct mappings
         mappings = self.extractor.get_mappings_for_entity(entity_id, source)
 
-        # Organize by target dataset
-        result = ResolvedReferences(
-            source_dataset=source,
-            source_id=entity_id,
-            verbnet_classes=[],
-            propbank_rolesets=[],
-            framenet_frames=[],
-            wordnet_synsets=[],
-            confidence_scores={},
-        )
+        # Organize by target dataset - use sets to avoid duplicates
+        verbnet_classes = set()
+        propbank_rolesets = set()
+        framenet_frames = set()
+        wordnet_synsets = set()
+        confidence_scores: dict[str, float] = {}
 
         for mapping in mappings:
             target_ids = (
@@ -285,20 +281,33 @@ class CrossReferenceIndex:
             confidence = mapping.confidence.score if mapping.confidence else 1.0
 
             for target_id in target_ids:
-                if mapping.target_dataset == "VerbNet":
-                    result["verbnet_classes"].append(target_id)
-                    result["confidence_scores"][f"verbnet:{target_id}"] = confidence
-                elif mapping.target_dataset == "PropBank":
-                    result["propbank_rolesets"].append(target_id)
-                    result["confidence_scores"][f"propbank:{target_id}"] = confidence
-                elif mapping.target_dataset == "FrameNet":
-                    result["framenet_frames"].append(target_id)
-                    result["confidence_scores"][f"framenet:{target_id}"] = confidence
-                elif mapping.target_dataset == "WordNet":
-                    result["wordnet_synsets"].append(target_id)
-                    result["confidence_scores"][f"wordnet:{target_id}"] = confidence
+                if mapping.target_dataset == "verbnet":
+                    verbnet_classes.add(target_id)
+                    # Keep the highest confidence score if we see the same mapping multiple times
+                    key = f"verbnet:{target_id}"
+                    confidence_scores[key] = max(confidence_scores.get(key, 0), confidence)
+                elif mapping.target_dataset == "propbank":
+                    propbank_rolesets.add(target_id)
+                    key = f"propbank:{target_id}"
+                    confidence_scores[key] = max(confidence_scores.get(key, 0), confidence)
+                elif mapping.target_dataset == "framenet":
+                    framenet_frames.add(target_id)
+                    key = f"framenet:{target_id}"
+                    confidence_scores[key] = max(confidence_scores.get(key, 0), confidence)
+                elif mapping.target_dataset == "wordnet":
+                    wordnet_synsets.add(target_id)
+                    key = f"wordnet:{target_id}"
+                    confidence_scores[key] = max(confidence_scores.get(key, 0), confidence)
 
-        return result
+        return ResolvedReferences(
+            source_dataset=source,
+            source_id=entity_id,
+            verbnet_classes=sorted(verbnet_classes),
+            propbank_rolesets=sorted(propbank_rolesets),
+            framenet_frames=sorted(framenet_frames),
+            wordnet_synsets=sorted(wordnet_synsets),
+            confidence_scores=confidence_scores,
+        )
 
     def find_mappings(
         self,

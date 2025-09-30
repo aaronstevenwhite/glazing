@@ -241,7 +241,7 @@ class TestReferenceMapper:
         )
 
         # Calculate similarity
-        similarity = mapper.calculate_similarity("Giving", "FrameNet", "give.01", "PropBank")
+        similarity = mapper.calculate_similarity("Giving", "framenet", "give.01", "propbank")
         assert similarity == 0.5  # 2 datasets covered
 
     def test_calculate_similarity_no_alignment(self) -> None:
@@ -265,9 +265,9 @@ class TestReferenceMapper:
         # Build matrix
         matrix = mapper.build_alignment_matrix(
             ["Giving", "Transfer", "Unknown"],
-            "FrameNet",
+            "framenet",
             ["give.01", "transfer.01", "take.01"],
-            "PropBank",
+            "propbank",
         )
 
         # Check structure

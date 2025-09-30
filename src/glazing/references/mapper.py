@@ -632,18 +632,18 @@ class ReferenceMapper:
             in_second = False
 
             if (
-                (dataset1 == "FrameNet" and entity1 in alignment.framenet_frames)
-                or (dataset1 == "PropBank" and entity1 in alignment.propbank_rolesets)
-                or (dataset1 == "VerbNet" and entity1 in alignment.verbnet_classes)
-                or (dataset1 == "WordNet" and entity1 in alignment.wordnet_synsets)
+                (dataset1 == "framenet" and entity1 in alignment.framenet_frames)
+                or (dataset1 == "propbank" and entity1 in alignment.propbank_rolesets)
+                or (dataset1 == "verbnet" and entity1 in alignment.verbnet_classes)
+                or (dataset1 == "wordnet" and entity1 in alignment.wordnet_synsets)
             ):
                 in_first = True
 
             if (
-                (dataset2 == "FrameNet" and entity2 in alignment.framenet_frames)
-                or (dataset2 == "PropBank" and entity2 in alignment.propbank_rolesets)
-                or (dataset2 == "VerbNet" and entity2 in alignment.verbnet_classes)
-                or (dataset2 == "WordNet" and entity2 in alignment.wordnet_synsets)
+                (dataset2 == "framenet" and entity2 in alignment.framenet_frames)
+                or (dataset2 == "propbank" and entity2 in alignment.propbank_rolesets)
+                or (dataset2 == "verbnet" and entity2 in alignment.verbnet_classes)
+                or (dataset2 == "wordnet" and entity2 in alignment.wordnet_synsets)
             ):
                 in_second = True
 

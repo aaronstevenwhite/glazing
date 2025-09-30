@@ -524,7 +524,7 @@ class FrameNetSearch:
         return UnifiedSyntaxPattern(
             elements=elements,
             source_pattern=" ".join(f"{unit.gf}:{unit.pt}" for unit in sorted_units),
-            source_dataset="FrameNet",
+            source_dataset="framenet",
         )
 
     def _get_valence_units(self, valence_pattern: ValencePattern) -> list[ValenceUnit]:

@@ -252,7 +252,7 @@ class TestVerbNetDownloader:
     def test_properties(self) -> None:
         """Test VerbNet downloader properties."""
         downloader = VerbNetDownloader()
-        assert downloader.dataset_name == "VerbNet"
+        assert downloader.dataset_name == "verbnet"
         assert downloader.version == "3.4"
 
     def test_download_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -306,7 +306,7 @@ class TestPropBankDownloader:
     def test_properties(self) -> None:
         """Test PropBank downloader properties."""
         downloader = PropBankDownloader()
-        assert downloader.dataset_name == "PropBank"
+        assert downloader.dataset_name == "propbank"
         assert downloader.version == "3.4.0"
 
 
@@ -316,7 +316,7 @@ class TestWordNetDownloader:
     def test_properties(self) -> None:
         """Test WordNet downloader properties."""
         downloader = WordNetDownloader()
-        assert downloader.dataset_name == "WordNet"
+        assert downloader.dataset_name == "wordnet"
         assert downloader.version == "3.1"
 
 
@@ -326,7 +326,7 @@ class TestFrameNetDownloader:
     def test_properties(self) -> None:
         """Test FrameNet downloader properties."""
         downloader = FrameNetDownloader()
-        assert downloader.dataset_name == "FrameNet"
+        assert downloader.dataset_name == "framenet"
         assert downloader.version == "1.7"
 
     def test_download_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -359,16 +359,16 @@ class TestUtilityFunctions:
     def test_get_downloader(self) -> None:
         """Test getting downloader instances."""
         # Test all supported datasets
-        verbnet = get_downloader("VerbNet")
+        verbnet = get_downloader("verbnet")
         assert isinstance(verbnet, VerbNetDownloader)
 
-        propbank = get_downloader("PropBank")
+        propbank = get_downloader("propbank")
         assert isinstance(propbank, PropBankDownloader)
 
-        wordnet = get_downloader("WordNet")
+        wordnet = get_downloader("wordnet")
         assert isinstance(wordnet, WordNetDownloader)
 
-        framenet = get_downloader("FrameNet")
+        framenet = get_downloader("framenet")
         assert isinstance(framenet, FrameNetDownloader)
 
     def test_get_downloader_invalid(self) -> None:
@@ -390,19 +390,19 @@ class TestUtilityFunctions:
 
         monkeypatch.setattr("glazing.downloader.get_downloader", mock_get_downloader)
 
-        result = download_dataset("VerbNet", tmp_path)
+        result = download_dataset("verbnet", tmp_path)
         assert result == tmp_path / "result"
 
     def test_get_available_datasets(self) -> None:
         """Test getting list of available datasets."""
         datasets = get_available_datasets()
-        expected = ["VerbNet", "PropBank", "WordNet", "FrameNet"]
+        expected = ["verbnet", "propbank", "wordnet", "framenet"]
         assert datasets == expected
 
     def test_get_dataset_info(self) -> None:
         """Test getting dataset information."""
-        info = get_dataset_info("VerbNet")
-        assert info["name"] == "VerbNet"
+        info = get_dataset_info("verbnet")
+        assert info["name"] == "verbnet"
         assert info["version"] == "3.4"
         assert info["class"] == "VerbNetDownloader"
 
@@ -414,13 +414,13 @@ class TestUtilityFunctions:
 
         monkeypatch.setattr("glazing.downloader.download_dataset", mock_download_dataset)
 
-        results = download_all(tmp_path, ["VerbNet", "PropBank"], skip_manual=False)
+        results = download_all(tmp_path, ["verbnet", "propbank"])
 
         # Verify all datasets were attempted
         assert len(results) == 2
         assert all(isinstance(path, Path) for path in results.values())
-        assert results["VerbNet"] == tmp_path / "verbnet-result"
-        assert results["PropBank"] == tmp_path / "propbank-result"
+        assert results["verbnet"] == tmp_path / "verbnet-result"
+        assert results["propbank"] == tmp_path / "propbank-result"
 
     def test_download_all_with_failures(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -428,18 +428,18 @@ class TestUtilityFunctions:
         """Test downloading all datasets with some failures."""
 
         def mock_download_dataset(dataset: str, output_dir: Path) -> Path:
-            if dataset == "VerbNet":
+            if dataset == "verbnet":
                 return output_dir / "verbnet-result"
             raise DownloadError("Download failed")
 
         monkeypatch.setattr("glazing.downloader.download_dataset", mock_download_dataset)
 
-        results = download_all(tmp_path, ["VerbNet", "PropBank"], skip_manual=False)
+        results = download_all(tmp_path, ["verbnet", "propbank"])
 
         # Verify mixed results
         assert len(results) == 2
-        assert isinstance(results["VerbNet"], Path)
-        assert isinstance(results["PropBank"], DownloadError)
+        assert isinstance(results["verbnet"], Path)
+        assert isinstance(results["propbank"], DownloadError)
 
     def test_download_all_skip_manual(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -451,8 +451,8 @@ class TestUtilityFunctions:
 
         monkeypatch.setattr("glazing.downloader.download_dataset", mock_download_dataset)
 
-        results = download_all(tmp_path, skip_manual=True)
+        results = download_all(tmp_path)
 
-        # FrameNet should not be in results when skip_manual=True
-        assert "FrameNet" not in results
-        assert len(results) == 3  # VerbNet, PropBank, WordNet
+        # All datasets should be included
+        assert "framenet" in results
+        assert len(results) == 4  # verbnet, propbank, wordnet, framenet

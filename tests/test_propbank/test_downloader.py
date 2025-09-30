@@ -17,7 +17,7 @@ class TestPropBankDownloader:
     def test_properties(self) -> None:
         """Test PropBank downloader properties."""
         downloader = PropBankDownloader()
-        assert downloader.dataset_name == "PropBank"
+        assert downloader.dataset_name == "propbank"
         assert downloader.version == "3.4.0"
         assert downloader.commit_hash == "7280a04806b6ca3955ec82e28c4df96b6da76aef"
 

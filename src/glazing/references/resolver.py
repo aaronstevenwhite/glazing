@@ -185,10 +185,10 @@ class ReferenceResolver:
             True if the target exists.
         """
         validation_methods: dict[str, Callable[[], bool]] = {
-            "FrameNet": lambda: target_id in self.framenet_frames,
-            "PropBank": lambda: target_id in self.propbank_rolesets,
-            "VerbNet": lambda: self._validate_verbnet_target(target_id),
-            "WordNet": lambda: (
+            "framenet": lambda: target_id in self.framenet_frames,
+            "propbank": lambda: target_id in self.propbank_rolesets,
+            "verbnet": lambda: self._validate_verbnet_target(target_id),
+            "wordnet": lambda: (
                 target_id in self.wordnet_synsets or target_id in self.wordnet_senses
             ),
         }
@@ -342,10 +342,10 @@ class ReferenceResolver:
                 if not member.framenet_mappings and parent_member.framenet_mappings:
                     for fn_mapping in parent_member.framenet_mappings:
                         inherited = CrossReference(
-                            source_dataset="VerbNet",
+                            source_dataset="verbnet",
                             source_id=member.verbnet_key,
                             source_version="3.4",
-                            target_dataset="FrameNet",
+                            target_dataset="framenet",
                             target_id=fn_mapping.frame_name,
                             mapping_type="inferred",
                             confidence=MappingConfidence(
@@ -372,7 +372,7 @@ class ReferenceResolver:
                 if not member.propbank_mappings and parent_member.propbank_mappings:
                     for pb_mapping in parent_member.propbank_mappings:
                         inherited = CrossReference(
-                            source_dataset="VerbNet",
+                            source_dataset="verbnet",
                             source_id=member.verbnet_key,
                             source_version="3.4",
                             target_dataset=pb_mapping.target_dataset,
@@ -432,7 +432,7 @@ class ReferenceResolver:
                         alignment = FEAlignment(
                             source_frame=frame.name,
                             source_fe=fe_rel.sub_fe_name or "",
-                            target_dataset="FrameNet",
+                            target_dataset="framenet",
                             target_role=fe_rel.super_fe_name or "",
                             alignment_type="inherited",
                             confidence=MappingConfidence(
