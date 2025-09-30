@@ -50,7 +50,7 @@ Calculate Levenshtein ratio between two strings. The ratio is computed as: `1 - 
 **Example:**
 ```python
 >>> levenshtein_ratio("hello", "helo")
-0.8
+0.89
 >>> levenshtein_ratio("cat", "dog")
 0.0
 ```
@@ -84,7 +84,7 @@ Find best fuzzy matches from candidates.
 >>> results[0]["match"]
 'instrument'
 >>> results[0]["score"]
-0.9
+0.91
 ```
 
 ### find_best_match

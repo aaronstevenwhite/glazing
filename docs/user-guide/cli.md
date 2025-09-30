@@ -81,7 +81,7 @@ glazing search entity give.01 --dataset propbank
 
 ## Cross-Reference Resolution
 
-The xref commands provide powerful cross-dataset reference resolution:
+The xref commands provide cross-dataset reference resolution:
 
 ### Extract Cross-References
 

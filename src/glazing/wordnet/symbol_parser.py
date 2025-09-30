@@ -3,7 +3,7 @@
 This module provides parsing utilities for WordNet synset IDs, sense keys,
 and lemma keys using Pydantic v2 models for validation. Supports offset
 extraction, POS detection, and relation filtering. All parsing functions
-use LRU caching for improved performance.
+use LRU caching for better performance.
 
 Classes
 -------

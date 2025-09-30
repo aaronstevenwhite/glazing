@@ -72,7 +72,7 @@ def check_coverage(lemma):
     return coverage
 ```
 
-## Advanced Features
+## Additional Features
 
 ### Manual Control
 

@@ -3,7 +3,7 @@
 This module provides parsing utilities for PropBank roleset IDs and argument
 symbols, with normalization and validation. Supports core arguments, modifiers,
 function tags, and continuation/reference prefixes. All parsing functions
-use LRU caching for improved performance.
+use LRU caching for better performance.
 
 Classes
 -------

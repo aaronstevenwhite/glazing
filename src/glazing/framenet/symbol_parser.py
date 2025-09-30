@@ -2,7 +2,7 @@
 
 This module provides parsing utilities for FrameNet frame and frame element
 symbols, including normalization and fuzzy matching support. All parsing
-functions use LRU caching for improved performance on repeated operations.
+functions use LRU caching for better performance on repeated operations.
 
 Classes
 -------

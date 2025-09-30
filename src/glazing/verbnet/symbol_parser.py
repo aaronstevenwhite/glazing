@@ -3,7 +3,7 @@
 This module provides parsing utilities for VerbNet verb class IDs and thematic
 role symbols, with normalization and validation. Supports hierarchical
 class IDs, optional roles, role indexing, and verb-specific roles. All parsing
-functions use LRU caching for improved performance.
+functions use LRU caching for better performance.
 
 Classes
 -------
